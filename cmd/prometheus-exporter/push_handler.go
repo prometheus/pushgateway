@@ -10,7 +10,7 @@ const sampleContentType = `application/vnd.google.protobuf;proto=io.prometheus.c
 
 // pushHandler returns an http.Handler which accepts samples over HTTP and
 // stores them in cache.
-func pushHandler(cache *cache) http.Handler {
+func pushHandler(cache *cache, ttl time.Duration) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
@@ -25,10 +25,10 @@ func pushHandler(cache *cache) http.Handler {
 			jobName      = query.Get(":job")
 			instanceName = query.Get(":instance")
 
-			metrics Metrics
-			err     error
+			err error
 
-			now = time.Now().Unix()
+			now     = time.Now()
+			metrics = Metrics{Expires: now.Add(ttl)}
 
 			dec = newDecoder(r.Body)
 		)
@@ -39,7 +39,7 @@ func pushHandler(cache *cache) http.Handler {
 		}
 
 		for {
-			var sample = Sample{Timestamp: now}
+			var sample = Sample{Timestamp: now.Unix()}
 
 			if err := dec.Decode(&sample); err != nil {
 				if err == io.EOF {

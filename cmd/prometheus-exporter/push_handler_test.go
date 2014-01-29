@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"reflect"
 	"testing"
+	"time"
 
 	"code.google.com/p/goprotobuf/proto"
 	dto "github.com/prometheus/client_model/go"
@@ -15,7 +16,7 @@ import (
 func TestPushHandler(t *testing.T) {
 	var (
 		cache   = newCache()
-		handler = pushHandler(cache)
+		handler = pushHandler(cache, time.Second)
 
 		buf = new(bytes.Buffer)
 		enc = dto.NewEncoder(buf)

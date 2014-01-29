@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 )
 
 type Label struct {
@@ -20,6 +21,7 @@ type Sample struct {
 
 type Metrics struct {
 	Samples []Sample
+	Expires time.Time
 }
 
 type instance struct {
@@ -100,4 +102,19 @@ func (c *cache) String() string {
 	fmt.Fprintf(&b, "}")
 
 	return string(b.String())
+}
+
+// Evict removes any expired Metrics on each tick.
+func (c *cache) Evict(tick <-chan time.Time) {
+	for now := range tick {
+		c.Lock()
+
+		for instance, metrics := range c.m {
+			if now.After(metrics.Expires) {
+				delete(c.m, instance)
+			}
+		}
+
+		c.Unlock()
+	}
 }

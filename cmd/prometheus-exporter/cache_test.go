@@ -3,6 +3,7 @@ package main
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestCacheSamples(t *testing.T) {
@@ -48,5 +49,34 @@ outer:
 		}
 
 		t.Fatalf("expected %v to be in output", expected)
+	}
+}
+
+func TestCacheEvict(t *testing.T) {
+	var (
+		cache   = newCache()
+		metrics = Metrics{Expires: time.Now()}
+	)
+
+	cache.Set("foo", "bar", metrics)
+
+	tick := make(chan time.Time, 1)
+	tick <- metrics.Expires.Add(-time.Second)
+	close(tick)
+
+	cache.Evict(tick)
+
+	if _, ok := cache.Get("foo", "bar"); !ok {
+		t.Fatal("did not expect metrics to be evicted")
+	}
+
+	tick = make(chan time.Time, 1)
+	tick <- metrics.Expires.Add(time.Second)
+	close(tick)
+
+	cache.Evict(tick)
+
+	if _, ok := cache.Get("foo", "bar"); ok {
+		t.Fatal("expected metrics to be evicted")
 	}
 }
