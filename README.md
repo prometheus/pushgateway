@@ -98,27 +98,35 @@ The default port the push gateway is listening to is 8080. The path looks like
 
 `<JOBNAME>` is used as the value of the `job` label, and `<INSTANCE>`
 as the value of the `instance` label. The instance part of the URL is
-optional.
+optional. If it is missing, the IP number of the pushing host is used
+as the value for the 'instance' label instead.
 
-When pushing metrics, both the `job` label and the `instance` label
-may each be overridden by explicit labels provided in the body as part
-of the metrics. If no `instance` is specifide at all (neither in the
-path of the URL nor as an explicit label), the IP number of the
-pushing host is used instead.
+If those labels are already set in the body of the request (as regular
+labels, e.g. `name{job="foo",instance="bar"} 42`), _the values of
+those labels will be overwritten with values determined as described
+above!_ (This behavior might be changed in the future if a valid
+use-case can be shown.)
 
 ### `PUT` / `POST` method
 
 `PUT` and `POST` are treated the same for the sake of simplicity (in
 violation of HTTP conventions).  They are both used to push metrics,
-and the response code upon success is always 204 (even if that same
+and the response code upon success is always 202 (even if that same
 metric has never been pushed before, i.e. there is no feedback to the
-client if the push has replaced an existing sample in the metric or
-created a new one).
+client if the push has replaced an metric or created a new one).
+
+_Note that each push will completely replace all existing metrics with
+the same name, job, and instance combination as the metrics pushed,
+even if the existing metrics had a different label set otherwise._
 
 The body of the request contains the metrics to push either as delimited binary protocol
 buffers or in the simple flat text format (both in version 0.0.4, see the
 [data exposition format specification](https://docs.google.com/document/d/1ZjyKiKxZV83VI9ZKAXRGKaUKK2BIWCT7oiGBKDBpjEY/edit?usp=sharing). Discrimination between the two variants is done via content-type
 header. (In case of an unknown content-type, the text format is tried as a fall-back.)
+
+_If using the protobuf format, do not send duplicate MetricFamily
+proto messages (i.e. more than one with the same name) in one push, as
+they will overwrite each other._
 
 A 204 response to the request means that the pushed metrics are queued
 for an update of the storage. Scraping the push gateway may still
@@ -133,4 +141,13 @@ loss. Or the push gateway is configured to not persist to disk at all.)
 must not contain any content. If both a job and an instance are
 specified in the URL, all metrics matching that job and instance are
 deleted. If only a job is specified, all metrics matching that job are
-deleted.
+deleted. The response code upon success is always 202. The delete
+request is merely queued at the moment. There is no guarantee that the
+request will actually be executed or that the result will make it to
+the persistence layer (e.g. in case of a server crash). However, the
+order of `PUT`/`POST` and `DELETE` request is guaranteed, i.e. if you
+have successfully sent a `DELETE` request and then send a `PUT`, it is
+guaranteed that the `DELETE` will be processed first (and vice versa).
+
+Deleting non-existing metrics is a no-op and will not result in an
+error.
