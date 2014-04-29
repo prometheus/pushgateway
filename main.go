@@ -28,10 +28,7 @@ func main() {
 	flag.Parse()
 	mux := pat.New()
 
-	ms, err := storage.NewDiskMetricStore(*persistenceFile, *persistenceDuration)
-	if err != nil {
-		log.Fatal("Error starting metric store: ", err)
-	}
+	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceDuration)
 
 	prometheus.DefaultRegistry.SetMetricFamilyInjectionHook(ms.GetMetricFamilies)
 	// TODO: expose some internal metrics

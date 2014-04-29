@@ -44,15 +44,13 @@ func Push(ms storage.MetricStore) http.Handler {
 			metricFamilies = map[string]*dto.MetricFamily{}
 			for {
 				mf := &dto.MetricFamily{}
-				_, err = ext.ReadDelimited(r.Body, mf)
-				if err != nil && err != io.EOF {
+				if _, err = ext.ReadDelimited(r.Body, mf); err != nil {
+					if err == io.EOF {
+						err = nil
+					}
 					break
 				}
 				metricFamilies[mf.GetName()] = mf
-				if err == io.EOF {
-					err = nil
-					break
-				}
 			}
 		} else {
 			// We could do further content-type checks here, but the
