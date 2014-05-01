@@ -24,54 +24,55 @@ var (
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
 	persistenceDuration = flag.Duration("persistence.duration", 5*time.Minute, "Do not write the persistence file more often than that.")
 
-	memStats        runtime.MemStats
 	internalMetrics = []*struct {
 		name   string
 		help   string
-		eval   func() float64
+		eval   func(*runtime.MemStats) float64
 		metric prometheus.Metric
 	}{
 		{
-			name:   "instance_goroutine_count",
-			help:   "The number of goroutines that currently exist.",
-			eval:   func() float64 { return float64(runtime.NumGoroutine()) },
+			name: "instance_goroutine_count",
+			help: "The number of goroutines that currently exist.",
+			eval: func(ms *runtime.MemStats) float64 {
+				return float64(runtime.NumGoroutine())
+			},
 			metric: prometheus.NewGauge(),
 			// Not a counter, despite the name... It can go up and down.
 		},
 		{
 			name:   "instance_allocated_bytes",
 			help:   "Bytes allocated and still in use.",
-			eval:   func() float64 { return float64(memStats.Alloc) },
+			eval:   func(ms *runtime.MemStats) float64 { return float64(ms.Alloc) },
 			metric: prometheus.NewGauge(),
 		},
 		{
 			name:   "instance_total_allocated_bytes",
 			help:   "Bytes allocated (even if freed).",
-			eval:   func() float64 { return float64(memStats.TotalAlloc) },
+			eval:   func(ms *runtime.MemStats) float64 { return float64(ms.TotalAlloc) },
 			metric: prometheus.NewGauge(),
 		},
 		{
 			name:   "instance_heap_allocated_bytes",
 			help:   "Heap bytes allocated and still in use.",
-			eval:   func() float64 { return float64(memStats.HeapAlloc) },
+			eval:   func(ms *runtime.MemStats) float64 { return float64(ms.HeapAlloc) },
 			metric: prometheus.NewGauge(),
 		},
 		{
 			name:   "instance_gc_high_watermark_bytes",
 			help:   "Next run in HeapAlloc time (bytes).",
-			eval:   func() float64 { return float64(memStats.NextGC) },
+			eval:   func(ms *runtime.MemStats) float64 { return float64(ms.NextGC) },
 			metric: prometheus.NewGauge(),
 		},
 		{
 			name:   "instance_gc_total_pause_ns",
 			help:   "Total GC paise time.",
-			eval:   func() float64 { return float64(memStats.PauseTotalNs) },
+			eval:   func(ms *runtime.MemStats) float64 { return float64(ms.PauseTotalNs) },
 			metric: prometheus.NewGauge(),
 		},
 		{
 			name:   "instance_gc_count",
 			help:   "GC count.",
-			eval:   func() float64 { return float64(memStats.NumGC) },
+			eval:   func(ms *runtime.MemStats) float64 { return float64(ms.NumGC) },
 			metric: prometheus.NewCounter(),
 		},
 	}
@@ -137,13 +138,14 @@ func registerInternalMetrics() {
 }
 
 func updateInternalMetrics() {
+	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	for _, im := range internalMetrics {
 		switch m := im.metric.(type) {
 		case prometheus.Gauge:
-			m.Set(nil, im.eval())
+			m.Set(nil, im.eval(&memStats))
 		case prometheus.Counter:
-			m.Set(nil, im.eval())
+			m.Set(nil, im.eval(&memStats))
 		default:
 			log.Print("Unexpected metric type: ", m)
 		}
