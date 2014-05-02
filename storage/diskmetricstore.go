@@ -3,12 +3,15 @@ package storage
 import (
 	"encoding/gob"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"sync"
 	"time"
 
 	"code.google.com/p/goprotobuf/proto"
+
 	dto "github.com/prometheus/client_model/go"
 )
 
@@ -74,10 +77,11 @@ func (dms *DiskMetricStore) loop(persistenceDuration time.Duration) {
 	lastPersist := time.Now() // If this IsZero(), persisting is scheduled.
 	lastWrite := time.Time{}
 	persistDone := make(chan time.Time)
+	persistTimer := &time.Timer{}
 
 	checkPersist := func() {
 		if !lastPersist.IsZero() && lastWrite.After(lastPersist) {
-			time.AfterFunc(
+			persistTimer = time.AfterFunc(
 				persistenceDuration-lastWrite.Sub(lastPersist),
 				func() {
 					persistStarted := time.Now()
@@ -105,6 +109,8 @@ func (dms *DiskMetricStore) loop(persistenceDuration time.Duration) {
 		case lastPersist = <-persistDone:
 			checkPersist() // In case something has been written in the meantime.
 		case <-dms.drain:
+			// Prevent a scheduled persisting from firing later.
+			persistTimer.Stop()
 			// Now draining...
 			for {
 				select {
@@ -175,11 +181,14 @@ func (dms *DiskMetricStore) persist() error {
 	if dms.persistenceFile == "" {
 		return nil
 	}
-	inProgressFileName := dms.persistenceFile + ".in_progress"
-	f, err := os.Create(inProgressFileName)
+	f, err := ioutil.TempFile(
+		path.Dir(dms.persistenceFile),
+		path.Base(dms.persistenceFile)+".in_progress.",
+	)
 	if err != nil {
 		return err
 	}
+	inProgressFileName := f.Name()
 	e := gob.NewEncoder(f)
 	for _, tmf := range dms.getTimestampedMetricFamilies() {
 		if err := writeTimestampedMetricFamily(e, tmf); err != nil {
@@ -189,6 +198,7 @@ func (dms *DiskMetricStore) persist() error {
 		}
 	}
 	if err := f.Close(); err != nil {
+		os.Remove(inProgressFileName)
 		return err
 	}
 	return os.Rename(inProgressFileName, dms.persistenceFile)
