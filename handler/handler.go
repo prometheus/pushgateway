@@ -18,7 +18,7 @@ import (
 const protobufContentType = `application/vnd.google.protobuf;proto=io.prometheus.client.Sample;encoding=delimited`
 
 // Push returns an http.Handler which accepts samples over HTTP and
-// stores them in cache.
+// stores them in the MetricStore.
 func Push(ms storage.MetricStore) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
@@ -74,6 +74,10 @@ func Push(ms storage.MetricStore) http.Handler {
 	})
 }
 
+// Delete returns an http.Handler which accepts delete requests. If only a job
+// is specified in the query, all metrics for that job are deleted. If a job and
+// an instance is specified, all metrics for that job/instance combination are
+// deleted.
 func Delete(ms storage.MetricStore) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()

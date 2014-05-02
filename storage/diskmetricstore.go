@@ -23,6 +23,8 @@ type jobToInstanceMap map[string]instanceToNameMap
 type instanceToNameMap map[string]nameToTimestampedMetricFamilyMap
 type nameToTimestampedMetricFamilyMap map[string]timestampedMetricFamily
 
+// DiskMetricStore is an implementation of MetricStore that persists metrics to
+// disk.
 type DiskMetricStore struct {
 	lock            sync.RWMutex
 	writeQueue      chan WriteRequest
@@ -32,6 +34,14 @@ type DiskMetricStore struct {
 	persistenceFile string
 }
 
+// NewDiskMetricStore returns a DiskMetricStore ready to use. To cleanly shut it
+// down and free resources, the Shutdown() method has to be called.  If
+// persistenceFile is the empty string, no persisting to disk will
+// happen. Otherwise, a file of that name is used for persisting metrics to
+// disk. If the file already exists, metrics are read from it as part of the
+// start-up. Persisting is happening upon shutdown and after every write action,
+// but the latter will only happen persistenceDuration after the previous
+// persisting.
 func NewDiskMetricStore(
 	persistenceFile string,
 	persistenceDuration time.Duration,
@@ -50,10 +60,12 @@ func NewDiskMetricStore(
 	return dms
 }
 
+// SubmitWriteRequest implements the MetricStore interface.
 func (dms *DiskMetricStore) SubmitWriteRequest(req WriteRequest) {
 	dms.writeQueue <- req
 }
 
+// GetMetricFamilies implements the MetricStore interface.
 func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	result := []*dto.MetricFamily{}
 	dms.lock.RLock()
@@ -68,6 +80,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	return result
 }
 
+// Shutdown implements the MetricStore interface.
 func (dms *DiskMetricStore) Shutdown() error {
 	close(dms.drain)
 	return <-dms.done

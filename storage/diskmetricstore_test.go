@@ -359,7 +359,7 @@ func checkNoPersistenc(t *testing.T) {
 func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily) error {
 	gotMFs := dms.GetMetricFamilies()
 	if expected, got := len(expectedMFs), len(gotMFs); expected != got {
-		return fmt.Errorf("Expected %d metric families, got %d.", expected, got)
+		return fmt.Errorf("expected %d metric families, got %d", expected, got)
 	}
 
 	expectedMFsAsStrings := make([]string, len(expectedMFs))
@@ -377,7 +377,7 @@ func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily)
 	for i, got := range gotMFsAsStrings {
 		expected := expectedMFsAsStrings[i]
 		if expected != got {
-			return fmt.Errorf("Expected metric family %#v, got %#v.", expected, got)
+			return fmt.Errorf("expected metric family %#v, got %#v", expected, got)
 		}
 	}
 	return nil

@@ -88,7 +88,9 @@ func main() {
 
 	// The following demonstrate clearly the clunkiness of the current Go
 	// client library when it comes to values that are owned by other parts
-	// of the program and have to be evaluated on the fly.
+	// of the program and have to be evaluated on the fly. Let's leave it
+	// here as a demonstration and a benchmark for improvements of the
+	// library.
 	registerInternalMetrics()
 	mux.Get("/metrics", http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
