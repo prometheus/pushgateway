@@ -22,7 +22,7 @@ import (
 var (
 	addr                = flag.String("addr", ":8080", "Address to listen on.")
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
-	persistenceDuration = flag.Duration("persistence.duration", 5*time.Minute, "Do not write the persistence file more often than that.")
+	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
 
 	internalMetrics = []*struct {
 		name   string
@@ -65,7 +65,7 @@ var (
 		},
 		{
 			name:   "instance_gc_total_pause_ns",
-			help:   "Total GC paise time.",
+			help:   "Total GC pause time.",
 			eval:   func(ms *runtime.MemStats) float64 { return float64(ms.PauseTotalNs) },
 			metric: prometheus.NewGauge(),
 		},
@@ -82,7 +82,7 @@ func main() {
 	flag.Parse()
 	m := martini.Classic()
 
-	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceDuration)
+	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
 
 	prometheus.DefaultRegistry.SetMetricFamilyInjectionHook(ms.GetMetricFamilies)
 
@@ -91,6 +91,7 @@ func main() {
 	// of the program and have to be evaluated on the fly. Let's leave it
 	// here as a demonstration and a benchmark for improvements of the
 	// library.
+	// TODO(bjoern): Update this once the new client library is out.
 	registerInternalMetrics()
 	m.Get("/metrics", http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
@@ -98,12 +99,12 @@ func main() {
 			prometheus.DefaultHandler(w, r)
 		}))
 
-	m.Put("/metrics/job/:job/instance/:instance", handler.Push(ms))
-	m.Post("/metrics/job/:job/instance/:instance", handler.Push(ms))
-	m.Delete("/metrics/job/:job/instance/:instance", handler.Delete(ms))
-	m.Put("/metrics/job/:job", handler.Push(ms))
-	m.Post("/metrics/job/:job", handler.Push(ms))
-	m.Delete("/metrics/job/:job", handler.Delete(ms))
+	m.Put("/metrics/jobs/:job/instances/:instance", handler.Push(ms))
+	m.Post("/metrics/jobs/:job/instances/:instance", handler.Push(ms))
+	m.Delete("/metrics/jobs/:job/instances/:instance", handler.Delete(ms))
+	m.Put("/metrics/jobs/:job", handler.Push(ms))
+	m.Post("/metrics/jobs/:job", handler.Push(ms))
+	m.Delete("/metrics/jobs/:job", handler.Delete(ms))
 	// TODO: Add web interface
 
 	http.Handle("/", m)

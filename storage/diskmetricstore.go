@@ -26,7 +26,7 @@ type nameToTimestampedMetricFamilyMap map[string]timestampedMetricFamily
 // DiskMetricStore is an implementation of MetricStore that persists metrics to
 // disk.
 type DiskMetricStore struct {
-	lock            sync.RWMutex
+	lock            sync.RWMutex // Protects metricFamilies.
 	writeQueue      chan WriteRequest
 	drain           chan struct{}
 	done            chan error
@@ -44,7 +44,7 @@ type DiskMetricStore struct {
 // persisting.
 func NewDiskMetricStore(
 	persistenceFile string,
-	persistenceDuration time.Duration,
+	persistenceInterval time.Duration,
 ) *DiskMetricStore {
 	dms := &DiskMetricStore{
 		writeQueue:      make(chan WriteRequest, writeQueueCapacity),
@@ -56,7 +56,7 @@ func NewDiskMetricStore(
 	if err := dms.restore(); err != nil {
 		log.Print("Could not load persisted metrics: ", err)
 	}
-	go dms.loop(persistenceDuration)
+	go dms.loop(persistenceInterval)
 	return dms
 }
 
@@ -86,16 +86,17 @@ func (dms *DiskMetricStore) Shutdown() error {
 	return <-dms.done
 }
 
-func (dms *DiskMetricStore) loop(persistenceDuration time.Duration) {
-	lastPersist := time.Now() // If this IsZero(), persisting is scheduled.
+func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
+	lastPersist := time.Now()
+	persistScheduled := false
 	lastWrite := time.Time{}
 	persistDone := make(chan time.Time)
 	persistTimer := &time.Timer{}
 
 	checkPersist := func() {
-		if !lastPersist.IsZero() && lastWrite.After(lastPersist) {
+		if !persistScheduled && lastWrite.After(lastPersist) {
 			persistTimer = time.AfterFunc(
-				persistenceDuration-lastWrite.Sub(lastPersist),
+				persistenceInterval-lastWrite.Sub(lastPersist),
 				func() {
 					persistStarted := time.Now()
 					if err := dms.persist(); err != nil {
@@ -109,7 +110,7 @@ func (dms *DiskMetricStore) loop(persistenceDuration time.Duration) {
 					persistDone <- persistStarted
 				},
 			)
-			lastPersist = time.Time{} // Mark persisting as scheduled.
+			persistScheduled = true
 		}
 	}
 
@@ -120,9 +121,10 @@ func (dms *DiskMetricStore) loop(persistenceDuration time.Duration) {
 			lastWrite = time.Now()
 			checkPersist()
 		case lastPersist = <-persistDone:
+			persistScheduled = false
 			checkPersist() // In case something has been written in the meantime.
 		case <-dms.drain:
-			// Prevent a scheduled persisting from firing later.
+			// Prevent a scheduled persist from firing later.
 			persistTimer.Stop()
 			// Now draining...
 			for {
@@ -234,7 +236,7 @@ func (dms *DiskMetricStore) restore() error {
 		name := tmf.metricFamily.GetName()
 		var job, instance string
 		for _, lp := range tmf.metricFamily.GetMetric()[0].GetLabel() {
-			// With the way the pushgateway persists thing, all
+			// With the way the pushgateway persists things, all
 			// metrics in a single MetricFamily proto message share
 			// the same job and instance label. So we only have to
 			// peek at the first metric to find it.

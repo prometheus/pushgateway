@@ -38,11 +38,11 @@ Examples:
 
 * Push a single sample:
 
-        echo "some_metric 3.14" | curl --data-binary @- http://pushgateway.example.org:8080/metrics/job/some_job
+        echo "some_metric 3.14" | curl --data-binary @- http://pushgateway.example.org:8080/metrics/jobs/some_job
 
 * Push something more complex:
 
-        cat <<EOF | curl --data-binary @- http://pushgateway.example.org:8080/metrics/job/some_job/instance/some_instance
+        cat <<EOF | curl --data-binary @- http://pushgateway.example.org:8080/metrics/jobs/some_job/instances/some_instance
         # TYPE some_metric counter
         some_metric{label="val1"} 42
         # This one even has a timestamp (but beware, see below).
@@ -54,11 +54,11 @@ Examples:
 
 * Delete all metrics of an instance:
 
-        curl -X DELETE http://pushgateway.example.org:8080/metrics/job/some_job/instance/some_instance
+        curl -X DELETE http://pushgateway.example.org:8080/metrics/jobs/some_job/instances/some_instance
 
 * Delete all metrics of a job:
 
-        curl -X DELETE http://pushgateway.example.org:8080/metrics/job/some_job
+        curl -X DELETE http://pushgateway.example.org:8080/metrics/jobs/some_job
 
 ### About timestamps
 
@@ -94,7 +94,7 @@ All pushes are done via HTTP. The interface is REST-like.
 
 The default port the push gateway is listening to is 8080. The path looks like
 
-    /metrics/job/<JOBNAME>[/instance/<INSTANCENAME>]
+    /metrics/jobs/<JOBNAME>[/instances/<INSTANCENAME>]
 
 `<JOBNAME>` is used as the value of the `job` label, and `<INSTANCE>`
 as the value of the `instance` label. The instance part of the URL is
