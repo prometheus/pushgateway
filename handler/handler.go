@@ -7,6 +7,7 @@ import (
 	"time"
 	"code.google.com/p/goprotobuf/proto"
 
+	"github.com/go-martini/martini"
 	"github.com/matttproud/golang_protobuf_extensions/ext"
 	"github.com/prometheus/client_golang/text"
 
@@ -19,18 +20,15 @@ const protobufContentType = `application/vnd.google.protobuf;proto=io.prometheus
 
 // Push returns an http.Handler which accepts samples over HTTP and
 // stores them in the MetricStore.
-func Push(ms storage.MetricStore) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-
-		query := r.URL.Query()
-		job := query.Get(":job")
+func Push(ms storage.MetricStore) func(martini.Params, http.ResponseWriter, *http.Request) {
+	return func(params martini.Params, w http.ResponseWriter, r *http.Request) {
+		job := params["job"]
 		if job == "" {
 			http.Error(w, "job name is required", http.StatusBadRequest)
 			return
 		}
 
-		instance := query.Get(":instance")
+		instance := params["instance"]
 		if instance == "" {
 			// Remote IP number (without port).
 			instance = strings.SplitN(r.RemoteAddr, ":", 2)[0]
@@ -71,32 +69,28 @@ func Push(ms storage.MetricStore) http.Handler {
 			MetricFamilies: metricFamilies,
 		})
 		w.WriteHeader(http.StatusAccepted)
-	})
+	}
 }
 
 // Delete returns an http.Handler which accepts delete requests. If only a job
 // is specified in the query, all metrics for that job are deleted. If a job and
 // an instance is specified, all metrics for that job/instance combination are
 // deleted.
-func Delete(ms storage.MetricStore) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-
-		query := r.URL.Query()
-		job := query.Get(":job")
+func Delete(ms storage.MetricStore) func(martini.Params, http.ResponseWriter) {
+	return func(params martini.Params, w http.ResponseWriter) {
+		job := params["job"]
 		if job == "" {
 			http.Error(w, "job name is required", http.StatusBadRequest)
 			return
 		}
-
-		instance := query.Get(":instance")
+		instance := params["instance"]
 		ms.SubmitWriteRequest(storage.WriteRequest{
 			Job:       job,
 			Instance:  instance,
 			Timestamp: time.Now(),
 		})
 		w.WriteHeader(http.StatusAccepted)
-	})
+	}
 }
 
 func setJobAndInstance(metricFamilies map[string]*dto.MetricFamily, job, instance string) {

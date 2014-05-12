@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bmizerany/pat"
+	"github.com/go-martini/martini"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/pushgateway/handler"
@@ -80,7 +80,7 @@ var (
 
 func main() {
 	flag.Parse()
-	mux := pat.New()
+	m := martini.Classic()
 
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceDuration)
 
@@ -92,21 +92,21 @@ func main() {
 	// here as a demonstration and a benchmark for improvements of the
 	// library.
 	registerInternalMetrics()
-	mux.Get("/metrics", http.HandlerFunc(
+	m.Get("/metrics", http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			updateInternalMetrics()
 			prometheus.DefaultHandler(w, r)
 		}))
 
-	mux.Put("/metrics/job/:job/instance/:instance", handler.Push(ms))
-	mux.Post("/metrics/job/:job/instance/:instance", handler.Push(ms))
-	mux.Del("/metrics/job/:job/instance/:instance", handler.Delete(ms))
-	mux.Put("/metrics/job/:job", handler.Push(ms))
-	mux.Post("/metrics/job/:job", handler.Push(ms))
-	mux.Del("/metrics/job/:job", handler.Delete(ms))
+	m.Put("/metrics/job/:job/instance/:instance", handler.Push(ms))
+	m.Post("/metrics/job/:job/instance/:instance", handler.Push(ms))
+	m.Delete("/metrics/job/:job/instance/:instance", handler.Delete(ms))
+	m.Put("/metrics/job/:job", handler.Push(ms))
+	m.Post("/metrics/job/:job", handler.Push(ms))
+	m.Delete("/metrics/job/:job", handler.Delete(ms))
 	// TODO: Add web interface
 
-	http.Handle("/", mux)
+	http.Handle("/", m)
 
 	log.Printf("Listening on %s.\n", *addr)
 	l, err := net.Listen("tcp", *addr)

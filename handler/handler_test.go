@@ -7,6 +7,7 @@ import (
 	"testing"
 	"code.google.com/p/goprotobuf/proto"
 
+	"github.com/go-martini/martini"
 	"github.com/matttproud/golang_protobuf_extensions/ext"
 	dto "github.com/prometheus/client_model/go"
 
@@ -33,14 +34,14 @@ func (m *MockMetricStore) Shutdown() error {
 func TestPush(t *testing.T) {
 	mms := MockMetricStore{}
 	handler := Push(&mms)
-
-	// No job name.
 	req, err := http.NewRequest("PUT", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// No job name.
 	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+	handler(martini.Params{}, w, req)
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -50,12 +51,8 @@ func TestPush(t *testing.T) {
 
 	// With job name, but no instance name and no content.
 	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err = http.NewRequest("PUT", "http://example.org/?:job=testjob", &bytes.Buffer{})
-	if err != nil {
-		t.Fatal(err)
-	}
 	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+	handler(martini.Params{"job": "testjob"}, w, req)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -72,14 +69,14 @@ func TestPush(t *testing.T) {
 	// With job name and instance name and invalid text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
-		"PUT", "http://example.org/?:job=testjob&:instance=testinstance",
+		"PUT", "http://example.org/",
 		bytes.NewBufferString("blablabla\n"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w, req)
 	if expected, got := http.StatusInternalServerError, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -90,14 +87,14 @@ func TestPush(t *testing.T) {
 	// With job name and instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
-		"PUT", "http://example.org/?:job=testjob&:instance=testinstance",
+		"PUT", "http://example.org/",
 		bytes.NewBufferString("some_metric 3.14\nanother_metric 42\n"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w, req)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -120,7 +117,7 @@ func TestPush(t *testing.T) {
 	// With job name and instance name and text content and job and instance labels.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
-		"PUT", "http://example.org/?:job=testjob&:instance=testinstance",
+		"PUT", "http://example.org",
 		bytes.NewBufferString(`
 some_metric{job="foo",instance="bar"} 3.14
 another_metric{instance="baz"} 42
@@ -130,7 +127,7 @@ another_metric{instance="baz"} 42
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w, req)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -184,14 +181,14 @@ another_metric{instance="baz"} 42
 	}
 
 	req, err = http.NewRequest(
-		"PUT", "http://example.org/?:job=testjob&:instance=testinstance", buf,
+		"PUT", "http://example.org/", buf,
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", protobufContentType)
 	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w, req)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -218,12 +215,8 @@ func TestDelete(t *testing.T) {
 
 	// No job name.
 	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err := http.NewRequest("DELETE", "http://example.org/", &bytes.Buffer{})
-	if err != nil {
-		t.Fatal(err)
-	}
 	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+	handler(martini.Params{}, w)
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -233,12 +226,8 @@ func TestDelete(t *testing.T) {
 
 	// With job name, but no instance name.
 	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err = http.NewRequest("DELETE", "http://example.org/?:job=testjob", &bytes.Buffer{})
-	if err != nil {
-		t.Fatal(err)
-	}
 	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+	handler(martini.Params{"job": "testjob"}, w)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -254,12 +243,8 @@ func TestDelete(t *testing.T) {
 
 	// With job name and instance name.
 	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err = http.NewRequest("DELETE", "http://example.org/?:job=testjob&:instance=testinstance", &bytes.Buffer{})
-	if err != nil {
-		t.Fatal(err)
-	}
 	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
+	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
