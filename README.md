@@ -40,6 +40,8 @@ Examples:
 
         echo "some_metric 3.14" | curl --data-binary @- http://pushgateway.example.org:8080/metrics/jobs/some_job
 
+  Since no type information has been provided, `some_metric` will be of type `untyped`.
+
 * Push something more complex:
 
         cat <<EOF | curl --data-binary @- http://pushgateway.example.org:8080/metrics/jobs/some_job/instances/some_instance
@@ -51,6 +53,9 @@ Examples:
         # HELP another_metric Just an example.
         another_metric 2398.283
         EOF
+
+  Note how type information and help strings are provided. Those lines
+  are optional, but strongly encouraged for anything more complex.
 
 * Delete all metrics of an instance:
 
@@ -70,11 +75,11 @@ the time when it scrapes the push gateway. Why so?
 In the world view of Prometheus, a metric can be scraped at any
 time. A metric that cannot be scraped has basically ceased to
 exist. Prometheus is somewhat tolerant, but if it cannot get any
-samples for a metric in 15min, it will behave as if that metric does
+samples for a metric in 5min, it will behave as if that metric does
 not exist anymore. Preventing that is actually one of the reasons to
 use a push gateway. The push gateway will make the metrics of your
 ephemeral job scrapable at any time. Attaching the time of pushing as
-a timestamp would defeat that purpose because 15min after the last
+a timestamp would defeat that purpose because 5min after the last
 push, your metric will look as stale to Prometheus as if it could not
 be scraped at all anymore. (Prometheus knows only one timestamp per
 sample, there is no way to distinguish a 'time of pushing' and a 'time
@@ -83,7 +88,7 @@ of scraping'.)
 You can still force Prometheus to attach a different timestamp by
 using the optional timestamp field in the exchange format. However,
 there are very few use cases where that would make
-sense. (Essentially, if you push more often than every 15min, you
+sense. (Essentially, if you push more often than every 5min, you
 could attach the time of pushing as a timestamp.) 
 
 ## API
