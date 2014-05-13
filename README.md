@@ -1,26 +1,36 @@
-# Prometheus Push Gateway
+# Prometheus Pushgateway
 
-The Prometheus push gateway exists to allow ephemeral and batch jobs to
+The Prometheus pushgateway exists to allow ephemeral and batch jobs to
 expose their metrics to Prometheus. Since these kinds of jobs may not
 exist long enough to be scraped, they can instead push their metrics
-to a push gateway. The push gateway then exposes these metrics to
+to a pushgateway. The pushgateway then exposes these metrics to
 Prometheus.
 
-The push gateway is explicitly not an aggregator, but rather a metrics
+The pushgateway is explicitly not an aggregator, but rather a metrics
 cache. It does not have a statsd-like semantics. The metrics pushed
 are exactly the same as you would present for scraping in a
 permanently running program.
 
-## Usage
+## Run it
+
+Compile the binary as usual (`go get`, `go build`). It's pure Go, no
+dependancy on non-Go libraries.
+
+For the most basic setup, just start the binary. To change the address
+to listen on, use the `-addr` flag. The `-persistence.file` flag
+allows you to specify a file in which the pushed metrics will be
+persisted (so that they survive restarts of the pushgateway).
+
+## Use it
 
 ### Libraries
 
 Prometheus client libraries should have a feature to push the
-registered metrics to a push gateway. Usually, a Prometheus client
+registered metrics to a pushgateway. Usually, a Prometheus client
 passively presents metric for scraping by a Prometheus server. A
 client library that supports pushing has a push function, which needs
 to be called by the client code. It will then actively push the
-metrics to a push gateway, using the API described below.
+metrics to a pushgateway, using the API described below.
 
 ### Command line
 
@@ -40,6 +50,8 @@ Examples:
 
         echo "some_metric 3.14" | curl --data-binary @- http://pushgateway.example.org:8080/metrics/jobs/some_job
 
+  Since no type information has been provided, `some_metric` will be of type `untyped`.
+
 * Push something more complex:
 
         cat <<EOF | curl --data-binary @- http://pushgateway.example.org:8080/metrics/jobs/some_job/instances/some_instance
@@ -51,6 +63,9 @@ Examples:
         # HELP another_metric Just an example.
         another_metric 2398.283
         EOF
+
+  Note how type information and help strings are provided. Those lines
+  are optional, but strongly encouraged for anything more complex.
 
 * Delete all metrics of an instance:
 
@@ -70,11 +85,11 @@ the time when it scrapes the push gateway. Why so?
 In the world view of Prometheus, a metric can be scraped at any
 time. A metric that cannot be scraped has basically ceased to
 exist. Prometheus is somewhat tolerant, but if it cannot get any
-samples for a metric in 15min, it will behave as if that metric does
+samples for a metric in 5min, it will behave as if that metric does
 not exist anymore. Preventing that is actually one of the reasons to
 use a push gateway. The push gateway will make the metrics of your
 ephemeral job scrapable at any time. Attaching the time of pushing as
-a timestamp would defeat that purpose because 15min after the last
+a timestamp would defeat that purpose because 5min after the last
 push, your metric will look as stale to Prometheus as if it could not
 be scraped at all anymore. (Prometheus knows only one timestamp per
 sample, there is no way to distinguish a 'time of pushing' and a 'time
@@ -83,7 +98,7 @@ of scraping'.)
 You can still force Prometheus to attach a different timestamp by
 using the optional timestamp field in the exchange format. However,
 there are very few use cases where that would make
-sense. (Essentially, if you push more often than every 15min, you
+sense. (Essentially, if you push more often than every 5min, you
 could attach the time of pushing as a timestamp.) 
 
 ## API
