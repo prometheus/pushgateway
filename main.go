@@ -105,7 +105,7 @@ func main() {
 	m.Put("/metrics/jobs/:job", handler.Push(ms))
 	m.Post("/metrics/jobs/:job", handler.Push(ms))
 	m.Delete("/metrics/jobs/:job", handler.Delete(ms))
-	// TODO: Add web interface
+	m.Get("/", handler.Status(ms))
 
 	http.Handle("/", m)
 
