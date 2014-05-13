@@ -27,6 +27,10 @@ func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	return m.cannedMetricFamilies
 }
 
+func (m *MockMetricStore) GetTimestampedMetricFamilies() []storage.TimestampedMetricFamily {
+	panic("not implemented")
+}
+
 func (m *MockMetricStore) Shutdown() error {
 	return nil
 }

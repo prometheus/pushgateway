@@ -18,6 +18,11 @@ type MetricStore interface {
 	// MetricStore anymore. However, they may still be read somewhere else,
 	// so the caller is not allowed to modify the returned MetricFamilies.
 	GetMetricFamilies() []*dto.MetricFamily
+	// GetTimestampedMetricFamilies is similar to GetMetricFamilies, but
+	// returns the MetricFamilies together with the timestamp of their last
+	// push to the pushgateway (in a struct). Furthermore, the returned
+	// slice is sorted by (in this priority) job, instance, and metric name.
+	GetTimestampedMetricFamilies() []TimestampedMetricFamily
 	// Shutdown must only be called after the caller has made sure that
 	// SubmitWriteRequests is not called anymore. (If it is called later,
 	// the request might get submitted, but not processed anymore.) The
@@ -46,7 +51,7 @@ type WriteRequest struct {
 	MetricFamilies map[string]*dto.MetricFamily
 }
 
-type timestampedMetricFamily struct {
-	timestamp    time.Time
-	metricFamily *dto.MetricFamily
+type TimestampedMetricFamily struct {
+	Timestamp    time.Time
+	MetricFamily *dto.MetricFamily
 }
