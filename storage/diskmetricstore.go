@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"sort"
 	"sync"
 	"time"
 
@@ -20,10 +19,6 @@ const (
 	writeQueueCapacity = 1000
 )
 
-type jobToInstanceMap map[string]instanceToNameMap
-type instanceToNameMap map[string]nameToTimestampedMetricFamilyMap
-type nameToTimestampedMetricFamilyMap map[string]TimestampedMetricFamily
-
 // DiskMetricStore is an implementation of MetricStore that persists metrics to
 // disk.
 type DiskMetricStore struct {
@@ -31,7 +26,7 @@ type DiskMetricStore struct {
 	writeQueue      chan WriteRequest
 	drain           chan struct{}
 	done            chan error
-	metricFamilies  jobToInstanceMap
+	metricFamilies  JobToInstanceMap
 	persistenceFile string
 }
 
@@ -51,7 +46,7 @@ func NewDiskMetricStore(
 		writeQueue:      make(chan WriteRequest, writeQueueCapacity),
 		drain:           make(chan struct{}),
 		done:            make(chan error),
-		metricFamilies:  jobToInstanceMap{},
+		metricFamilies:  JobToInstanceMap{},
 		persistenceFile: persistenceFile,
 	}
 	if err := dms.restore(); err != nil {
@@ -164,12 +159,12 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 	for name, mf := range wr.MetricFamilies {
 		instances, ok := dms.metricFamilies[wr.Job]
 		if !ok {
-			instances = instanceToNameMap{}
+			instances = InstanceToNameMap{}
 			dms.metricFamilies[wr.Job] = instances
 		}
 		names, ok := instances[wr.Instance]
 		if !ok {
-			names = nameToTimestampedMetricFamilyMap{}
+			names = NameToTimestampedMetricFamilyMap{}
 			instances[wr.Instance] = names
 		}
 		names[name] = TimestampedMetricFamily{
@@ -179,35 +174,37 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 	}
 }
 
-// GetTimestampedMetricFamilies implements the MetricStore interface.
-func (dms *DiskMetricStore) GetTimestampedMetricFamilies() []TimestampedMetricFamily {
+func (dms *DiskMetricStore) getTimestampedMetricFamilies() []TimestampedMetricFamily {
 	result := []TimestampedMetricFamily{}
 	dms.lock.RLock()
 	defer dms.lock.RUnlock()
-	jobs := make([]string, 0, len(dms.metricFamilies))
-	for job := range dms.metricFamilies {
-		jobs = append(jobs, job)
-	}
-	sort.Strings(jobs)
-	for _, job := range jobs {
-		instancesToName := dms.metricFamilies[job]
-		instances := make([]string, 0, len(instancesToName))
-		for instance := range instancesToName {
-			instances = append(instances, instance)
-		}
-		sort.Strings(instances)
-		for _, instance := range instances {
-			namesToTMF := instancesToName[instance]
-			names := make([]string, 0, len(namesToTMF))
-			for name := range namesToTMF {
-				names = append(names, name)
-			}
-			for _, name := range names {
-				result = append(result, namesToTMF[name])
+	for _, i2n := range dms.metricFamilies {
+		for _, n2tmf := range i2n {
+			for _, tmf := range n2tmf {
+				result = append(result, tmf)
 			}
 		}
 	}
 	return result
+}
+
+// GetMetricFamiliesMap implements the MetricStore interface.
+func (dms *DiskMetricStore) GetMetricFamiliesMap() JobToInstanceMap {
+	dms.lock.RLock()
+	defer dms.lock.RUnlock()
+	j2iCopy := make(JobToInstanceMap, len(dms.metricFamilies))
+	for j, i2n := range dms.metricFamilies {
+		i2nCopy := make(InstanceToNameMap, len(i2n))
+		j2iCopy[j] = i2nCopy
+		for i, n2tmf := range i2n {
+			n2tmfCopy := make(NameToTimestampedMetricFamilyMap, len(n2tmf))
+			i2nCopy[i] = n2tmfCopy
+			for n, tmf := range n2tmf {
+				n2tmfCopy[n] = tmf
+			}
+		}
+	}
+	return j2iCopy
 }
 
 func (dms *DiskMetricStore) persist() error {
@@ -223,7 +220,7 @@ func (dms *DiskMetricStore) persist() error {
 	}
 	inProgressFileName := f.Name()
 	e := gob.NewEncoder(f)
-	for _, tmf := range dms.GetTimestampedMetricFamilies() {
+	for _, tmf := range dms.getTimestampedMetricFamilies() {
 		if err := writeTimestampedMetricFamily(e, tmf); err != nil {
 			f.Close()
 			os.Remove(inProgressFileName)
@@ -270,12 +267,12 @@ func (dms *DiskMetricStore) restore() error {
 		}
 		instances, ok := dms.metricFamilies[job]
 		if !ok {
-			instances = instanceToNameMap{}
+			instances = InstanceToNameMap{}
 			dms.metricFamilies[job] = instances
 		}
 		names, ok := instances[instance]
 		if !ok {
-			names = nameToTimestampedMetricFamilyMap{}
+			names = NameToTimestampedMetricFamilyMap{}
 			instances[instance] = names
 		}
 		names[name] = tmf

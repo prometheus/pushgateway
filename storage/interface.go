@@ -18,11 +18,14 @@ type MetricStore interface {
 	// MetricStore anymore. However, they may still be read somewhere else,
 	// so the caller is not allowed to modify the returned MetricFamilies.
 	GetMetricFamilies() []*dto.MetricFamily
-	// GetTimestampedMetricFamilies is similar to GetMetricFamilies, but
-	// returns the MetricFamilies together with the timestamp of their last
-	// push to the pushgateway (in a struct). Furthermore, the returned
-	// slice is sorted by (in this priority) job, instance, and metric name.
-	GetTimestampedMetricFamilies() []TimestampedMetricFamily
+	// GetMetricFamiliesMap returns a nested map (job -> instance ->
+	// metric-name -> TimestampedMetricFamily). The MetricFamily pointed to
+	// by each TimestampedMetricFamily is guaranteed to not be modified by
+	// the MetricStore anymore. However, they may still be read somewhere
+	// else, so the caller is not allowed to modify it. Otherwise, the
+	// returned nested map is a deep copy if the internal state of the
+	// MetricStore and completely owned by the caller.
+	GetMetricFamiliesMap() JobToInstanceMap
 	// Shutdown must only be called after the caller has made sure that
 	// SubmitWriteRequests is not called anymore. (If it is called later,
 	// the request might get submitted, but not processed anymore.) The
@@ -55,3 +58,7 @@ type TimestampedMetricFamily struct {
 	Timestamp    time.Time
 	MetricFamily *dto.MetricFamily
 }
+
+type JobToInstanceMap map[string]InstanceToNameMap
+type InstanceToNameMap map[string]NameToTimestampedMetricFamilyMap
+type NameToTimestampedMetricFamilyMap map[string]TimestampedMetricFamily

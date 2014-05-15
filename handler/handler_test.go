@@ -15,8 +15,7 @@ import (
 )
 
 type MockMetricStore struct {
-	cannedMetricFamilies []*dto.MetricFamily
-	lastWriteRequest     storage.WriteRequest
+	lastWriteRequest storage.WriteRequest
 }
 
 func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
@@ -24,10 +23,10 @@ func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
 }
 
 func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
-	return m.cannedMetricFamilies
+	panic("not implemented")
 }
 
-func (m *MockMetricStore) GetTimestampedMetricFamilies() []storage.TimestampedMetricFamily {
+func (m *MockMetricStore) GetMetricFamiliesMap() storage.JobToInstanceMap {
 	panic("not implemented")
 }
 

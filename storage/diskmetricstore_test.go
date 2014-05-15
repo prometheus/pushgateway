@@ -156,15 +156,15 @@ var (
 
 func TestGetMetricFamilies(t *testing.T) {
 	testTime := time.Now()
-	j2i := jobToInstanceMap{
-		"job1": instanceToNameMap{
-			"instance1": nameToTimestampedMetricFamilyMap{
+	j2i := JobToInstanceMap{
+		"job1": InstanceToNameMap{
+			"instance1": NameToTimestampedMetricFamilyMap{
 				"mf1": TimestampedMetricFamily{
 					Timestamp:    testTime,
 					MetricFamily: mf2,
 				},
 			},
-			"instance2": nameToTimestampedMetricFamilyMap{
+			"instance2": NameToTimestampedMetricFamilyMap{
 				"mf1": TimestampedMetricFamily{
 					Timestamp:    testTime,
 					MetricFamily: mf1a,
@@ -175,10 +175,10 @@ func TestGetMetricFamilies(t *testing.T) {
 				},
 			},
 		},
-		"job2": instanceToNameMap{},
-		"job3": instanceToNameMap{
-			"instance1": nameToTimestampedMetricFamilyMap{},
-			"instance2": nameToTimestampedMetricFamilyMap{
+		"job2": InstanceToNameMap{},
+		"job3": InstanceToNameMap{
+			"instance1": NameToTimestampedMetricFamilyMap{},
+			"instance2": NameToTimestampedMetricFamilyMap{
 				"mf4": TimestampedMetricFamily{
 					Timestamp:    testTime,
 					MetricFamily: mf4,
@@ -253,8 +253,9 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	if err := checkMetricFamilies(dms, mf1a, mf2, mf3); err != nil {
 		t.Error(err)
 	}
-	// Spot-check a timestamp.
-	if expected, got := ts3, dms.metricFamilies["job1"]["instance2"]["mf1"].Timestamp; expected != got {
+	// Spot-check timestamp.
+	tmf := dms.metricFamilies["job1"]["instance2"]["mf1"]
+	if expected, got := ts3, tmf.Timestamp; expected != got {
 		t.Errorf("Expected timestamp %v, got %v.", expected, got)
 	}
 

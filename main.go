@@ -80,10 +80,14 @@ var (
 
 func main() {
 	flag.Parse()
+	versionInfoTmpl.Execute(os.Stdout, BuildInfo)
+	flags := map[string]string{}
+	flag.VisitAll(func(f *flag.Flag) {
+		flags[f.Name] = f.Value.String()
+	})
 	m := martini.Classic()
 
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
-
 	prometheus.DefaultRegistry.SetMetricFamilyInjectionHook(ms.GetMetricFamilies)
 
 	// The following demonstrate clearly the clunkiness of the current Go
@@ -105,7 +109,9 @@ func main() {
 	m.Put("/metrics/jobs/:job", handler.Push(ms))
 	m.Post("/metrics/jobs/:job", handler.Push(ms))
 	m.Delete("/metrics/jobs/:job", handler.Delete(ms))
-	m.Get("/", handler.Status(ms))
+	statusHandler := handler.Status(ms, flags, BuildInfo)
+	m.Get("/status", statusHandler)
+	m.Get("/", statusHandler)
 
 	http.Handle("/", m)
 
