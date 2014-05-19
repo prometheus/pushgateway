@@ -7,7 +7,8 @@ ARCH := $(subst x86_64,amd64,$(shell uname -m))
 
 GOOS   ?= $(OS)
 GOARCH ?= $(ARCH)
-GOPKG  := go1.2.$(OS)-$(ARCH).tar.gz
+GOVER  ?= 1.2.2
+GOPKG  := $(subst darwin-amd64,darwin-amd64-osx10.8,go$(GOVER).$(OS)-$(ARCH).tar.gz)
 GOROOT ?= $(CURDIR)/.deps/go
 GOPATH ?= $(CURDIR)/.deps/gopath
 GOCC   := $(GOROOT)/bin/go
@@ -24,7 +25,7 @@ build: $(BINARY)
 
 .deps/$(GOPKG):
 	mkdir -p .deps
-	curl -o .deps/$(GOPKG) http://go.googlecode.com/files/$(GOPKG)
+	curl -o .deps/$(GOPKG) http://storage.googleapis.com/golang/$(GOPKG)
 
 $(GOCC): .deps/$(GOPKG)
 	tar -C .deps -xzf .deps/$(GOPKG)

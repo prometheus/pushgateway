@@ -1,2 +1,3 @@
-/prometheus-exporter
-/cmd/prometheus-exporter/prometheus-exporter
+pushgateway
+.deps
+*.test
