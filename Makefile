@@ -98,8 +98,9 @@ test:
 clean:
 	rm -rf bin
 
-rmproper: clean
+# Mr. Proper cleans up .deps and the tar ball.
+mrproper: clean
 	rm -rf .deps
 	rm -rf $(ARCHIVE)
 
-.PHONY: test tag dependencies clean release upload bindata-debug bindata-embed
+.PHONY: test tag dependencies clean release upload bindata-debug bindata-embed mrproper

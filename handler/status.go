@@ -69,7 +69,7 @@ func Status(
 		if err != nil {
 			// Hack to get a visible error message right at the top.
 			fmt.Fprintf(w, `<div id="template-error" class="alert alert-danger">Error executing template: %s</div>`, html.EscapeString(err.Error()))
-			fmt.Fprintln(w, `<script>$( "#template-error" ).prependTo( "body" )</script>`)
+			fmt.Fprintln(w, `<script>$("#template-error").prependTo("body")</script>`)
 		}
 	}
 }

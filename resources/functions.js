@@ -1,16 +1,3 @@
-// Copyright 2014 Prometheus Team
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 // Namespace.
 var pushgateway = {};
 
@@ -20,51 +7,51 @@ pushgateway.instanceName = '';
 pushgateway.instancePanel = null;
 
 pushgateway.switchToMetrics = function(){
-    $( '#metrics-div' ).removeClass( 'hidden' );
-    $( '#status-div' ).addClass( 'hidden' );
-    $( '#metrics-li' ).addClass( 'active' );
-    $( '#status-li' ).removeClass( 'active' );
+    $('#metrics-div').removeClass('hidden');
+    $('#status-div').addClass('hidden');
+    $('#metrics-li').addClass('active');
+    $('#status-li').removeClass('active');
 }
 
 pushgateway.switchToStatus = function(){
-    $( '#metrics-div' ).addClass( 'hidden' );
-    $( '#status-div' ).removeClass( 'hidden' );
-    $( '#metrics-li' ).removeClass( 'active' );
-    $( '#status-li' ).addClass( 'active' );
+    $('#metrics-div').addClass('hidden');
+    $('#status-div').removeClass('hidden');
+    $('#metrics-li').removeClass('active');
+    $('#status-li').addClass('active');
 }
 
-pushgateway.showJobModal = function( jobName, jobPanelID, event ){
+pushgateway.showJobModal = function(jobName, jobPanelID, event){
     event.stopPropagation(); // Don't trigger accordion collapse.
     pushgateway.jobName = jobName;
-    pushgateway.jobPanel = $( '#' + jobPanelID );
-    $( '#del-job-modal-msg' ).text(
+    pushgateway.jobPanel = $('#' + jobPanelID);
+    $('#del-job-modal-msg').text(
 	'Do you really want to delete all metrics of job="' + jobName + '"?'
     );
-    $( '#del-job-modal' ).modal( 'show' );
+    $('#del-job-modal').modal('show');
 }
 
-pushgateway.showInstanceModal = function( jobName, instanceName, instancePanelID, event ){
+pushgateway.showInstanceModal = function(jobName, instanceName, instancePanelID, event){
     event.stopPropagation(); // Don't trigger accordion collapse.
     pushgateway.jobName = jobName;
     pushgateway.instanceName = instanceName;
-    pushgateway.instancePanel = $( '#' + instancePanelID );
-    $( '#del-instance-modal-msg' ).text(
+    pushgateway.instancePanel = $('#' + instancePanelID);
+    $('#del-instance-modal-msg').text(
 	'Do you really want to delete all metrics of job="' + jobName +
 	    '", instance="' + instanceName + '"?'
     );
-    $( '#del-instance-modal' ).modal( 'show' );
+    $('#del-instance-modal').modal('show');
 }
 
 pushgateway.deleteJob = function(){
     $.ajax({
 	type: 'DELETE',
 	url: '/metrics/jobs/' + pushgateway.jobName,
-	success: function( data, textStatus, jqXHR ) {
+	success: function(data, textStatus, jqXHR) {
 	    pushgateway.jobPanel.remove();
-	    $( '#del-job-modal' ).modal( 'hide' );
+	    $('#del-job-modal').modal('hide');
 	},
 	error: function(jqXHR, textStatus, error) {
-	    alert( 'Deleting job failed: ' + error );
+	    alert('Deleting job failed: ' + error);
 	}
     });
 }
@@ -72,14 +59,14 @@ pushgateway.deleteJob = function(){
 pushgateway.deleteInstance = function(){
     $.ajax({
 	type: 'DELETE',
-	url: '/metrics/jobs/' + escape( pushgateway.jobName ) +
-	    '/instances/' + escape( pushgateway.instanceName ),
-	success: function( data, textStatus, jqXHR ) {
+	url: '/metrics/jobs/' + escape(pushgateway.jobName) +
+	    '/instances/' + escape(pushgateway.instanceName),
+	success: function(data, textStatus, jqXHR) {
 	    pushgateway.instancePanel.remove();
-	    $( '#del-instance-modal' ).modal( 'hide' );
+	    $('#del-instance-modal').modal('hide');
 	},
 	error: function(jqXHR, textStatus, error) {
-	    alert( 'Deleting instance failed: ' + error );
+	    alert('Deleting instance failed: ' + error);
 	}
     });
 }

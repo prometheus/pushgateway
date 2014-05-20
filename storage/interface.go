@@ -36,7 +36,7 @@ type MetricStore interface {
 	// by each TimestampedMetricFamily is guaranteed to not be modified by
 	// the MetricStore anymore. However, they may still be read somewhere
 	// else, so the caller is not allowed to modify it. Otherwise, the
-	// returned nested map is a deep copy if the internal state of the
+	// returned nested map is a deep copy of the internal state of the
 	// MetricStore and completely owned by the caller.
 	GetMetricFamiliesMap() JobToInstanceMap
 	// Shutdown must only be called after the caller has made sure that
