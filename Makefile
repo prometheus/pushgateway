@@ -67,9 +67,11 @@ $(BINARY): $(GOCC) $(GOLIB) dependencies bindata.go
 bindata.go: $(GOPATH)/bin/go-bindata resources/*
 	$(GOPATH)/bin/go-bindata resources/
 
+# Unconditional compile of the debug bindata.
 bindata-debug: $(GOPATH)/bin/go-bindata
 	$(GOPATH)/bin/go-bindata -debug resources/
 
+# Unconditional compile of the embedded bindata.
 bindata-embed: $(GOPATH)/bin/go-bindata
 	$(GOPATH)/bin/go-bindata resources/
 

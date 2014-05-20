@@ -1,6 +1,6 @@
 # Prometheus Pushgateway
 
-The Prometheus pushgateway exists to allow ephemeral and batch jobs to
+The Prometheus Pushgateway exists to allow ephemeral and batch jobs to
 expose their metrics to Prometheus. Since these kinds of jobs may not
 exist long enough to be scraped, they can instead push their metrics
 to a pushgateway. The pushgateway then exposes these metrics to
