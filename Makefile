@@ -25,7 +25,7 @@ build: $(BINARY)
 
 .deps/$(GOPKG):
 	mkdir -p .deps
-	curl -o .deps/$(GOPKG) http://storage.googleapis.com/golang/$(GOPKG)
+	curl -L -o .deps/$(GOPKG) http://storage.googleapis.com/golang/$(GOPKG)
 
 $(GOCC): .deps/$(GOPKG)
 	tar -C .deps -xzf .deps/$(GOPKG)
