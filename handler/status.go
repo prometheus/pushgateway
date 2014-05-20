@@ -29,12 +29,19 @@ func (_ data) FormatTimestamp(ts int64) string {
 
 func Status(
 	ms storage.MetricStore,
+	assetFunc func(string) ([]byte, error),
 	flags map[string]string,
 	buildInfo map[string]string,
 ) func(http.ResponseWriter) {
 	birth := time.Now()
 	return func(w http.ResponseWriter) {
-		t, err := template.ParseFiles("handler/template.html")
+		t := template.New("status")
+		tpl, err := assetFunc("resources/template.html")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, err = t.Parse(string(tpl))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

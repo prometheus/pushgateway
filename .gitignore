@@ -2,3 +2,4 @@ pushgateway
 .deps
 *.test
 *~
+bindata.go

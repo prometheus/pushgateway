@@ -166,3 +166,21 @@ guaranteed that the `DELETE` will be processed first (and vice versa).
 
 Deleting non-existing metrics is a no-op and will not result in an
 error.
+
+## Development
+
+The normal binary embeds the files in `resources`. For development
+purposes, it is handy to have a running binary use those files
+directly (so that you can see the effect of changes immediately). To
+switch to direct usage, type `make bindata-debug` just before
+compiling the binary. Switch back to "normal" mode by typing `make
+bindata-embed`. (Just `make` after a resource has changed will result
+in the same.)
+
+##  Contributing
+
+Relevant style guidelines are the [Go Code Review
+Comments](https://code.google.com/p/go-wiki/wiki/CodeReviewComments)
+and the _Formatting and style_ section of Peter Bourgon's [Go:
+Best Practices for Production
+Environments](http://peter.bourgon.org/go-in-production/#formatting-and-style).

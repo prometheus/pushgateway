@@ -109,7 +109,8 @@ func main() {
 	m.Put("/metrics/jobs/:job", handler.Push(ms))
 	m.Post("/metrics/jobs/:job", handler.Push(ms))
 	m.Delete("/metrics/jobs/:job", handler.Delete(ms))
-	statusHandler := handler.Status(ms, flags, BuildInfo)
+	m.Get("/functions.js", func() ([]byte, error) { return Asset("resources/functions.js") })
+	statusHandler := handler.Status(ms, Asset, flags, BuildInfo)
 	m.Get("/status", statusHandler)
 	m.Get("/", statusHandler)
 
