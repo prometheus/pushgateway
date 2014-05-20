@@ -13,8 +13,8 @@ permanently running program.
 
 ## Run it
 
-Compile the binary as usual (`go get`, `go build`). It's pure Go, no
-dependancy on non-Go libraries.
+Compile the binary using the provided Makefile (type `make`). The
+binary will be put into the `bin` directory.
 
 For the most basic setup, just start the binary. To change the address
 to listen on, use the `-addr` flag. The `-persistence.file` flag

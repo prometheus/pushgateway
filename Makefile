@@ -19,6 +19,17 @@ SUFFIX  := $(GOOS)-$(GOARCH)
 BINARY  := bin/$(TARGET)
 ARCHIVE := $(TARGET)-$(VERSION).$(SUFFIX).tar.gz
 
+REV        := $(shell git rev-parse --short HEAD)
+BRANCH     := $(shell git rev-parse --abbrev-ref HEAD)
+HOSTNAME   := $(shell hostname -f)
+BUILD_DATE := $(shell date +%Y%m%d-%H:%M:%S)
+BUILDFLAGS := -ldflags \
+        "-X main.buildVersion $(VERSION)\
+         -X main.buildRev $(REV)\
+         -X main.buildBranch $(BRANCH)\
+         -X main.buildUser $(USER)@$(HOSTNAME)\
+         -X main.buildDate $(BUILD_DATE)"
+
 default: build
 
 build: $(BINARY)
@@ -38,7 +49,7 @@ dependencies:
 	$(GO) get -d
 
 $(BINARY): $(GOCC) $(GOLIB) dependencies
-	$(GO) build -o $@
+	$(GO) build $(BUILDFLAGS) -o $@
 
 $(ARCHIVE): $(BINARY)
 	tar -czf $@ bin/
@@ -60,7 +71,7 @@ test:
 clean:
 	rm -rf bin
 
-mrproper: clean
+rmproper: clean
 	rm -rf .deps
 	rm -rf $(ARCHIVE)
 
