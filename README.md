@@ -1,6 +1,6 @@
 # Prometheus Pushgateway
 
-The Prometheus pushgateway exists to allow ephemeral and batch jobs to
+The Prometheus Pushgateway exists to allow ephemeral and batch jobs to
 expose their metrics to Prometheus. Since these kinds of jobs may not
 exist long enough to be scraped, they can instead push their metrics
 to a pushgateway. The pushgateway then exposes these metrics to
@@ -13,8 +13,8 @@ permanently running program.
 
 ## Run it
 
-Compile the binary as usual (`go get`, `go build`). It's pure Go, no
-dependancy on non-Go libraries.
+Compile the binary using the provided Makefile (type `make`). The
+binary will be put into the `bin` directory.
 
 For the most basic setup, just start the binary. To change the address
 to listen on, use the `-addr` flag. The `-persistence.file` flag
@@ -166,3 +166,21 @@ guaranteed that the `DELETE` will be processed first (and vice versa).
 
 Deleting non-existing metrics is a no-op and will not result in an
 error.
+
+## Development
+
+The normal binary embeds the files in `resources`. For development
+purposes, it is handy to have a running binary use those files
+directly (so that you can see the effect of changes immediately). To
+switch to direct usage, type `make bindata-debug` just before
+compiling the binary. Switch back to "normal" mode by typing `make
+bindata-embed`. (Just `make` after a resource has changed will result
+in the same.)
+
+##  Contributing
+
+Relevant style guidelines are the [Go Code Review
+Comments](https://code.google.com/p/go-wiki/wiki/CodeReviewComments)
+and the _Formatting and style_ section of Peter Bourgon's [Go:
+Best Practices for Production
+Environments](http://peter.bourgon.org/go-in-production/#formatting-and-style).

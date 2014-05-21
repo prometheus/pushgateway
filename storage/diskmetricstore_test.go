@@ -1,3 +1,16 @@
+// Copyright 2014 Prometheus Team
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package storage
 
 import (
@@ -156,32 +169,32 @@ var (
 
 func TestGetMetricFamilies(t *testing.T) {
 	testTime := time.Now()
-	j2i := jobToInstanceMap{
-		"job1": instanceToNameMap{
-			"instance1": nameToTimestampedMetricFamilyMap{
-				"mf1": timestampedMetricFamily{
-					timestamp:    testTime,
-					metricFamily: mf2,
+	j2i := JobToInstanceMap{
+		"job1": InstanceToNameMap{
+			"instance1": NameToTimestampedMetricFamilyMap{
+				"mf1": TimestampedMetricFamily{
+					Timestamp:    testTime,
+					MetricFamily: mf2,
 				},
 			},
-			"instance2": nameToTimestampedMetricFamilyMap{
-				"mf1": timestampedMetricFamily{
-					timestamp:    testTime,
-					metricFamily: mf1a,
+			"instance2": NameToTimestampedMetricFamilyMap{
+				"mf1": TimestampedMetricFamily{
+					Timestamp:    testTime,
+					MetricFamily: mf1a,
 				},
-				"mf2": timestampedMetricFamily{
-					timestamp:    testTime,
-					metricFamily: mf3,
+				"mf2": TimestampedMetricFamily{
+					Timestamp:    testTime,
+					MetricFamily: mf3,
 				},
 			},
 		},
-		"job2": instanceToNameMap{},
-		"job3": instanceToNameMap{
-			"instance1": nameToTimestampedMetricFamilyMap{},
-			"instance2": nameToTimestampedMetricFamilyMap{
-				"mf4": timestampedMetricFamily{
-					timestamp:    testTime,
-					metricFamily: mf4,
+		"job2": InstanceToNameMap{},
+		"job3": InstanceToNameMap{
+			"instance1": NameToTimestampedMetricFamilyMap{},
+			"instance2": NameToTimestampedMetricFamilyMap{
+				"mf4": TimestampedMetricFamily{
+					Timestamp:    testTime,
+					MetricFamily: mf4,
 				},
 			},
 		},
@@ -253,8 +266,9 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	if err := checkMetricFamilies(dms, mf1a, mf2, mf3); err != nil {
 		t.Error(err)
 	}
-	// Spot-check a timestamp.
-	if expected, got := ts3, dms.metricFamilies["job1"]["instance2"]["mf1"].timestamp; expected != got {
+	// Spot-check timestamp.
+	tmf := dms.metricFamilies["job1"]["instance2"]["mf1"]
+	if expected, got := ts3, tmf.Timestamp; expected != got {
 		t.Errorf("Expected timestamp %v, got %v.", expected, got)
 	}
 

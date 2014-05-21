@@ -1,3 +1,16 @@
+// Copyright 2014 Prometheus Team
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
@@ -80,10 +93,14 @@ var (
 
 func main() {
 	flag.Parse()
+	versionInfoTmpl.Execute(os.Stdout, BuildInfo)
+	flags := map[string]string{}
+	flag.VisitAll(func(f *flag.Flag) {
+		flags[f.Name] = f.Value.String()
+	})
 	m := martini.Classic()
 
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
-
 	prometheus.DefaultRegistry.SetMetricFamilyInjectionHook(ms.GetMetricFamilies)
 
 	// The following demonstrate clearly the clunkiness of the current Go
@@ -105,7 +122,10 @@ func main() {
 	m.Put("/metrics/jobs/:job", handler.Push(ms))
 	m.Post("/metrics/jobs/:job", handler.Push(ms))
 	m.Delete("/metrics/jobs/:job", handler.Delete(ms))
-	// TODO: Add web interface
+	m.Get("/functions.js", func() ([]byte, error) { return Asset("resources/functions.js") })
+	statusHandler := handler.Status(ms, Asset, flags, BuildInfo)
+	m.Get("/status", statusHandler)
+	m.Get("/", statusHandler)
 
 	http.Handle("/", m)
 

@@ -1,3 +1,16 @@
+// Copyright 2014 Prometheus Team
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package storage
 
 import (
@@ -19,10 +32,6 @@ const (
 	writeQueueCapacity = 1000
 )
 
-type jobToInstanceMap map[string]instanceToNameMap
-type instanceToNameMap map[string]nameToTimestampedMetricFamilyMap
-type nameToTimestampedMetricFamilyMap map[string]timestampedMetricFamily
-
 // DiskMetricStore is an implementation of MetricStore that persists metrics to
 // disk.
 type DiskMetricStore struct {
@@ -30,7 +39,7 @@ type DiskMetricStore struct {
 	writeQueue      chan WriteRequest
 	drain           chan struct{}
 	done            chan error
-	metricFamilies  jobToInstanceMap
+	metricFamilies  JobToInstanceMap
 	persistenceFile string
 }
 
@@ -50,7 +59,7 @@ func NewDiskMetricStore(
 		writeQueue:      make(chan WriteRequest, writeQueueCapacity),
 		drain:           make(chan struct{}),
 		done:            make(chan error),
-		metricFamilies:  jobToInstanceMap{},
+		metricFamilies:  JobToInstanceMap{},
 		persistenceFile: persistenceFile,
 	}
 	if err := dms.restore(); err != nil {
@@ -73,7 +82,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	for _, instances := range dms.metricFamilies {
 		for _, names := range instances {
 			for _, tmf := range names {
-				result = append(result, tmf.metricFamily)
+				result = append(result, tmf.MetricFamily)
 			}
 		}
 	}
@@ -163,33 +172,52 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 	for name, mf := range wr.MetricFamilies {
 		instances, ok := dms.metricFamilies[wr.Job]
 		if !ok {
-			instances = instanceToNameMap{}
+			instances = InstanceToNameMap{}
 			dms.metricFamilies[wr.Job] = instances
 		}
 		names, ok := instances[wr.Instance]
 		if !ok {
-			names = nameToTimestampedMetricFamilyMap{}
+			names = NameToTimestampedMetricFamilyMap{}
 			instances[wr.Instance] = names
 		}
-		names[name] = timestampedMetricFamily{
-			timestamp:    wr.Timestamp,
-			metricFamily: mf,
+		names[name] = TimestampedMetricFamily{
+			Timestamp:    wr.Timestamp,
+			MetricFamily: mf,
 		}
 	}
 }
 
-func (dms *DiskMetricStore) getTimestampedMetricFamilies() []timestampedMetricFamily {
-	result := []timestampedMetricFamily{}
+func (dms *DiskMetricStore) getTimestampedMetricFamilies() []TimestampedMetricFamily {
+	result := []TimestampedMetricFamily{}
 	dms.lock.RLock()
 	defer dms.lock.RUnlock()
-	for _, instances := range dms.metricFamilies {
-		for _, names := range instances {
-			for _, tmf := range names {
+	for _, i2n := range dms.metricFamilies {
+		for _, n2tmf := range i2n {
+			for _, tmf := range n2tmf {
 				result = append(result, tmf)
 			}
 		}
 	}
 	return result
+}
+
+// GetMetricFamiliesMap implements the MetricStore interface.
+func (dms *DiskMetricStore) GetMetricFamiliesMap() JobToInstanceMap {
+	dms.lock.RLock()
+	defer dms.lock.RUnlock()
+	j2iCopy := make(JobToInstanceMap, len(dms.metricFamilies))
+	for j, i2n := range dms.metricFamilies {
+		i2nCopy := make(InstanceToNameMap, len(i2n))
+		j2iCopy[j] = i2nCopy
+		for i, n2tmf := range i2n {
+			n2tmfCopy := make(NameToTimestampedMetricFamilyMap, len(n2tmf))
+			i2nCopy[i] = n2tmfCopy
+			for n, tmf := range n2tmf {
+				n2tmfCopy[n] = tmf
+			}
+		}
+	}
+	return j2iCopy
 }
 
 func (dms *DiskMetricStore) persist() error {
@@ -228,14 +256,14 @@ func (dms *DiskMetricStore) restore() error {
 		return err
 	}
 	defer f.Close()
-	var tmf timestampedMetricFamily
+	var tmf TimestampedMetricFamily
 	for d := gob.NewDecoder(f); err == nil; tmf, err = readTimestampedMetricFamily(d) {
-		if len(tmf.metricFamily.GetMetric()) == 0 {
+		if len(tmf.MetricFamily.GetMetric()) == 0 {
 			continue // No metric in this MetricFamily.
 		}
-		name := tmf.metricFamily.GetName()
+		name := tmf.MetricFamily.GetName()
 		var job, instance string
-		for _, lp := range tmf.metricFamily.GetMetric()[0].GetLabel() {
+		for _, lp := range tmf.MetricFamily.GetMetric()[0].GetLabel() {
 			// With the way the pushgateway persists things, all
 			// metrics in a single MetricFamily proto message share
 			// the same job and instance label. So we only have to
@@ -252,12 +280,12 @@ func (dms *DiskMetricStore) restore() error {
 		}
 		instances, ok := dms.metricFamilies[job]
 		if !ok {
-			instances = instanceToNameMap{}
+			instances = InstanceToNameMap{}
 			dms.metricFamilies[job] = instances
 		}
 		names, ok := instances[instance]
 		if !ok {
-			names = nameToTimestampedMetricFamilyMap{}
+			names = NameToTimestampedMetricFamilyMap{}
 			instances[instance] = names
 		}
 		names[name] = tmf
@@ -268,34 +296,34 @@ func (dms *DiskMetricStore) restore() error {
 	return err
 }
 
-func writeTimestampedMetricFamily(e *gob.Encoder, tmf timestampedMetricFamily) error {
+func writeTimestampedMetricFamily(e *gob.Encoder, tmf TimestampedMetricFamily) error {
 	// Since we have to serialize the timestamp, too, we are using gob for
 	// everything (and not ext.WriteDelimited).
-	buffer, err := proto.Marshal(tmf.metricFamily)
+	buffer, err := proto.Marshal(tmf.MetricFamily)
 	if err != nil {
 		return err
 	}
 	if err := e.Encode(buffer); err != nil {
 		return err
 	}
-	if err := e.Encode(tmf.timestamp); err != nil {
+	if err := e.Encode(tmf.Timestamp); err != nil {
 		return err
 	}
 	return nil
 }
 
-func readTimestampedMetricFamily(d *gob.Decoder) (timestampedMetricFamily, error) {
+func readTimestampedMetricFamily(d *gob.Decoder) (TimestampedMetricFamily, error) {
 	var buffer []byte
 	if err := d.Decode(&buffer); err != nil {
-		return timestampedMetricFamily{}, err
+		return TimestampedMetricFamily{}, err
 	}
 	mf := &dto.MetricFamily{}
 	if err := proto.Unmarshal(buffer, mf); err != nil {
-		return timestampedMetricFamily{}, err
+		return TimestampedMetricFamily{}, err
 	}
 	var timestamp time.Time
 	if err := d.Decode(&timestamp); err != nil {
-		return timestampedMetricFamily{}, err
+		return TimestampedMetricFamily{}, err
 	}
-	return timestampedMetricFamily{metricFamily: mf, timestamp: timestamp}, nil
+	return TimestampedMetricFamily{MetricFamily: mf, Timestamp: timestamp}, nil
 }

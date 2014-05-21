@@ -1,3 +1,16 @@
+// Copyright 2014 Prometheus Team
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package storage
 
 import (
@@ -18,6 +31,14 @@ type MetricStore interface {
 	// MetricStore anymore. However, they may still be read somewhere else,
 	// so the caller is not allowed to modify the returned MetricFamilies.
 	GetMetricFamilies() []*dto.MetricFamily
+	// GetMetricFamiliesMap returns a nested map (job -> instance ->
+	// metric-name -> TimestampedMetricFamily). The MetricFamily pointed to
+	// by each TimestampedMetricFamily is guaranteed to not be modified by
+	// the MetricStore anymore. However, they may still be read somewhere
+	// else, so the caller is not allowed to modify it. Otherwise, the
+	// returned nested map is a deep copy of the internal state of the
+	// MetricStore and completely owned by the caller.
+	GetMetricFamiliesMap() JobToInstanceMap
 	// Shutdown must only be called after the caller has made sure that
 	// SubmitWriteRequests is not called anymore. (If it is called later,
 	// the request might get submitted, but not processed anymore.) The
@@ -46,7 +67,11 @@ type WriteRequest struct {
 	MetricFamilies map[string]*dto.MetricFamily
 }
 
-type timestampedMetricFamily struct {
-	timestamp    time.Time
-	metricFamily *dto.MetricFamily
+type TimestampedMetricFamily struct {
+	Timestamp    time.Time
+	MetricFamily *dto.MetricFamily
 }
+
+type JobToInstanceMap map[string]InstanceToNameMap
+type InstanceToNameMap map[string]NameToTimestampedMetricFamilyMap
+type NameToTimestampedMetricFamilyMap map[string]TimestampedMetricFamily
