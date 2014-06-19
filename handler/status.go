@@ -40,6 +40,7 @@ func (_ data) FormatTimestamp(ts int64) string {
 	return time.Unix(ts/1000, ts%1000*1000000).String()
 }
 
+// Status serves the status page.
 func Status(
 	ms storage.MetricStore,
 	assetFunc func(string) ([]byte, error),

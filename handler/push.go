@@ -31,9 +31,10 @@ import (
 
 const protobufContentType = `application/vnd.google.protobuf;proto=io.prometheus.client.Sample;encoding=delimited`
 
-// Push returns an http.Handler which accepts samples over HTTP and
-// stores them in the MetricStore.
-func Push(ms storage.MetricStore) func(martini.Params, http.ResponseWriter, *http.Request) {
+// Push returns an http.Handler which accepts samples over HTTP and stores them
+// in the MetricStore. If replace is true, all metrics for the job and instance
+// given by the request are deleted before new ones are stored.
+func Push(ms storage.MetricStore, replace bool) func(martini.Params, http.ResponseWriter, *http.Request) {
 	return func(params martini.Params, w http.ResponseWriter, r *http.Request) {
 		job := params["job"]
 		if job == "" {
@@ -49,6 +50,14 @@ func Push(ms storage.MetricStore) func(martini.Params, http.ResponseWriter, *htt
 				instance = "localhost"
 			}
 		}
+		if replace {
+			ms.SubmitWriteRequest(storage.WriteRequest{
+				Job:       job,
+				Instance:  instance,
+				Timestamp: time.Now(),
+			})
+		}
+
 		var err error
 		var metricFamilies map[string]*dto.MetricFamily
 		if r.Header.Get("Content-Type") == protobufContentType {
