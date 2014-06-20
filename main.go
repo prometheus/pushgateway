@@ -25,7 +25,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-martini/martini"
+	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/pushgateway/handler"
@@ -138,22 +138,27 @@ func main() {
 
 	prometheus.MustRegister(im)
 
-	// TODO: Move from martini to github.com/julienschmidt/httprouter
-	// and then instrument all the handlers.
-	m := martini.Classic()
-	m.Get("/metrics", prometheus.Handler())
-	m.Put("/metrics/jobs/:job/instances/:instance", handler.Push(ms, true))
-	m.Post("/metrics/jobs/:job/instances/:instance", handler.Push(ms, false))
-	m.Delete("/metrics/jobs/:job/instances/:instance", handler.Delete(ms))
-	m.Put("/metrics/jobs/:job", handler.Push(ms, true))
-	m.Post("/metrics/jobs/:job", handler.Push(ms, false))
-	m.Delete("/metrics/jobs/:job", handler.Delete(ms))
-	m.Get("/functions.js", func() ([]byte, error) { return Asset("resources/functions.js") })
-	statusHandler := handler.Status(ms, Asset, flags, BuildInfo)
-	m.Get("/status", statusHandler)
-	m.Get("/", statusHandler)
-
-	http.Handle("/", m)
+	r := httprouter.New()
+	r.Handler("GET", "/metrics", prometheus.Handler())
+	r.PUT("/metrics/jobs/:job/instances/:instance", handler.Push(ms, true))
+	r.POST("/metrics/jobs/:job/instances/:instance", handler.Push(ms, false))
+	r.DELETE("/metrics/jobs/:job/instances/:instance", handler.Delete(ms))
+	r.PUT("/metrics/jobs/:job", handler.Push(ms, true))
+	r.POST("/metrics/jobs/:job", handler.Push(ms, false))
+	r.DELETE("/metrics/jobs/:job", handler.Delete(ms))
+	r.Handler("GET", "/functions.js", prometheus.InstrumentHandlerFunc(
+		"static",
+		func(w http.ResponseWriter, _ *http.Request) {
+			if b, err := Asset("resources/functions.js"); err == nil {
+				w.Write(b)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		},
+	))
+	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, Asset, flags, BuildInfo))
+	r.Handler("GET", "/status", statusHandler)
+	r.Handler("GET", "/", statusHandler)
 
 	log.Printf("Listening on %s.\n", *addr)
 	l, err := net.Listen("tcp", *addr)
@@ -161,7 +166,7 @@ func main() {
 		log.Fatal(err)
 	}
 	go interruptHandler(l)
-	err = (&http.Server{Addr: *addr}).Serve(l)
+	err = (&http.Server{Addr: *addr, Handler: r}).Serve(l)
 	log.Print("HTTP server stopped: ", err)
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections

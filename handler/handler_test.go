@@ -19,8 +19,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"code.google.com/p/goprotobuf/proto"
-
-	"github.com/go-martini/martini"
+	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/ext"
 	dto "github.com/prometheus/client_model/go"
 
@@ -57,7 +56,7 @@ func TestPush(t *testing.T) {
 
 	// No job name.
 	w := httptest.NewRecorder()
-	handler(martini.Params{}, w, req)
+	handler(w, req, httprouter.Params{})
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -68,7 +67,7 @@ func TestPush(t *testing.T) {
 	// With job name, but no instance name and no content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
-	handler(martini.Params{"job": "testjob"}, w, req)
+	handler(w, req, httprouter.Params{httprouter.Param{Key: "job", Value: "testjob"}})
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -92,7 +91,13 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w, req)
+	handler(
+		w, req,
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "testjob"},
+			httprouter.Param{Key: "instance", Value: "testinstance"},
+		},
+	)
 	if expected, got := http.StatusInternalServerError, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -110,7 +115,13 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w, req)
+	handler(
+		w, req,
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "testjob"},
+			httprouter.Param{Key: "instance", Value: "testinstance"},
+		},
+	)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -143,7 +154,13 @@ another_metric{instance="baz"} 42
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w, req)
+	handler(
+		w, req,
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "testjob"},
+			httprouter.Param{Key: "instance", Value: "testinstance"},
+		},
+	)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -204,7 +221,13 @@ another_metric{instance="baz"} 42
 	}
 	req.Header.Set("Content-Type", protobufContentType)
 	w = httptest.NewRecorder()
-	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w, req)
+	handler(
+		w, req,
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "testjob"},
+			httprouter.Param{Key: "instance", Value: "testinstance"},
+		},
+	)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -232,7 +255,10 @@ func TestDelete(t *testing.T) {
 	// No job name.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w := httptest.NewRecorder()
-	handler(martini.Params{}, w)
+	handler(
+		w, &http.Request{},
+		httprouter.Params{},
+	)
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -243,7 +269,12 @@ func TestDelete(t *testing.T) {
 	// With job name, but no instance name.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
-	handler(martini.Params{"job": "testjob"}, w)
+	handler(
+		w, &http.Request{},
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "testjob"},
+		},
+	)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -260,7 +291,13 @@ func TestDelete(t *testing.T) {
 	// With job name and instance name.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
-	handler(martini.Params{"job": "testjob", "instance": "testinstance"}, w)
+	handler(
+		w, &http.Request{},
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "testjob"},
+			httprouter.Param{Key: "instance", Value: "testinstance"},
+		},
+	)
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
