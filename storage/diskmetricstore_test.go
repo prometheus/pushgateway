@@ -73,6 +73,101 @@ var (
 			},
 		},
 	}
+	mf1c = &dto.MetricFamily{
+		Name: proto.String("mf1"),
+		Type: dto.MetricType_UNTYPED.Enum(),
+		Metric: []*dto.Metric{
+			&dto.Metric{
+				Label: []*dto.LabelPair{
+					&dto.LabelPair{
+						Name:  proto.String("job"),
+						Value: proto.String("job2"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("instance"),
+						Value: proto.String("instance1"),
+					},
+				},
+				Untyped: &dto.Untyped{
+					Value: proto.Float64(42),
+				},
+			},
+		},
+	}
+	mf1d = &dto.MetricFamily{
+		Name: proto.String("mf1"),
+		Type: dto.MetricType_UNTYPED.Enum(),
+		Metric: []*dto.Metric{
+			&dto.Metric{
+				Label: []*dto.LabelPair{
+					&dto.LabelPair{
+						Name:  proto.String("job"),
+						Value: proto.String("job3"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("instance"),
+						Value: proto.String("instance2"),
+					},
+				},
+				Untyped: &dto.Untyped{
+					Value: proto.Float64(42),
+				},
+			},
+		},
+	}
+	// mf1acd is merged from mf1a, mf1c, mf1d.
+	mf1acd = &dto.MetricFamily{
+		Name: proto.String("mf1"),
+		Type: dto.MetricType_UNTYPED.Enum(),
+		Metric: []*dto.Metric{
+			&dto.Metric{
+				Label: []*dto.LabelPair{
+					&dto.LabelPair{
+						Name:  proto.String("job"),
+						Value: proto.String("job1"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("instance"),
+						Value: proto.String("instance2"),
+					},
+				},
+				Untyped: &dto.Untyped{
+					Value: proto.Float64(-3e3),
+				},
+				TimestampMs: proto.Int64(103948),
+			},
+			&dto.Metric{
+				Label: []*dto.LabelPair{
+					&dto.LabelPair{
+						Name:  proto.String("job"),
+						Value: proto.String("job2"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("instance"),
+						Value: proto.String("instance1"),
+					},
+				},
+				Untyped: &dto.Untyped{
+					Value: proto.Float64(42),
+				},
+			},
+			&dto.Metric{
+				Label: []*dto.LabelPair{
+					&dto.LabelPair{
+						Name:  proto.String("job"),
+						Value: proto.String("job3"),
+					},
+					&dto.LabelPair{
+						Name:  proto.String("instance"),
+						Value: proto.String("instance2"),
+					},
+				},
+				Untyped: &dto.Untyped{
+					Value: proto.Float64(42),
+				},
+			},
+		},
+	}
 	mf2 = &dto.MetricFamily{
 		Name: proto.String("mf2"),
 		Help: proto.String("doc string 2"),
@@ -172,7 +267,7 @@ func TestGetMetricFamilies(t *testing.T) {
 	j2i := JobToInstanceMap{
 		"job1": InstanceToNameMap{
 			"instance1": NameToTimestampedMetricFamilyMap{
-				"mf1": TimestampedMetricFamily{
+				"mf2": TimestampedMetricFamily{
 					Timestamp:    testTime,
 					MetricFamily: mf2,
 				},
@@ -182,13 +277,19 @@ func TestGetMetricFamilies(t *testing.T) {
 					Timestamp:    testTime,
 					MetricFamily: mf1a,
 				},
-				"mf2": TimestampedMetricFamily{
+				"mf3": TimestampedMetricFamily{
 					Timestamp:    testTime,
 					MetricFamily: mf3,
 				},
 			},
 		},
-		"job2": InstanceToNameMap{},
+		"job2": InstanceToNameMap{
+			"instance1": NameToTimestampedMetricFamilyMap{
+				"mf1": TimestampedMetricFamily{
+					Timestamp:    testTime,
+					MetricFamily: mf1c,
+				},
+			}},
 		"job3": InstanceToNameMap{
 			"instance1": NameToTimestampedMetricFamilyMap{},
 			"instance2": NameToTimestampedMetricFamilyMap{
@@ -196,13 +297,18 @@ func TestGetMetricFamilies(t *testing.T) {
 					Timestamp:    testTime,
 					MetricFamily: mf4,
 				},
+				"mf1": TimestampedMetricFamily{
+					Timestamp:    testTime,
+					MetricFamily: mf1d,
+				},
 			},
 		},
+		"job4": InstanceToNameMap{},
 	}
 
 	dms := &DiskMetricStore{metricFamilies: j2i}
 
-	if err := checkMetricFamilies(dms, mf1a, mf2, mf3, mf4); err != nil {
+	if err := checkMetricFamilies(dms, mf1acd, mf2, mf3, mf4); err != nil {
 		t.Error(err)
 	}
 }
@@ -378,12 +484,14 @@ func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily)
 
 	expectedMFsAsStrings := make([]string, len(expectedMFs))
 	for i, mf := range expectedMFs {
+		sort.Sort(metricSorter(mf.Metric))
 		expectedMFsAsStrings[i] = mf.String()
 	}
 	sort.Strings(expectedMFsAsStrings)
 
 	gotMFsAsStrings := make([]string, len(gotMFs))
 	for i, mf := range gotMFs {
+		sort.Sort(metricSorter(mf.Metric))
 		gotMFsAsStrings[i] = mf.String()
 	}
 	sort.Strings(gotMFsAsStrings)
@@ -395,4 +503,25 @@ func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily)
 		}
 	}
 	return nil
+}
+
+type metricSorter []*dto.Metric
+
+func (s metricSorter) Len() int {
+	return len(s)
+}
+
+func (s metricSorter) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s metricSorter) Less(i, j int) bool {
+	for n, lp := range s[i].Label {
+		vi := lp.GetValue()
+		vj := s[j].Label[n].GetValue()
+		if vi != vj {
+			return vi < vj
+		}
+	}
+	return true
 }
