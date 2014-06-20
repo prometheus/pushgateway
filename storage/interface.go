@@ -67,11 +67,19 @@ type WriteRequest struct {
 	MetricFamilies map[string]*dto.MetricFamily
 }
 
+// TimestampedMetricFamily adds a timestamp to a MetricFamily-DTO.
 type TimestampedMetricFamily struct {
 	Timestamp    time.Time
 	MetricFamily *dto.MetricFamily
 }
 
+// JobToInstanceMap is the first level of the metric store, keyed by job name.
 type JobToInstanceMap map[string]InstanceToNameMap
+
+// InstanceToNameMap is the second level of the metric store, keyed by instance
+// name.
 type InstanceToNameMap map[string]NameToTimestampedMetricFamilyMap
+
+// NameToTimestampedMetricFamilyMap is the third level of the metric stroce,
+// keyed by metric name.
 type NameToTimestampedMetricFamilyMap map[string]TimestampedMetricFamily

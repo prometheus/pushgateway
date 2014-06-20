@@ -122,17 +122,18 @@ those labels will be overwritten with values determined as described
 above!_ (This behavior might be changed in the future if a valid
 use-case can be shown.)
 
-### `PUT` / `POST` method
+### `POST` method
 
-`PUT` and `POST` are treated the same for the sake of simplicity (in
-violation of HTTP conventions).  They are both used to push metrics,
-and the response code upon success is always 202 (even if that same
-metric has never been pushed before, i.e. there is no feedback to the
-client if the push has replaced an metric or created a new one).
+`POST` is used to add metrics to previously pushed metrics. Note that
+only previously pushed metrics with a different metric name, job label
+or instance label are preserved. Each `POST` will completely replace
+existing metrics with the same metric name, job label, and instance
+label as the metrics pushed, even if the existing metrics had a
+different label set otherwise.
 
-_Note that each push will completely replace all existing metrics with
-the same name, job, and instance combination as the metrics pushed,
-even if the existing metrics had a different label set otherwise._
+The response code upon success is always 202 (even if that same metric has
+never been pushed before, i.e. there is no feedback to the client if
+the push has replaced a metric or created a new one).
 
 The body of the request contains the metrics to push either as delimited binary protocol
 buffers or in the simple flat text format (both in version 0.0.4, see the
@@ -143,12 +144,19 @@ _If using the protobuf format, do not send duplicate MetricFamily
 proto messages (i.e. more than one with the same name) in one push, as
 they will overwrite each other._
 
-A 204 response to the request means that the pushed metrics are queued
-for an update of the storage. Scraping the push gateway may still
-yield the old sample value for that metric (or nothing at all if this
-is the first time that metric is pushed). Neither is there a guarantee
-that the metric is persisted to disk. (A server crash may cause data
-loss. Or the push gateway is configured to not persist to disk at all.)
+A successfully finished request means that the pushed metrics are
+queued for an update of the storage. Scraping the push gateway may
+still yield the old sample value for that metric (or nothing at all if
+this is the first time that metric is pushed) until the queued update
+is processed. Neither is there a guarantee that the metric is
+persisted to disk. (A server crash may cause data loss. Or the push
+gateway is configured to not persist to disk at all.)
+
+### `PUT` method
+
+`PUT` works exactly as `POST` with the important distinction that
+_all_ metrics with the same job label and instance label are deleted
+before pushing any of the newly submitted metrics.
 
 ### `DELETE` method
 

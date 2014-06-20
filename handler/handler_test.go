@@ -49,8 +49,8 @@ func (m *MockMetricStore) Shutdown() error {
 
 func TestPush(t *testing.T) {
 	mms := MockMetricStore{}
-	handler := Push(&mms)
-	req, err := http.NewRequest("PUT", "http://example.org/", &bytes.Buffer{})
+	handler := Push(&mms, false)
+	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestPush(t *testing.T) {
 	// With job name and instance name and invalid text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
-		"PUT", "http://example.org/",
+		"POST", "http://example.org/",
 		bytes.NewBufferString("blablabla\n"),
 	)
 	if err != nil {
@@ -103,7 +103,7 @@ func TestPush(t *testing.T) {
 	// With job name and instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
-		"PUT", "http://example.org/",
+		"POST", "http://example.org/",
 		bytes.NewBufferString("some_metric 3.14\nanother_metric 42\n"),
 	)
 	if err != nil {
@@ -133,7 +133,7 @@ func TestPush(t *testing.T) {
 	// With job name and instance name and text content and job and instance labels.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
-		"PUT", "http://example.org",
+		"POST", "http://example.org",
 		bytes.NewBufferString(`
 some_metric{job="foo",instance="bar"} 3.14
 another_metric{instance="baz"} 42
@@ -197,7 +197,7 @@ another_metric{instance="baz"} 42
 	}
 
 	req, err = http.NewRequest(
-		"PUT", "http://example.org/", buf,
+		"POST", "http://example.org/", buf,
 	)
 	if err != nil {
 		t.Fatal(err)
