@@ -92,6 +92,10 @@ release:
 	GOOS=linux  REMOTE=$(REMOTE) REMOTE_DIR=$(REMOTE_DIR) $(MAKE) upload
 	GOOS=darwin REMOTE=$(REMOTE) REMOTE_DIR=$(REMOTE_DIR) $(MAKE) upload
 
+tag:
+	git tag $(VERSION)
+	git push --tags
+
 test:
 	$(GO) test ./...
 
