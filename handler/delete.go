@@ -38,12 +38,13 @@ func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, htt
 		"delete",
 		func(w http.ResponseWriter, _ *http.Request) {
 			job := ps.ByName("job")
+			instance := ps.ByName("instance")
 			mtx.Unlock()
+
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
 				return
 			}
-			instance := ps.ByName("instance")
 			ms.SubmitWriteRequest(storage.WriteRequest{
 				Job:       job,
 				Instance:  instance,
