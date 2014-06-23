@@ -17,6 +17,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"code.google.com/p/goprotobuf/proto"
@@ -39,17 +40,19 @@ const protobufContentType = `application/vnd.google.protobuf;proto=io.prometheus
 // The returned handler is already instrumented for Prometheus.
 func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
+	var mtx sync.Mutex // Protects ps.
 
 	instrumentedHandlerFunc := prometheus.InstrumentHandlerFunc(
 		"push",
 		func(w http.ResponseWriter, r *http.Request) {
 			job := ps.ByName("job")
+			instance := ps.ByName("instance")
+			mtx.Unlock()
+
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
 				return
 			}
-
-			instance := ps.ByName("instance")
 			if instance == "" {
 				// Remote IP number (without port).
 				instance = strings.SplitN(r.RemoteAddr, ":", 2)[0]
@@ -102,6 +105,7 @@ func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.
 	)
 
 	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		mtx.Lock()
 		ps = params
 		instrumentedHandlerFunc(w, r)
 	}

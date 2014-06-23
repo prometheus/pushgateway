@@ -15,6 +15,7 @@ package handler
 
 import (
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -31,11 +32,13 @@ import (
 // The returned handler is already instrumented for Prometheus.
 func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
+	var mtx sync.Mutex // Protects ps.
 
 	instrumentedHandlerFunc := prometheus.InstrumentHandlerFunc(
 		"delete",
 		func(w http.ResponseWriter, _ *http.Request) {
 			job := ps.ByName("job")
+			mtx.Unlock()
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
 				return
@@ -51,6 +54,7 @@ func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, htt
 	)
 
 	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		mtx.Lock()
 		ps = params
 		instrumentedHandlerFunc(w, r)
 	}
