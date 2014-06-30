@@ -30,6 +30,11 @@ type MetricStore interface {
 	// returned MetricFamilies are guaranteed to not be modified by the
 	// MetricStore anymore. However, they may still be read somewhere else,
 	// so the caller is not allowed to modify the returned MetricFamilies.
+	// If different jobs and instances have saved MetricFamilies of the same
+	// name, they are all merged into one MetricFamily by concatenating the
+	// contained Metrics. Inconsistent help strings or types are logged, and
+	// one of the versions will "win". Inconsistent labels will go
+	// undetected.
 	GetMetricFamilies() []*dto.MetricFamily
 	// GetMetricFamiliesMap returns a nested map (job -> instance ->
 	// metric-name -> TimestampedMetricFamily). The MetricFamily pointed to
@@ -80,6 +85,6 @@ type JobToInstanceMap map[string]InstanceToNameMap
 // name.
 type InstanceToNameMap map[string]NameToTimestampedMetricFamilyMap
 
-// NameToTimestampedMetricFamilyMap is the third level of the metric stroce,
+// NameToTimestampedMetricFamilyMap is the third level of the metric store,
 // keyed by metric name.
 type NameToTimestampedMetricFamilyMap map[string]TimestampedMetricFamily

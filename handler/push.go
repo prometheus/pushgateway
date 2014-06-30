@@ -17,11 +17,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
-	"code.google.com/p/goprotobuf/proto"
 
-	"github.com/go-martini/martini"
+	"code.google.com/p/goprotobuf/proto"
+	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/ext"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/text"
 
 	dto "github.com/prometheus/client_model/go"
@@ -34,63 +36,78 @@ const protobufContentType = `application/vnd.google.protobuf;proto=io.prometheus
 // Push returns an http.Handler which accepts samples over HTTP and stores them
 // in the MetricStore. If replace is true, all metrics for the job and instance
 // given by the request are deleted before new ones are stored.
-func Push(ms storage.MetricStore, replace bool) func(martini.Params, http.ResponseWriter, *http.Request) {
-	return func(params martini.Params, w http.ResponseWriter, r *http.Request) {
-		job := params["job"]
-		if job == "" {
-			http.Error(w, "job name is required", http.StatusBadRequest)
-			return
-		}
+//
+// The returned handler is already instrumented for Prometheus.
+func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.Request, httprouter.Params) {
+	var ps httprouter.Params
+	var mtx sync.Mutex // Protects ps.
 
-		instance := params["instance"]
-		if instance == "" {
-			// Remote IP number (without port).
-			instance = strings.SplitN(r.RemoteAddr, ":", 2)[0]
+	instrumentedHandlerFunc := prometheus.InstrumentHandlerFunc(
+		"push",
+		func(w http.ResponseWriter, r *http.Request) {
+			job := ps.ByName("job")
+			instance := ps.ByName("instance")
+			mtx.Unlock()
+
+			if job == "" {
+				http.Error(w, "job name is required", http.StatusBadRequest)
+				return
+			}
 			if instance == "" {
-				instance = "localhost"
-			}
-		}
-		if replace {
-			ms.SubmitWriteRequest(storage.WriteRequest{
-				Job:       job,
-				Instance:  instance,
-				Timestamp: time.Now(),
-			})
-		}
-
-		var err error
-		var metricFamilies map[string]*dto.MetricFamily
-		if r.Header.Get("Content-Type") == protobufContentType {
-			metricFamilies = map[string]*dto.MetricFamily{}
-			for {
-				mf := &dto.MetricFamily{}
-				if _, err = ext.ReadDelimited(r.Body, mf); err != nil {
-					if err == io.EOF {
-						err = nil
-					}
-					break
+				// Remote IP number (without port).
+				instance = strings.SplitN(r.RemoteAddr, ":", 2)[0]
+				if instance == "" {
+					instance = "localhost"
 				}
-				metricFamilies[mf.GetName()] = mf
 			}
-		} else {
-			// We could do further content-type checks here, but the
-			// fallback for now will anyway be the text format
-			// version 0.0.4, so just go for it and see if it works.
-			var parser text.Parser
-			metricFamilies, err = parser.TextToMetricFamilies(r.Body)
-		}
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		setJobAndInstance(metricFamilies, job, instance)
-		ms.SubmitWriteRequest(storage.WriteRequest{
-			Job:            job,
-			Instance:       instance,
-			Timestamp:      time.Now(),
-			MetricFamilies: metricFamilies,
-		})
-		w.WriteHeader(http.StatusAccepted)
+			if replace {
+				ms.SubmitWriteRequest(storage.WriteRequest{
+					Job:       job,
+					Instance:  instance,
+					Timestamp: time.Now(),
+				})
+			}
+
+			var err error
+			var metricFamilies map[string]*dto.MetricFamily
+			if r.Header.Get("Content-Type") == protobufContentType {
+				metricFamilies = map[string]*dto.MetricFamily{}
+				for {
+					mf := &dto.MetricFamily{}
+					if _, err = ext.ReadDelimited(r.Body, mf); err != nil {
+						if err == io.EOF {
+							err = nil
+						}
+						break
+					}
+					metricFamilies[mf.GetName()] = mf
+				}
+			} else {
+				// We could do further content-type checks here, but the
+				// fallback for now will anyway be the text format
+				// version 0.0.4, so just go for it and see if it works.
+				var parser text.Parser
+				metricFamilies, err = parser.TextToMetricFamilies(r.Body)
+			}
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			setJobAndInstance(metricFamilies, job, instance)
+			ms.SubmitWriteRequest(storage.WriteRequest{
+				Job:            job,
+				Instance:       instance,
+				Timestamp:      time.Now(),
+				MetricFamilies: metricFamilies,
+			})
+			w.WriteHeader(http.StatusAccepted)
+		},
+	)
+
+	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		mtx.Lock()
+		ps = params
+		instrumentedHandlerFunc(w, r)
 	}
 }
 

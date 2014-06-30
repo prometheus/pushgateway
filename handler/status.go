@@ -46,9 +46,9 @@ func Status(
 	assetFunc func(string) ([]byte, error),
 	flags map[string]string,
 	buildInfo map[string]string,
-) func(http.ResponseWriter) {
+) func(http.ResponseWriter, *http.Request) {
 	birth := time.Now()
-	return func(w http.ResponseWriter) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		t := template.New("status")
 		tpl, err := assetFunc("resources/template.html")
 		if err != nil {

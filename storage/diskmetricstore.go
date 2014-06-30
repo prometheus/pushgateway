@@ -43,6 +43,11 @@ type DiskMetricStore struct {
 	persistenceFile string
 }
 
+type mfStat struct {
+	pos    int  // Where in the result slice is the MetricFamily?
+	copied bool // Has the MetricFamily already been copied?
+}
+
 // NewDiskMetricStore returns a DiskMetricStore ready to use. To cleanly shut it
 // down and free resources, the Shutdown() method has to be called.  If
 // persistenceFile is the empty string, no persisting to disk will
@@ -77,12 +82,42 @@ func (dms *DiskMetricStore) SubmitWriteRequest(req WriteRequest) {
 // GetMetricFamilies implements the MetricStore interface.
 func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	result := []*dto.MetricFamily{}
+	mfStatByName := map[string]mfStat{}
+
 	dms.lock.RLock()
 	defer dms.lock.RUnlock()
+
 	for _, instances := range dms.metricFamilies {
 		for _, names := range instances {
-			for _, tmf := range names {
-				result = append(result, tmf.MetricFamily)
+			for name, tmf := range names {
+				mf := tmf.MetricFamily
+				stat, exists := mfStatByName[name]
+				if exists {
+					existingMF := result[stat.pos]
+					if !stat.copied {
+						mfStatByName[name] = mfStat{
+							pos:    stat.pos,
+							copied: true,
+						}
+						existingMF = copyMetricFamily(existingMF)
+						result[stat.pos] = existingMF
+					}
+					if mf.GetHelp() != existingMF.GetHelp() || mf.GetType() != existingMF.GetType() {
+						log.Printf(
+							"Metric families '%s' and '%s' are inconsistent, help and type of the latter will have priority. This is bad. Fix your pushed metrics!",
+							mf, existingMF,
+						)
+					}
+					for _, metric := range mf.Metric {
+						existingMF.Metric = append(existingMF.Metric, metric)
+					}
+				} else {
+					mfStatByName[name] = mfStat{
+						pos:    len(result),
+						copied: false,
+					}
+					result = append(result, mf)
+				}
 			}
 		}
 	}
@@ -326,4 +361,13 @@ func readTimestampedMetricFamily(d *gob.Decoder) (TimestampedMetricFamily, error
 		return TimestampedMetricFamily{}, err
 	}
 	return TimestampedMetricFamily{MetricFamily: mf, Timestamp: timestamp}, nil
+}
+
+func copyMetricFamily(mf *dto.MetricFamily) *dto.MetricFamily {
+	return &dto.MetricFamily{
+		Name:   mf.Name,
+		Help:   mf.Help,
+		Type:   mf.Type,
+		Metric: append([]*dto.Metric{}, mf.Metric...),
+	}
 }

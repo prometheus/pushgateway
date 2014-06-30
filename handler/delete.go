@@ -15,9 +15,11 @@ package handler
 
 import (
 	"net/http"
+	"sync"
 	"time"
 
-	"github.com/go-martini/martini"
+	"github.com/julienschmidt/httprouter"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -26,19 +28,35 @@ import (
 // specified in the query, all metrics for that job are deleted. If a job and an
 // instance is specified, all metrics for that job/instance combination are
 // deleted.
-func Delete(ms storage.MetricStore) func(martini.Params, http.ResponseWriter) {
-	return func(params martini.Params, w http.ResponseWriter) {
-		job := params["job"]
-		if job == "" {
-			http.Error(w, "job name is required", http.StatusBadRequest)
-			return
-		}
-		instance := params["instance"]
-		ms.SubmitWriteRequest(storage.WriteRequest{
-			Job:       job,
-			Instance:  instance,
-			Timestamp: time.Now(),
-		})
-		w.WriteHeader(http.StatusAccepted)
+//
+// The returned handler is already instrumented for Prometheus.
+func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, httprouter.Params) {
+	var ps httprouter.Params
+	var mtx sync.Mutex // Protects ps.
+
+	instrumentedHandlerFunc := prometheus.InstrumentHandlerFunc(
+		"delete",
+		func(w http.ResponseWriter, _ *http.Request) {
+			job := ps.ByName("job")
+			instance := ps.ByName("instance")
+			mtx.Unlock()
+
+			if job == "" {
+				http.Error(w, "job name is required", http.StatusBadRequest)
+				return
+			}
+			ms.SubmitWriteRequest(storage.WriteRequest{
+				Job:       job,
+				Instance:  instance,
+				Timestamp: time.Now(),
+			})
+			w.WriteHeader(http.StatusAccepted)
+		},
+	)
+
+	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		mtx.Lock()
+		ps = params
+		instrumentedHandlerFunc(w, r)
 	}
 }
