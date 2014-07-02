@@ -15,6 +15,7 @@ package handler
 
 import (
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 	"sync"
@@ -30,8 +31,6 @@ import (
 
 	"github.com/prometheus/pushgateway/storage"
 )
-
-const protobufContentType = `application/vnd.google.protobuf;proto=io.prometheus.client.Sample;encoding=delimited`
 
 // Push returns an http.Handler which accepts samples over HTTP and stores them
 // in the MetricStore. If replace is true, all metrics for the job and instance
@@ -70,7 +69,10 @@ func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.
 
 			var err error
 			var metricFamilies map[string]*dto.MetricFamily
-			if r.Header.Get("Content-Type") == protobufContentType {
+			ctMediatype, ctParams, ctErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
+			if ctErr == nil && ctMediatype == "application/vnd.google.protobuf" &&
+				ctParams["encoding"] == "delimited" &&
+				ctParams["proto"] == "io.prometheus.client.MetricFamily" {
 				metricFamilies = map[string]*dto.MetricFamily{}
 				for {
 					mf := &dto.MetricFamily{}
