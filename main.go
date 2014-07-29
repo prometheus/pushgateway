@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	addr                = flag.String("addr", ":8080", "Address to listen on.")
+	addr                = flag.String("addr", ":9091", "Address to listen on.")
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
 	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
 
