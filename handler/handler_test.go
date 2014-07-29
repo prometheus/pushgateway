@@ -219,7 +219,7 @@ another_metric{instance="baz"} 42
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Content-Type", protobufContentType)
+	req.Header.Set("Content-Type", "application/vnd.google.protobuf; encoding=delimited; proto=io.prometheus.client.MetricFamily")
 	w = httptest.NewRecorder()
 	handler(
 		w, req,
