@@ -161,7 +161,7 @@ func main() {
 	r.Handler("GET", "/", statusHandler)
 
 	// Re-enable pprof.
-	r.GET("/debug/pprof/*pprof", HandlePprof)
+	r.GET("/debug/pprof/*pprof", handlePprof)
 
 	log.Printf("Listening on %s.\n", *addr)
 	l, err := net.Listen("tcp", *addr)
@@ -180,7 +180,7 @@ func main() {
 	}
 }
 
-func HandlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+func handlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	switch p.ByName("pprof") {
 	case "/cmdline":
 		pprof.Cmdline(w, r)
