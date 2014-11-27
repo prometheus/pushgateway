@@ -18,7 +18,7 @@ import (
 	"log"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime"
@@ -160,6 +160,9 @@ func main() {
 	r.Handler("GET", "/status", statusHandler)
 	r.Handler("GET", "/", statusHandler)
 
+	// Re-enable pprof.
+	r.GET("/debug/pprof/*pprof", handlePprof)
+
 	log.Printf("Listening on %s.\n", *addr)
 	l, err := net.Listen("tcp", *addr)
 	if err != nil {
@@ -174,6 +177,19 @@ func main() {
 	time.Sleep(time.Second)
 	if err := ms.Shutdown(); err != nil {
 		log.Print("Problem shutting down metric storage: ", err)
+	}
+}
+
+func handlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	switch p.ByName("pprof") {
+	case "/cmdline":
+		pprof.Cmdline(w, r)
+	case "/profile":
+		pprof.Profile(w, r)
+	case "/symbol":
+		pprof.Symbol(w, r)
+	default:
+		pprof.Index(w, r)
 	}
 }
 
