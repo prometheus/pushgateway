@@ -16,8 +16,8 @@ package handler
 import (
 	"io"
 	"mime"
+	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -48,14 +48,15 @@ func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.
 			instance := ps.ByName("instance")
 			mtx.Unlock()
 
+			var err error
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
 				return
 			}
 			if instance == "" {
 				// Remote IP number (without port).
-				instance = strings.SplitN(r.RemoteAddr, ":", 2)[0]
-				if instance == "" {
+				instance, _, err = net.SplitHostPort(r.RemoteAddr)
+				if err != nil || instance == "" {
 					instance = "localhost"
 				}
 			}
@@ -67,7 +68,6 @@ func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.
 				})
 			}
 
-			var err error
 			var metricFamilies map[string]*dto.MetricFamily
 			ctMediatype, ctParams, ctErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
 			if ctErr == nil && ctMediatype == "application/vnd.google.protobuf" &&
