@@ -33,7 +33,8 @@ import (
 )
 
 var (
-	addr                = flag.String("addr", ":9091", "Address to listen on.")
+	listenAddress       = flag.String("web.listen-address", ":9091", "Address to listen on for the web interface, API, and telemetry.")
+	metricsPath         = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
 	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
 
@@ -139,7 +140,7 @@ func main() {
 	prometheus.MustRegister(im)
 
 	r := httprouter.New()
-	r.Handler("GET", "/metrics", prometheus.Handler())
+	r.Handler("GET", *metricsPath, prometheus.Handler())
 	r.PUT("/metrics/jobs/:job/instances/:instance", handler.Push(ms, true))
 	r.POST("/metrics/jobs/:job/instances/:instance", handler.Push(ms, false))
 	r.DELETE("/metrics/jobs/:job/instances/:instance", handler.Delete(ms))
