@@ -164,13 +164,13 @@ func main() {
 	// Re-enable pprof.
 	r.GET("/debug/pprof/*pprof", handlePprof)
 
-	log.Printf("Listening on %s.\n", *addr)
-	l, err := net.Listen("tcp", *addr)
+	log.Printf("Listening on %s.\n", *listenAddress)
+	l, err := net.Listen("tcp", *listenAddress)
 	if err != nil {
 		log.Fatal(err)
 	}
 	go interruptHandler(l)
-	err = (&http.Server{Addr: *addr, Handler: r}).Serve(l)
+	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
 	log.Print("HTTP server stopped: ", err)
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections
