@@ -3,13 +3,18 @@
 The Prometheus Pushgateway exists to allow ephemeral and batch jobs to
 expose their metrics to Prometheus. Since these kinds of jobs may not
 exist long enough to be scraped, they can instead push their metrics
-to a pushgateway. The pushgateway then exposes these metrics to
+to a Pushgateway. The Pushgateway then exposes these metrics to
 Prometheus.
 
-The pushgateway is explicitly not an aggregator, but rather a metrics
+The Pushgateway is explicitly not an aggregator, but rather a metrics
 cache. It does not have a statsd-like semantics. The metrics pushed
 are exactly the same as you would present for scraping in a
 permanently running program.
+
+For machine-level metrics, the
+[textfile](https://github.com/prometheus/node_exporter/blob/master/README.md#textfile-collector)
+collector of the Node exporter is usually more appropriate. The Pushgateway is best
+used for service-level metrics.
 
 ## Run it
 
@@ -19,18 +24,18 @@ binary will be put into the `bin` directory.
 For the most basic setup, just start the binary. To change the address
 to listen on, use the `-addr` flag. The `-persistence.file` flag
 allows you to specify a file in which the pushed metrics will be
-persisted (so that they survive restarts of the pushgateway).
+persisted (so that they survive restarts of the Pushgateway).
 
 ## Use it
 
 ### Libraries
 
 Prometheus client libraries should have a feature to push the
-registered metrics to a pushgateway. Usually, a Prometheus client
+registered metrics to a Pushgateway. Usually, a Prometheus client
 passively presents metric for scraping by a Prometheus server. A
 client library that supports pushing has a push function, which needs
 to be called by the client code. It will then actively push the
-metrics to a pushgateway, using the API described below.
+metrics to a Pushgateway, using the API described below.
 
 ### Command line
 
