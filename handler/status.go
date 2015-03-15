@@ -18,6 +18,7 @@ import (
 	"html"
 	"html/template"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/pushgateway/storage"
@@ -50,6 +51,11 @@ func Status(
 	birth := time.Now()
 	return func(w http.ResponseWriter, _ *http.Request) {
 		t := template.New("status")
+		t.Funcs(template.FuncMap{
+			"value": func(f *float64) string {
+				return strconv.FormatFloat(*f, 'f', -1, 64)
+			},
+		})
 		tpl, err := assetFunc("resources/template.html")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
