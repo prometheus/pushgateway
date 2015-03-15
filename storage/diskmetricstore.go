@@ -135,7 +135,7 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 	persistScheduled := false
 	lastWrite := time.Time{}
 	persistDone := make(chan time.Time)
-	persistTimer := &time.Timer{}
+	var persistTimer *time.Timer
 
 	checkPersist := func() {
 		if !persistScheduled && lastWrite.After(lastPersist) {
@@ -169,7 +169,9 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 			checkPersist() // In case something has been written in the meantime.
 		case <-dms.drain:
 			// Prevent a scheduled persist from firing later.
-			persistTimer.Stop()
+			if persistTimer != nil {
+				persistTimer.Stop()
+			}
 			// Now draining...
 			for {
 				select {
