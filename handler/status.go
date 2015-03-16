@@ -1,4 +1,4 @@
-// Copyright 2014 Prometheus Team
+// Copyright 2014 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,6 +18,7 @@ import (
 	"html"
 	"html/template"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/pushgateway/storage"
@@ -50,6 +51,11 @@ func Status(
 	birth := time.Now()
 	return func(w http.ResponseWriter, _ *http.Request) {
 		t := template.New("status")
+		t.Funcs(template.FuncMap{
+			"value": func(f *float64) string {
+				return strconv.FormatFloat(*f, 'f', -1, 64)
+			},
+		})
 		tpl, err := assetFunc("resources/template.html")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

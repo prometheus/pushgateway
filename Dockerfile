@@ -1,5 +1,5 @@
 FROM       ubuntu
-MAINTAINER Prometheus Team <prometheus-developers@googlegroups.com>
+MAINTAINER The Prometheus Authors <prometheus-developers@googlegroups.com>
 EXPOSE     9091
 WORKDIR    /pushgateway
 ENTRYPOINT [ "/pushgateway/bin/pushgateway" ]

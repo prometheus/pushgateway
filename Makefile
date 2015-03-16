@@ -1,4 +1,4 @@
-# Copyright 2014 Prometheus Team
+# Copyright 2014 The Prometheus Authors
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ ARCH := $(subst x86_64,amd64,$(patsubst i%86,386,$(shell uname -m)))
 
 GOOS   ?= $(OS)
 GOARCH ?= $(ARCH)
-GOVER  ?= 1.3.3
+GOVER  ?= 1.4.2
 GOPKG  := $(subst darwin-amd64,darwin-amd64-osx10.8,go$(GOVER).$(OS)-$(ARCH).tar.gz)
 GOROOT ?= $(CURDIR)/.deps/go
 GOPATH ?= $(CURDIR)/.deps/gopath
