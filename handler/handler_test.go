@@ -15,13 +15,13 @@ package handler
 
 import (
 	"bytes"
+	"code.google.com/p/goprotobuf/proto"
+	"github.com/julienschmidt/httprouter"
+	"github.com/matttproud/golang_protobuf_extensions/pbutil"
+	dto "github.com/prometheus/client_model/go"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"code.google.com/p/goprotobuf/proto"
-	"github.com/julienschmidt/httprouter"
-	"github.com/matttproud/golang_protobuf_extensions/ext"
-	dto "github.com/prometheus/client_model/go"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -183,7 +183,7 @@ another_metric{instance="baz"} 42
 	// With job name and instance name and protobuf content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	buf := &bytes.Buffer{}
-	_, err = ext.WriteDelimited(buf, &dto.MetricFamily{
+	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
 		Name: proto.String("some_metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
@@ -198,7 +198,7 @@ another_metric{instance="baz"} 42
 		t.Fatal(err)
 	}
 
-	_, err = ext.WriteDelimited(buf, &dto.MetricFamily{
+	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
 		Name: proto.String("another_metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{

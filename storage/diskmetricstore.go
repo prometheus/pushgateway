@@ -335,7 +335,7 @@ func (dms *DiskMetricStore) restore() error {
 
 func writeTimestampedMetricFamily(e *gob.Encoder, tmf TimestampedMetricFamily) error {
 	// Since we have to serialize the timestamp, too, we are using gob for
-	// everything (and not ext.WriteDelimited).
+	// everything (and not pbutil.WriteDelimited).
 	buffer, err := proto.Marshal(tmf.MetricFamily)
 	if err != nil {
 		return err
