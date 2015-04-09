@@ -23,7 +23,7 @@ import (
 
 	"code.google.com/p/goprotobuf/proto"
 	"github.com/julienschmidt/httprouter"
-	"github.com/matttproud/golang_protobuf_extensions/ext"
+	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/text"
 
@@ -76,7 +76,7 @@ func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.
 				metricFamilies = map[string]*dto.MetricFamily{}
 				for {
 					mf := &dto.MetricFamily{}
-					if _, err = ext.ReadDelimited(r.Body, mf); err != nil {
+					if _, err = pbutil.ReadDelimited(r.Body, mf); err != nil {
 						if err == io.EOF {
 							err = nil
 						}
