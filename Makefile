@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION  := 0.1.0
+VERSION  := 0.1.1
 
 TARGET   := pushgateway
 
@@ -78,6 +78,8 @@ bindata-embed: $(GOPATH)/bin/go-bindata
 $(GOPATH)/bin/go-bindata:
 	$(GO) get github.com/jteeuwen/go-bindata/...
 
+archive: $(ARCHIVE)
+
 $(ARCHIVE): $(BINARY)
 	tar -czf $@ bin/
 
@@ -107,4 +109,4 @@ mrproper: clean
 	rm -rf .deps
 	rm -rf $(ARCHIVE)
 
-.PHONY: test tag dependencies clean release upload bindata-debug bindata-embed mrproper
+.PHONY: archive test tag dependencies clean release upload bindata-debug bindata-embed mrproper
