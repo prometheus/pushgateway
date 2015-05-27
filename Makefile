@@ -28,6 +28,8 @@ GOCC   := $(GOROOT)/bin/go
 GOLIB  := $(GOROOT)/pkg/$(GOOS)_$(GOARCH)
 GO     := GOROOT=$(GOROOT) GOPATH=$(GOPATH) $(GOCC)
 
+unexport GOBIN
+
 SUFFIX  := $(GOOS)-$(GOARCH)
 BINARY  := bin/$(TARGET)
 ARCHIVE := $(TARGET)-$(VERSION).$(SUFFIX).tar.gz
