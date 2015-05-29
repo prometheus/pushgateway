@@ -56,7 +56,7 @@ func Status(
 				return strconv.FormatFloat(*f, 'f', -1, 64)
 			},
 		})
-		tpl, err := assetFunc("resources/template.html")
+		tpl, err := assetFunc("template.html")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/log"
@@ -57,15 +58,11 @@ func main() {
 	r.PUT("/metrics/jobs/:job", handler.Push(ms, true))
 	r.POST("/metrics/jobs/:job", handler.Push(ms, false))
 	r.DELETE("/metrics/jobs/:job", handler.Delete(ms))
-	r.Handler("GET", "/functions.js", prometheus.InstrumentHandlerFunc(
+	r.Handler("GET", "/static/*filepath", prometheus.InstrumentHandler(
 		"static",
-		func(w http.ResponseWriter, _ *http.Request) {
-			if b, err := Asset("resources/functions.js"); err == nil {
-				w.Write(b)
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-		},
+		http.FileServer(
+			&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir},
+		),
 	))
 	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, Asset, flags, BuildInfo))
 	r.Handler("GET", "/status", statusHandler)
@@ -74,7 +71,7 @@ func main() {
 	// Re-enable pprof.
 	r.GET("/debug/pprof/*pprof", handlePprof)
 
-	log.Printf("Listening on %s.\n", *listenAddress)
+	log.Printf("Listening on %s.", *listenAddress)
 	l, err := net.Listen("tcp", *listenAddress)
 	if err != nil {
 		log.Fatal(err)
