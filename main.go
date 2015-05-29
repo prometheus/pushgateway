@@ -15,7 +15,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/log"
 
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
