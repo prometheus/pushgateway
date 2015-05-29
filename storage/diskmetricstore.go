@@ -17,13 +17,13 @@ import (
 	"encoding/gob"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"sync"
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/prometheus/log"
 
 	dto "github.com/prometheus/client_model/go"
 )
