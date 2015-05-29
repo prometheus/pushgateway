@@ -144,6 +144,11 @@ grouping key. Any of those labels already set in the body of the
 request (as regular labels, e.g. `name{job="foo"} 42`)
 _will be overwritten to match the labels defined by the URL path!_
 
+Note that `/` cannot be used as part of a label value or the job name,
+even if escaped as `%2F`. (The decoding happens before the path
+routing kicks in, cf. the Go documentation of
+[`URL.Path`](http://golang.org/pkg/net/url/#URL).)
+
 ### Deprecated URL
 
 There is a _deprecated_ version of the URL path, using `jobs` instead

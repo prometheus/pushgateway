@@ -1,10 +1,8 @@
 // Namespace.
 var pushgateway = {};
 
-pushgateway.jobName = '';
-pushgateway.jobPanel = null;
-pushgateway.instanceName = '';
-pushgateway.instancePanel = null;
+pushgateway.labels = {};
+pushgateway.panel = null;
 
 pushgateway.switchToMetrics = function(){
     $('#metrics-div').removeClass('hidden');
@@ -20,53 +18,44 @@ pushgateway.switchToStatus = function(){
     $('#status-li').addClass('active');
 }
 
-pushgateway.showJobModal = function(jobName, jobPanelID, event){
+pushgateway.showDelModal = function(labels, panelID, event){
     event.stopPropagation(); // Don't trigger accordion collapse.
-    pushgateway.jobName = jobName;
-    pushgateway.jobPanel = $('#' + jobPanelID);
-    $('#del-job-modal-msg').text(
-	'Do you really want to delete all metrics of job="' + jobName + '"?'
+    pushgateway.labels = labels;
+    pushgateway.panel = $('#' + panelID);
+
+    var components = [];
+    for (var ln in labels) {
+	components.push(ln + '="' + labels[ln] + '"')
+    }
+    
+    $('#del-modal-msg').text(
+	'Do you really want to delete all metrics of group {' + components.join(', ') + '}?'
     );
-    $('#del-job-modal').modal('show');
+    $('#del-modal').modal('show');
 }
 
-pushgateway.showInstanceModal = function(jobName, instanceName, instancePanelID, event){
-    event.stopPropagation(); // Don't trigger accordion collapse.
-    pushgateway.jobName = jobName;
-    pushgateway.instanceName = instanceName;
-    pushgateway.instancePanel = $('#' + instancePanelID);
-    $('#del-instance-modal-msg').text(
-	'Do you really want to delete all metrics of job="' + jobName +
-	    '", instance="' + instanceName + '"?'
-    );
-    $('#del-instance-modal').modal('show');
-}
-
-pushgateway.deleteJob = function(){
-    $.ajax({
-	type: 'DELETE',
-	url: '/metrics/jobs/' + pushgateway.jobName,
-	success: function(data, textStatus, jqXHR) {
-	    pushgateway.jobPanel.remove();
-	    $('#del-job-modal').modal('hide');
-	},
-	error: function(jqXHR, textStatus, error) {
-	    alert('Deleting job failed: ' + error);
+pushgateway.deleteGroup = function(){
+    var pathElements = [];
+    for (var ln in pushgateway.labels) {
+	if (ln != 'job') {
+	    pathElements.push(encodeURIComponent(ln));
+	    pathElements.push(encodeURIComponent(pushgateway.labels[ln]));
 	}
-    });
-}
-
-pushgateway.deleteInstance = function(){
+    }
+    var groupPath = pathElements.join('/');
+    if (groupPath.length > 0) {
+	groupPath = '/' + groupPath;
+    }
+    
     $.ajax({
 	type: 'DELETE',
-	url: '/metrics/jobs/' + escape(pushgateway.jobName) +
-	    '/instances/' + escape(pushgateway.instanceName),
+	url: '/metrics/job/' + encodeURIComponent(pushgateway.labels['job']) + groupPath,
 	success: function(data, textStatus, jqXHR) {
-	    pushgateway.instancePanel.remove();
-	    $('#del-instance-modal').modal('hide');
+	    pushgateway.panel.remove();
+	    $('#del-modal').modal('hide');
 	},
 	error: function(jqXHR, textStatus, error) {
-	    alert('Deleting instance failed: ' + error);
+	    alert('Deleting metric group failed: ' + error);
 	}
     });
 }

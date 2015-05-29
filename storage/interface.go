@@ -14,6 +14,7 @@
 package storage
 
 import (
+	"sort"
 	"time"
 
 	dto "github.com/prometheus/client_model/go"
@@ -30,20 +31,20 @@ type MetricStore interface {
 	// returned MetricFamilies are guaranteed to not be modified by the
 	// MetricStore anymore. However, they may still be read somewhere else,
 	// so the caller is not allowed to modify the returned MetricFamilies.
-	// If different jobs and instances have saved MetricFamilies of the same
-	// name, they are all merged into one MetricFamily by concatenating the
-	// contained Metrics. Inconsistent help strings or types are logged, and
-	// one of the versions will "win". Inconsistent labels will go
-	// undetected.
+	// If different groups have saved MetricFamilies of the same name, they
+	// are all merged into one MetricFamily by concatenating the contained
+	// Metrics. Inconsistent help strings or types are logged, and one of
+	// the versions will "win". Inconsistent and duplicate label sets will
+	// go undetected.
 	GetMetricFamilies() []*dto.MetricFamily
-	// GetMetricFamiliesMap returns a nested map (job -> instance ->
-	// metric-name -> TimestampedMetricFamily). The MetricFamily pointed to
-	// by each TimestampedMetricFamily is guaranteed to not be modified by
-	// the MetricStore anymore. However, they may still be read somewhere
-	// else, so the caller is not allowed to modify it. Otherwise, the
-	// returned nested map is a deep copy of the internal state of the
-	// MetricStore and completely owned by the caller.
-	GetMetricFamiliesMap() JobToInstanceMap
+	// GetMetricFamiliesMap returns a map grouping-key -> MetricGroup. The
+	// MetricFamily pointed to by the Metrics map in each MetricGroup is
+	// guaranteed to not be modified by the MetricStore anymore. However,
+	// they may still be read somewhere else, so the caller is not allowed
+	// to modify it. Otherwise, the returned nested map is a deep copy of
+	// the internal state of the MetricStore and completely owned by the
+	// caller.
+	GetMetricFamiliesMap() GroupingKeyToMetricGroup
 	// Shutdown must only be called after the caller has made sure that
 	// SubmitWriteRequests is not called anymore. (If it is called later,
 	// the request might get submitted, but not processed anymore.) The
@@ -59,32 +60,50 @@ type MetricStore interface {
 
 // WriteRequest is a request to change the MetricStore, i.e. to process it, a
 // write lock has to be acquired. If MetricFamilies is nil, this is a request to
-// delete metrics that share the given Job and (if not empty) Instance
-// labels. Otherwise, this is a request to update the MetricStore with the
-// MetricFamilies. The key in MetricFamilies is the name of the mapped metric
-// family. All metrics in MetricFamilies MUST have already set job and instance
-// labels that are consistent with the Job and Instance fields. The Timestamp
-// field marks the time the request was received from the network. It is not
-// related to the timestamp_ms field in the Metric proto message.
+// delete metrics that share the given Labels as a grouping key. Otherwise, this
+// is a request to update the MetricStore with the MetricFamilies. The key in
+// MetricFamilies is the name of the mapped metric family. All metrics in
+// MetricFamilies MUST have already set job and other labels that are consistent
+// with the Labels fields. The Timestamp field marks the time the request was
+// received from the network. It is not related to the timestamp_ms field in the
+// Metric proto message.
 type WriteRequest struct {
-	Job, Instance  string
+	Labels         map[string]string
 	Timestamp      time.Time
 	MetricFamilies map[string]*dto.MetricFamily
 }
 
-// TimestampedMetricFamily adds a timestamp to a MetricFamily-DTO.
+// TimestampedMetricFamily adds the push timestamp to a MetricFamily-DTO.
 type TimestampedMetricFamily struct {
 	Timestamp    time.Time
 	MetricFamily *dto.MetricFamily
 }
 
-// JobToInstanceMap is the first level of the metric store, keyed by job name.
-type JobToInstanceMap map[string]InstanceToNameMap
+// GroupingKeyToMetricGroup is the first level of the metric store, keyed by
+// grouping key.
+type GroupingKeyToMetricGroup map[uint64]MetricGroup
 
-// InstanceToNameMap is the second level of the metric store, keyed by instance
-// name.
-type InstanceToNameMap map[string]NameToTimestampedMetricFamilyMap
+// MetricGroup adds the grouping labels to a NameToTimestampedMetricFamilyMap.
+type MetricGroup struct {
+	Labels  map[string]string
+	Metrics NameToTimestampedMetricFamilyMap
+}
 
-// NameToTimestampedMetricFamilyMap is the third level of the metric store,
+// SortedLabels returns the label names of the grouping labels sorted
+// lexicographically but with the "job" label always first. This method exists
+// for presentation purposes, see template.html.
+func (mg MetricGroup) SortedLabels() []string {
+	lns := make([]string, 1, len(mg.Labels))
+	lns[0] = "job"
+	for ln := range mg.Labels {
+		if ln != "job" {
+			lns = append(lns, ln)
+		}
+	}
+	sort.Strings(lns[1:])
+	return lns
+}
+
+// NameToTimestampedMetricFamilyMap is the second level of the metric store,
 // keyed by metric name.
 type NameToTimestampedMetricFamilyMap map[string]TimestampedMetricFamily
