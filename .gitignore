@@ -1,5 +1,9 @@
 pushgateway
+bindata.go
+dependencies-stamp
+.build
 .deps
 *.test
 *~
-bindata.go
+*.exe
+*.tar.gz
