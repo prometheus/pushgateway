@@ -29,18 +29,18 @@ include Makefile.COMMON
 
 $(BINARY): bindata.go
 
-bindata.go: $(GOPATH)/bin/go-bindata resources/*
-	$(GOPATH)/bin/go-bindata resources/
+bindata.go: $(GOPATH)/bin/go-bindata $(shell find resources -type f)
+	$(GOPATH)/bin/go-bindata -prefix=resources resources/...
 
 # Target to unconditionally compile the debug bindata.
 .PHONY: bindata-debug
 bindata-debug: $(GOPATH)/bin/go-bindata
-	$(GOPATH)/bin/go-bindata -debug resources/
+	$(GOPATH)/bin/go-bindata -debug -prefix=resources resources/...
 
 # Target to unconditionally compile the embedded bindata.
 .PHONY: bindata-embed
 bindata-embed: $(GOPATH)/bin/go-bindata
-	$(GOPATH)/bin/go-bindata resources/
+	$(GOPATH)/bin/go-bindata -prefix=resources resources/...
 
 $(GOPATH)/bin/go-bindata:
 	$(GO) get github.com/jteeuwen/go-bindata/...
