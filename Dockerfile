@@ -1,10 +1,10 @@
-FROM       ubuntu
-MAINTAINER The Prometheus Authors <prometheus-developers@googlegroups.com>
-EXPOSE     9091
+FROM        sdurrheimer/alpine-golang-make-onbuild
+MAINTAINER  The Prometheus Authors <prometheus-developers@googlegroups.com>
 
-RUN        apt-get -qy update && apt-get install -yq make git curl sudo mercurial gcc
+USER root
+RUN  mkdir /pushgateway \
+     && chown golang:golang /pushgateway
 
-ADD        . /pushgateway
-WORKDIR    /pushgateway
-RUN        make
-ENTRYPOINT [ "/pushgateway/pushgateway" ]
+USER        golang
+WORKDIR     /pushgateway
+EXPOSE      9091
