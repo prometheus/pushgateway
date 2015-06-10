@@ -189,14 +189,14 @@ The body of the request contains the metrics to push either as
 delimited binary protocol buffers or in the simple flat text format
 (both in version 0.0.4, see the
 [data exposition format specification](https://docs.google.com/document/d/1ZjyKiKxZV83VI9ZKAXRGKaUKK2BIWCT7oiGBKDBpjEY/edit?usp=sharing)).
-Discrimination between the two variants is done via the content-type
-header. (In case of an unknown content-type, the text format is tried
-as a fall-back.)
+Discrimination between the two variants is done via the `Content-Type`
+header. (In case of an unknown value for `Content-Type`, the text
+format is tried as a fall-back.)
 
 The response code upon success is always 202 (even if the same
 grouping key has never been used before, i.e. there is no feedback to
-the client if the push has replaced a group of metric or created a new
-one).
+the client if the push has replaced an existing group of metrics or
+created a new one).
 
 _If using the protobuf format, do not send duplicate MetricFamily
 proto messages (i.e. more than one with the same name) in one push, as
