@@ -18,8 +18,7 @@ used for service-level metrics.
 
 ## Run it
 
-Compile the binary using the provided Makefile (type `make`). The
-binary will be put into the `bin` directory.
+Compile the binary using the provided Makefile (type `make`).
 
 For the most basic setup, just start the binary. To change the address
 to listen on, use the `-addr` flag. The `-persistence.file` flag
@@ -51,15 +50,15 @@ packet, will result in a protocol error.*
 
 Examples:
 
-* Push a single sample:
+* Push a single sample into the group identified by `{job="some_job}`:
 
-        echo "some_metric 3.14" | curl --data-binary @- http://pushgateway.example.org:8080/metrics/jobs/some_job
+        echo "some_metric 3.14" | curl --data-binary @- http://pushgateway.example.org:8080/metrics/job/some_job
 
   Since no type information has been provided, `some_metric` will be of type `untyped`.
 
-* Push something more complex:
+* Push something more complex into the group identified by `{job="some_job",instance="some_instance"}`:
 
-        cat <<EOF | curl --data-binary @- http://pushgateway.example.org:8080/metrics/jobs/some_job/instances/some_instance
+        cat <<EOF | curl --data-binary @- http://pushgateway.example.org:8080/metrics/job/some_job/instance/some_instance
         # TYPE some_metric counter
         some_metric{label="val1"} 42
         # This one even has a timestamp (but beware, see below).
@@ -72,13 +71,35 @@ Examples:
   Note how type information and help strings are provided. Those lines
   are optional, but strongly encouraged for anything more complex.
 
-* Delete all metrics of an instance:
+* Delete all metrics grouped by job and instance:
 
-        curl -X DELETE http://pushgateway.example.org:8080/metrics/jobs/some_job/instances/some_instance
+        curl -X DELETE http://pushgateway.example.org:8080/metrics/job/some_job/instance/some_instance
 
-* Delete all metrics of a job:
+* Delete all metrics grouped by job only:
 
-        curl -X DELETE http://pushgateway.example.org:8080/metrics/jobs/some_job
+        curl -X DELETE http://pushgateway.example.org:8080/metrics/job/some_job
+
+### About the instance label
+
+The Prometheus server will attach an `instance` label to each scraped
+metric that does not already have one. The automatically attached
+instance label contains the host and port of the target scraped. If a
+metric already has an instance label, an `exporter_instance` label is
+attached instead. (This behavior will be configurable once
+[server issue #490](https://github.com/prometheus/prometheus/issues/490) is
+fixed.)
+
+However, metrics pushed to the Pushgateway are often on a service
+level and therefore not related to a particular instance. Not
+attaching an instance label in that case is not an option because the
+server will then attach the host and port of the Pushgateway as an
+instance label (which is actually desired for metrics about the state
+of the Pushgateway itself).
+
+Therefore, if a metric is pushed to the Pushgateway without an
+instance label (and without instance label in the grouping key, see
+below), the Pushgateway will export it with an emtpy instance label
+(`{instance=""}`).
 
 ### About timestamps
 
@@ -108,42 +129,74 @@ could attach the time of pushing as a timestamp.)
 
 ## API
 
-All pushes are done via HTTP. The interface is REST-like.
+All pushes are done via HTTP. The interface is vaguely REST-like.
 
 ### URL
 
 The default port the push gateway is listening to is 8080. The path looks like
 
+    /metrics/job/<JOBNAME>{/<LABEL_NAME>/<LABEL_VALUE>}
+
+`<JOBNAME>` is used as the value of the `job` label, followed by any
+number of other label pairs (which might or might not include an
+`instance` label). The label set defined by the URL path is used as a
+grouping key. Any of those labels already set in the body of the
+request (as regular labels, e.g. `name{job="foo"} 42`)
+_will be overwritten to match the labels defined by the URL path!_
+
+Note that `/` cannot be used as part of a label value or the job name,
+even if escaped as `%2F`. (The decoding happens before the path
+routing kicks in, cf. the Go documentation of
+[`URL.Path`](http://golang.org/pkg/net/url/#URL).)
+
+### Deprecated URL
+
+There is a _deprecated_ version of the URL path, using `jobs` instead
+of `job`:
+
     /metrics/jobs/<JOBNAME>[/instances/<INSTANCENAME>]
 
-`<JOBNAME>` is used as the value of the `job` label, and `<INSTANCE>`
-as the value of the `instance` label. The instance part of the URL is
-optional. If it is missing, the IP number of the pushing host is used
-as the value for the 'instance' label instead.
+If this version of the URL path is used _with_ the `instances` part,
+it is equivalent to the URL path above with an `instance` label, i.e.
 
-If those labels are already set in the body of the request (as regular
-labels, e.g. `name{job="foo",instance="bar"} 42`), _the values of
-those labels will be overwritten with values determined as described
-above!_ (This behavior might be changed in the future if a valid
-use-case can be shown.)
+    /metrics/jobs/foo/instances/bar
 
-### `POST` method
+is equivalent to
 
-`POST` is used to add metrics to previously pushed metrics. Note that
-only previously pushed metrics with a different metric name, job label
-or instance label are preserved. Each `POST` will completely replace
-existing metrics with the same metric name, job label, and instance
-label as the metrics pushed, even if the existing metrics had a
-different label set otherwise.
+    /metrics/job/foo/instance/bar
 
-The response code upon success is always 202 (even if that same metric has
-never been pushed before, i.e. there is no feedback to the client if
-the push has replaced a metric or created a new one).
+(Note the missing pluralizations.)
 
-The body of the request contains the metrics to push either as delimited binary protocol
-buffers or in the simple flat text format (both in version 0.0.4, see the
-[data exposition format specification](https://docs.google.com/document/d/1ZjyKiKxZV83VI9ZKAXRGKaUKK2BIWCT7oiGBKDBpjEY/edit?usp=sharing). Discrimination between the two variants is done via content-type
-header. (In case of an unknown content-type, the text format is tried as a fall-back.)
+However, if the `instances` part is missing, the Pushgateway will
+automatically use the IP number of the pushing host as the 'instance'
+label, and grouping happens by 'job' and 'instance' labels.
+
+Example: Pushing metrics from host 1.2.3.4 using the deprecated URL path
+
+    /metrics/jobs/foo
+
+is equivalent to pushing using the URL path
+
+    /metrics/job/foo/instance/1.2.3.4
+
+### `PUT` method
+
+`PUT` is used to push a group of metrics. All metrics with the
+grouping key specified in the URL are replaced by the metrics pushed
+with `PUT`.
+
+The body of the request contains the metrics to push either as
+delimited binary protocol buffers or in the simple flat text format
+(both in version 0.0.4, see the
+[data exposition format specification](https://docs.google.com/document/d/1ZjyKiKxZV83VI9ZKAXRGKaUKK2BIWCT7oiGBKDBpjEY/edit?usp=sharing)).
+Discrimination between the two variants is done via the `Content-Type`
+header. (In case of an unknown value for `Content-Type`, the text
+format is tried as a fall-back.)
+
+The response code upon success is always 202 (even if the same
+grouping key has never been used before, i.e. there is no feedback to
+the client if the push has replaced an existing group of metrics or
+created a new one).
 
 _If using the protobuf format, do not send duplicate MetricFamily
 proto messages (i.e. more than one with the same name) in one push, as
@@ -151,34 +204,44 @@ they will overwrite each other._
 
 A successfully finished request means that the pushed metrics are
 queued for an update of the storage. Scraping the push gateway may
-still yield the old sample value for that metric (or nothing at all if
-this is the first time that metric is pushed) until the queued update
-is processed. Neither is there a guarantee that the metric is
+still yield the old results until the queued update is
+processed. Neither is there a guarantee that the pushed metrics are
 persisted to disk. (A server crash may cause data loss. Or the push
 gateway is configured to not persist to disk at all.)
 
-### `PUT` method
+### `POST` method
 
-`PUT` works exactly as `POST` with the important distinction that
-_all_ metrics with the same job label and instance label are deleted
-before pushing any of the newly submitted metrics.
+`POST` works exactly like the `PUT` method but only metrics with the
+same name as the newly pushed metrics are replaced (among those with
+the same grouping key).
 
 ### `DELETE` method
 
 `DELETE` is used to delete metrics from the push gateway. The request
-must not contain any content. If both a job and an instance are
-specified in the URL, all metrics matching that job and instance are
-deleted. If only a job is specified, all metrics matching that job are
-deleted. The response code upon success is always 202. The delete
-request is merely queued at the moment. There is no guarantee that the
+must not contain any content. All metrics with the grouping key
+specified in the URL are deleted.
+
+The response code upon success is always 202. The delete
+request is merely queued at that moment. There is no guarantee that the
 request will actually be executed or that the result will make it to
 the persistence layer (e.g. in case of a server crash). However, the
 order of `PUT`/`POST` and `DELETE` request is guaranteed, i.e. if you
 have successfully sent a `DELETE` request and then send a `PUT`, it is
 guaranteed that the `DELETE` will be processed first (and vice versa).
 
-Deleting non-existing metrics is a no-op and will not result in an
-error.
+Deleting a grouping key without metrics is a no-op and will not result
+in an error.
+
+**Caution:** Up to version 0.1.1 of the Pushgateway, a `DELETE` request
+using the following path in the URL would delete _all_ metrics with
+the job label 'foo':
+
+    /metrics/jobs/foo
+
+Newer versions will interpret the above URL path as deprecated (see
+above). Consequently, they will add the IP number of the client as an
+instance label and then delete all metrics with the corresponding job
+and instance label as their grouping key.
 
 ## Development
 

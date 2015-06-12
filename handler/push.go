@@ -14,10 +14,13 @@
 package handler
 
 import (
+	"fmt"
 	"io"
 	"mime"
 	"net"
 	"net/http"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,7 +40,9 @@ import (
 // given by the request are deleted before new ones are stored.
 //
 // The returned handler is already instrumented for Prometheus.
-func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.Request, httprouter.Params) {
+func Push(
+	ms storage.MetricStore, replace bool, requiredLabels map[string]struct{},
+) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
 
@@ -45,25 +50,23 @@ func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.
 		"push",
 		func(w http.ResponseWriter, r *http.Request) {
 			job := ps.ByName("job")
-			instance := ps.ByName("instance")
+			labelsString := ps.ByName("labels")
 			mtx.Unlock()
 
-			var err error
+			labels, err := splitLabels(labelsString)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
 				return
 			}
-			if instance == "" {
-				// Remote IP number (without port).
-				instance, _, err = net.SplitHostPort(r.RemoteAddr)
-				if err != nil || instance == "" {
-					instance = "localhost"
-				}
-			}
+			labels["job"] = job
+
 			if replace {
 				ms.SubmitWriteRequest(storage.WriteRequest{
-					Job:       job,
-					Instance:  instance,
+					Labels:    labels,
 					Timestamp: time.Now(),
 				})
 			}
@@ -95,10 +98,13 @@ func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			setJobAndInstance(metricFamilies, job, instance)
+			sanitizeLabels(
+				metricFamilies,
+				labels,
+				requiredLabels,
+			)
 			ms.SubmitWriteRequest(storage.WriteRequest{
-				Job:            job,
-				Instance:       instance,
+				Labels:         labels,
 				Timestamp:      time.Now(),
 				MetricFamilies: metricFamilies,
 			})
@@ -113,36 +119,162 @@ func Push(ms storage.MetricStore, replace bool) func(http.ResponseWriter, *http.
 	}
 }
 
-func setJobAndInstance(metricFamilies map[string]*dto.MetricFamily, job, instance string) {
+// LegacyPush returns an http.Handler which accepts samples over HTTP and stores
+// them in the MetricStore. It uses the deprecated API (expecting a 'job'
+// parameter and an optional 'instance' parameter). If replace is true, all
+// metrics for the job and instance given by the request are deleted before new
+// ones are stored.
+//
+// The returned handler is already instrumented for Prometheus.
+func LegacyPush(
+	ms storage.MetricStore, replace bool, requiredLabels map[string]struct{},
+) func(http.ResponseWriter, *http.Request, httprouter.Params) {
+	var ps httprouter.Params
+	var mtx sync.Mutex // Protects ps.
+
+	instrumentedHandlerFunc := prometheus.InstrumentHandlerFunc(
+		"push",
+		func(w http.ResponseWriter, r *http.Request) {
+			job := ps.ByName("job")
+			instance := ps.ByName("instance")
+			mtx.Unlock()
+
+			var err error
+			if job == "" {
+				http.Error(w, "job name is required", http.StatusBadRequest)
+				return
+			}
+			if instance == "" {
+				// Remote IP number (without port).
+				instance, _, err = net.SplitHostPort(r.RemoteAddr)
+				if err != nil || instance == "" {
+					instance = "localhost"
+				}
+			}
+			labels := map[string]string{"job": job, "instance": instance}
+			if replace {
+				ms.SubmitWriteRequest(storage.WriteRequest{
+					Labels:    labels,
+					Timestamp: time.Now(),
+				})
+			}
+
+			var metricFamilies map[string]*dto.MetricFamily
+			ctMediatype, ctParams, ctErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
+			if ctErr == nil && ctMediatype == "application/vnd.google.protobuf" &&
+				ctParams["encoding"] == "delimited" &&
+				ctParams["proto"] == "io.prometheus.client.MetricFamily" {
+				metricFamilies = map[string]*dto.MetricFamily{}
+				for {
+					mf := &dto.MetricFamily{}
+					if _, err = pbutil.ReadDelimited(r.Body, mf); err != nil {
+						if err == io.EOF {
+							err = nil
+						}
+						break
+					}
+					metricFamilies[mf.GetName()] = mf
+				}
+			} else {
+				// We could do further content-type checks here, but the
+				// fallback for now will anyway be the text format
+				// version 0.0.4, so just go for it and see if it works.
+				var parser text.Parser
+				metricFamilies, err = parser.TextToMetricFamilies(r.Body)
+			}
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			sanitizeLabels(
+				metricFamilies,
+				labels,
+				requiredLabels,
+			)
+			ms.SubmitWriteRequest(storage.WriteRequest{
+				Labels:         labels,
+				Timestamp:      time.Now(),
+				MetricFamilies: metricFamilies,
+			})
+			w.WriteHeader(http.StatusAccepted)
+		},
+	)
+
+	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		mtx.Lock()
+		ps = params
+		instrumentedHandlerFunc(w, r)
+	}
+}
+
+// sanitizeLabels ensures that all the labels in groupingLabels and
+// requiredLabels are present in each MetricFamily in metricFamilies. The label
+// values from groupingLabels are set in each MetricFamily, no matter what. In
+// contrast, requiredLabels contains only label names and no label values. Only
+// if any of those labels are not present at all in a MetricFamily, they will be
+// created (with an empty string as value).
+//
+// Finally, sanitizeLabels sorts the label pairs of all metrics.
+func sanitizeLabels(
+	metricFamilies map[string]*dto.MetricFamily,
+	groupingLabels map[string]string, requiredLabels map[string]struct{},
+) {
+	gLabelsNotYetDone := make(map[string]string, len(groupingLabels))
+	rLabelsNotYetDone := make(map[string]struct{}, len(requiredLabels))
+
 	for _, mf := range metricFamilies {
 	metric:
 		for _, m := range mf.GetMetric() {
-			var jobDone, instanceDone bool
+			for ln, lv := range groupingLabels {
+				gLabelsNotYetDone[ln] = lv
+			}
+			for ln := range requiredLabels {
+				rLabelsNotYetDone[ln] = struct{}{}
+			}
 			for _, lp := range m.GetLabel() {
-				switch lp.GetName() {
-				case "job":
-					lp.Value = proto.String(job)
-					jobDone = true
-				case "instance":
-					lp.Value = proto.String(instance)
-					instanceDone = true
+				ln := lp.GetName()
+				delete(rLabelsNotYetDone, ln)
+				if lv, ok := gLabelsNotYetDone[ln]; ok {
+					lp.Value = proto.String(lv)
+					delete(gLabelsNotYetDone, ln)
 				}
-				if jobDone && instanceDone {
+				if len(gLabelsNotYetDone)+len(rLabelsNotYetDone) == 0 {
+					sort.Sort(prometheus.LabelPairSorter(m.Label))
 					continue metric
 				}
 			}
-			if !jobDone {
+			for ln, lv := range gLabelsNotYetDone {
 				m.Label = append(m.Label, &dto.LabelPair{
-					Name:  proto.String("job"),
-					Value: proto.String(job),
+					Name:  proto.String(ln),
+					Value: proto.String(lv),
 				})
+				delete(rLabelsNotYetDone, ln)
+				delete(gLabelsNotYetDone, ln) // To prepare map for next metric.
 			}
-			if !instanceDone {
+			for ln := range rLabelsNotYetDone {
 				m.Label = append(m.Label, &dto.LabelPair{
-					Name:  proto.String("instance"),
-					Value: proto.String(instance),
+					Name:  proto.String(ln),
+					Value: proto.String(""),
 				})
+				delete(rLabelsNotYetDone, ln) // To prepare map for next metric.
 			}
+			sort.Sort(prometheus.LabelPairSorter(m.Label))
 		}
 	}
+}
+
+// splitLabels splits a labels string into a label map mapping names to values.
+func splitLabels(labels string) (map[string]string, error) {
+	result := map[string]string{}
+	if len(labels) <= 1 {
+		return result, nil
+	}
+	components := strings.Split(labels[1:], "/")
+	if len(components)%2 != 0 {
+		return nil, fmt.Errorf("odd number of components in label string %q", labels)
+	}
+	for i := 0; i < len(components)-1; i += 2 {
+		result[components[i]] = components[i+1]
+	}
+	return result, nil
 }

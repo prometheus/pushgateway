@@ -24,13 +24,49 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
-// Delete returns a handler that accepts delete requests. If only a job is
-// specified in the query, all metrics for that job are deleted. If a job and an
-// instance is specified, all metrics for that job/instance combination are
-// deleted.
+// Delete returns a handler that accepts delete requests.
 //
 // The returned handler is already instrumented for Prometheus.
 func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, httprouter.Params) {
+	var ps httprouter.Params
+	var mtx sync.Mutex // Protects ps.
+
+	instrumentedHandlerFunc := prometheus.InstrumentHandlerFunc(
+		"delete",
+		func(w http.ResponseWriter, _ *http.Request) {
+			job := ps.ByName("job")
+			labelsString := ps.ByName("labels")
+			mtx.Unlock()
+
+			labels, err := splitLabels(labelsString)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if job == "" {
+				http.Error(w, "job name is required", http.StatusBadRequest)
+				return
+			}
+			labels["job"] = job
+			ms.SubmitWriteRequest(storage.WriteRequest{
+				Labels:    labels,
+				Timestamp: time.Now(),
+			})
+			w.WriteHeader(http.StatusAccepted)
+		},
+	)
+	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		mtx.Lock()
+		ps = params
+		instrumentedHandlerFunc(w, r)
+	}
+}
+
+// LegacyDelete returns a handler that accepts delete requests. It deals with
+// the deprecated API.
+//
+// The returned handler is already instrumented for Prometheus.
+func LegacyDelete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
 
@@ -45,9 +81,12 @@ func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, htt
 				http.Error(w, "job name is required", http.StatusBadRequest)
 				return
 			}
+			labels := map[string]string{"job": job}
+			if instance != "" {
+				labels["instance"] = instance
+			}
 			ms.SubmitWriteRequest(storage.WriteRequest{
-				Job:       job,
-				Instance:  instance,
+				Labels:    labels,
 				Timestamp: time.Now(),
 			})
 			w.WriteHeader(http.StatusAccepted)

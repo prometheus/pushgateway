@@ -25,11 +25,11 @@ import (
 )
 
 type data struct {
-	MetricFamilies storage.JobToInstanceMap
-	Flags          map[string]string
-	BuildInfo      map[string]string
-	Birth          time.Time
-	counter        int
+	MetricGroups storage.GroupingKeyToMetricGroup
+	Flags        map[string]string
+	BuildInfo    map[string]string
+	Birth        time.Time
+	counter      int
 }
 
 func (d *data) Count() int {
@@ -67,10 +67,10 @@ func Status(
 			return
 		}
 		d := &data{
-			MetricFamilies: ms.GetMetricFamiliesMap(),
-			Flags:          flags,
-			BuildInfo:      buildInfo,
-			Birth:          birth,
+			MetricGroups: ms.GetMetricFamiliesMap(),
+			Flags:        flags,
+			BuildInfo:    buildInfo,
+			Birth:        birth,
 		}
 		err = t.Execute(w, d)
 		if err != nil {

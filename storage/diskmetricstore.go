@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/prometheus/client_golang/model"
 	"github.com/prometheus/log"
 
 	dto "github.com/prometheus/client_model/go"
@@ -39,7 +40,7 @@ type DiskMetricStore struct {
 	writeQueue      chan WriteRequest
 	drain           chan struct{}
 	done            chan error
-	metricFamilies  JobToInstanceMap
+	metricGroups    GroupingKeyToMetricGroup
 	persistenceFile string
 }
 
@@ -64,12 +65,17 @@ func NewDiskMetricStore(
 		writeQueue:      make(chan WriteRequest, writeQueueCapacity),
 		drain:           make(chan struct{}),
 		done:            make(chan error),
-		metricFamilies:  JobToInstanceMap{},
+		metricGroups:    GroupingKeyToMetricGroup{},
 		persistenceFile: persistenceFile,
 	}
 	if err := dms.restore(); err != nil {
 		log.Print("Could not load persisted metrics: ", err)
+		log.Print("Retrying assuming legacy format for persisted metrics...")
+		if err := dms.legacyRestore(); err != nil {
+			log.Print("Could not load persisted metrics in legacy format: ", err)
+		}
 	}
+
 	go dms.loop(persistenceInterval)
 	return dms
 }
@@ -87,37 +93,35 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	dms.lock.RLock()
 	defer dms.lock.RUnlock()
 
-	for _, instances := range dms.metricFamilies {
-		for _, names := range instances {
-			for name, tmf := range names {
-				mf := tmf.MetricFamily
-				stat, exists := mfStatByName[name]
-				if exists {
-					existingMF := result[stat.pos]
-					if !stat.copied {
-						mfStatByName[name] = mfStat{
-							pos:    stat.pos,
-							copied: true,
-						}
-						existingMF = copyMetricFamily(existingMF)
-						result[stat.pos] = existingMF
-					}
-					if mf.GetHelp() != existingMF.GetHelp() || mf.GetType() != existingMF.GetType() {
-						log.Printf(
-							"Metric families '%s' and '%s' are inconsistent, help and type of the latter will have priority. This is bad. Fix your pushed metrics!",
-							mf, existingMF,
-						)
-					}
-					for _, metric := range mf.Metric {
-						existingMF.Metric = append(existingMF.Metric, metric)
-					}
-				} else {
+	for _, group := range dms.metricGroups {
+		for name, tmf := range group.Metrics {
+			mf := tmf.MetricFamily
+			stat, exists := mfStatByName[name]
+			if exists {
+				existingMF := result[stat.pos]
+				if !stat.copied {
 					mfStatByName[name] = mfStat{
-						pos:    len(result),
-						copied: false,
+						pos:    stat.pos,
+						copied: true,
 					}
-					result = append(result, mf)
+					existingMF = copyMetricFamily(existingMF)
+					result[stat.pos] = existingMF
 				}
+				if mf.GetHelp() != existingMF.GetHelp() || mf.GetType() != existingMF.GetType() {
+					log.Printf(
+						"Metric families '%s' and '%s' are inconsistent, help and type of the latter will have priority. This is bad. Fix your pushed metrics!",
+						mf, existingMF,
+					)
+				}
+				for _, metric := range mf.Metric {
+					existingMF.Metric = append(existingMF.Metric, metric)
+				}
+			} else {
+				mfStatByName[name] = mfStat{
+					pos:    len(result),
+					copied: false,
+				}
+				result = append(result, mf)
 			}
 		}
 	}
@@ -189,72 +193,44 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 	dms.lock.Lock()
 	defer dms.lock.Unlock()
+
+	key := model.LabelsToSignature(wr.Labels)
+
 	if wr.MetricFamilies == nil {
 		// Delete.
-		if wr.Instance == "" {
-			delete(dms.metricFamilies, wr.Job)
-		} else {
-			instances, ok := dms.metricFamilies[wr.Job]
-			if ok {
-				delete(instances, wr.Instance)
-				if len(instances) == 0 {
-					// Clean up empty instance maps to not leak memory.
-					delete(dms.metricFamilies, wr.Job)
-				}
-			}
-		}
+		delete(dms.metricGroups, key)
 		return
 	}
 	// Update.
 	for name, mf := range wr.MetricFamilies {
-		instances, ok := dms.metricFamilies[wr.Job]
+		group, ok := dms.metricGroups[key]
 		if !ok {
-			instances = InstanceToNameMap{}
-			dms.metricFamilies[wr.Job] = instances
+			group = MetricGroup{
+				Labels:  wr.Labels,
+				Metrics: NameToTimestampedMetricFamilyMap{},
+			}
+			dms.metricGroups[key] = group
 		}
-		names, ok := instances[wr.Instance]
-		if !ok {
-			names = NameToTimestampedMetricFamilyMap{}
-			instances[wr.Instance] = names
-		}
-		names[name] = TimestampedMetricFamily{
+		group.Metrics[name] = TimestampedMetricFamily{
 			Timestamp:    wr.Timestamp,
 			MetricFamily: mf,
 		}
 	}
 }
 
-func (dms *DiskMetricStore) getTimestampedMetricFamilies() []TimestampedMetricFamily {
-	result := []TimestampedMetricFamily{}
-	dms.lock.RLock()
-	defer dms.lock.RUnlock()
-	for _, i2n := range dms.metricFamilies {
-		for _, n2tmf := range i2n {
-			for _, tmf := range n2tmf {
-				result = append(result, tmf)
-			}
-		}
-	}
-	return result
-}
-
 // GetMetricFamiliesMap implements the MetricStore interface.
-func (dms *DiskMetricStore) GetMetricFamiliesMap() JobToInstanceMap {
+func (dms *DiskMetricStore) GetMetricFamiliesMap() GroupingKeyToMetricGroup {
 	dms.lock.RLock()
 	defer dms.lock.RUnlock()
-	j2iCopy := make(JobToInstanceMap, len(dms.metricFamilies))
-	for j, i2n := range dms.metricFamilies {
-		i2nCopy := make(InstanceToNameMap, len(i2n))
-		j2iCopy[j] = i2nCopy
-		for i, n2tmf := range i2n {
-			n2tmfCopy := make(NameToTimestampedMetricFamilyMap, len(n2tmf))
-			i2nCopy[i] = n2tmfCopy
-			for n, tmf := range n2tmf {
-				n2tmfCopy[n] = tmf
-			}
+	groupsCopy := make(GroupingKeyToMetricGroup, len(dms.metricGroups))
+	for k, g := range dms.metricGroups {
+		metricsCopy := make(NameToTimestampedMetricFamilyMap, len(g.Metrics))
+		groupsCopy[k] = MetricGroup{Labels: g.Labels, Metrics: metricsCopy}
+		for n, tmf := range g.Metrics {
+			metricsCopy[n] = tmf
 		}
 	}
-	return j2iCopy
+	return groupsCopy
 }
 
 func (dms *DiskMetricStore) persist() error {
@@ -270,12 +246,10 @@ func (dms *DiskMetricStore) persist() error {
 	}
 	inProgressFileName := f.Name()
 	e := gob.NewEncoder(f)
-	for _, tmf := range dms.getTimestampedMetricFamilies() {
-		if err := writeTimestampedMetricFamily(e, tmf); err != nil {
-			f.Close()
-			os.Remove(inProgressFileName)
-			return err
-		}
+	if err := e.Encode(dms.metricGroups); err != nil {
+		f.Close()
+		os.Remove(inProgressFileName)
+		return err
 	}
 	if err := f.Close(); err != nil {
 		os.Remove(inProgressFileName)
@@ -289,12 +263,32 @@ func (dms *DiskMetricStore) restore() error {
 		return nil
 	}
 	f, err := os.Open(dms.persistenceFile)
+	if os.IsNotExist(err) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+	d := gob.NewDecoder(f)
+	return d.Decode(&dms.metricGroups)
+}
+
+func (dms *DiskMetricStore) legacyRestore() error {
+	if dms.persistenceFile == "" {
+		return nil
+	}
+	f, err := os.Open(dms.persistenceFile)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
 	var tmf TimestampedMetricFamily
-	for d := gob.NewDecoder(f); err == nil; tmf, err = readTimestampedMetricFamily(d) {
+	for d := gob.NewDecoder(f); err == nil; tmf, err = legacyReadTimestampedMetricFamily(d) {
 		if len(tmf.MetricFamily.GetMetric()) == 0 {
 			continue // No metric in this MetricFamily.
 		}
@@ -315,17 +309,20 @@ func (dms *DiskMetricStore) restore() error {
 				break
 			}
 		}
-		instances, ok := dms.metricFamilies[job]
-		if !ok {
-			instances = InstanceToNameMap{}
-			dms.metricFamilies[job] = instances
+		labels := map[string]string{
+			"job":      job,
+			"instance": instance,
 		}
-		names, ok := instances[instance]
+		key := model.LabelsToSignature(labels)
+		group, ok := dms.metricGroups[key]
 		if !ok {
-			names = NameToTimestampedMetricFamilyMap{}
-			instances[instance] = names
+			group = MetricGroup{
+				Labels:  labels,
+				Metrics: NameToTimestampedMetricFamilyMap{},
+			}
+			dms.metricGroups[key] = group
 		}
-		names[name] = tmf
+		group.Metrics[name] = tmf
 	}
 	if err == io.EOF {
 		return nil
@@ -333,23 +330,7 @@ func (dms *DiskMetricStore) restore() error {
 	return err
 }
 
-func writeTimestampedMetricFamily(e *gob.Encoder, tmf TimestampedMetricFamily) error {
-	// Since we have to serialize the timestamp, too, we are using gob for
-	// everything (and not pbutil.WriteDelimited).
-	buffer, err := proto.Marshal(tmf.MetricFamily)
-	if err != nil {
-		return err
-	}
-	if err := e.Encode(buffer); err != nil {
-		return err
-	}
-	if err := e.Encode(tmf.Timestamp); err != nil {
-		return err
-	}
-	return nil
-}
-
-func readTimestampedMetricFamily(d *gob.Decoder) (TimestampedMetricFamily, error) {
+func legacyReadTimestampedMetricFamily(d *gob.Decoder) (TimestampedMetricFamily, error) {
 	var buffer []byte
 	if err := d.Decode(&buffer); err != nil {
 		return TimestampedMetricFamily{}, err

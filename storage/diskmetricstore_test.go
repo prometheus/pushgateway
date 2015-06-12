@@ -25,6 +25,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
+	"github.com/prometheus/client_golang/model"
 	dto "github.com/prometheus/client_model/go"
 )
 
@@ -262,51 +263,98 @@ var (
 	}
 )
 
+func addGroup(
+	mg GroupingKeyToMetricGroup,
+	groupingLabels map[string]string,
+	metrics NameToTimestampedMetricFamilyMap,
+) {
+	mg[model.LabelsToSignature(groupingLabels)] = MetricGroup{
+		Labels:  groupingLabels,
+		Metrics: metrics,
+	}
+}
+
 func TestGetMetricFamilies(t *testing.T) {
 	testTime := time.Now()
-	j2i := JobToInstanceMap{
-		"job1": InstanceToNameMap{
-			"instance1": NameToTimestampedMetricFamilyMap{
-				"mf2": TimestampedMetricFamily{
-					Timestamp:    testTime,
-					MetricFamily: mf2,
-				},
-			},
-			"instance2": NameToTimestampedMetricFamilyMap{
-				"mf1": TimestampedMetricFamily{
-					Timestamp:    testTime,
-					MetricFamily: mf1a,
-				},
-				"mf3": TimestampedMetricFamily{
-					Timestamp:    testTime,
-					MetricFamily: mf3,
-				},
-			},
-		},
-		"job2": InstanceToNameMap{
-			"instance1": NameToTimestampedMetricFamilyMap{
-				"mf1": TimestampedMetricFamily{
-					Timestamp:    testTime,
-					MetricFamily: mf1c,
-				},
-			}},
-		"job3": InstanceToNameMap{
-			"instance1": NameToTimestampedMetricFamilyMap{},
-			"instance2": NameToTimestampedMetricFamilyMap{
-				"mf4": TimestampedMetricFamily{
-					Timestamp:    testTime,
-					MetricFamily: mf4,
-				},
-				"mf1": TimestampedMetricFamily{
-					Timestamp:    testTime,
-					MetricFamily: mf1d,
-				},
-			},
-		},
-		"job4": InstanceToNameMap{},
-	}
 
-	dms := &DiskMetricStore{metricFamilies: j2i}
+	mg := GroupingKeyToMetricGroup{}
+	addGroup(
+		mg,
+		map[string]string{
+			"job":      "job1",
+			"instance": "instance1",
+		},
+		NameToTimestampedMetricFamilyMap{
+			"mf2": TimestampedMetricFamily{
+				Timestamp:    testTime,
+				MetricFamily: mf2,
+			},
+		},
+	)
+	addGroup(
+		mg,
+		map[string]string{
+			"job":      "job1",
+			"instance": "instance2",
+		},
+		NameToTimestampedMetricFamilyMap{
+			"mf1": TimestampedMetricFamily{
+				Timestamp:    testTime,
+				MetricFamily: mf1a,
+			},
+			"mf3": TimestampedMetricFamily{
+				Timestamp:    testTime,
+				MetricFamily: mf3,
+			},
+		},
+	)
+	addGroup(
+		mg,
+		map[string]string{
+			"job":      "job2",
+			"instance": "instance1",
+		},
+		NameToTimestampedMetricFamilyMap{
+			"mf1": TimestampedMetricFamily{
+				Timestamp:    testTime,
+				MetricFamily: mf1c,
+			},
+		},
+	)
+	addGroup(
+		mg,
+		map[string]string{
+			"job":      "job3",
+			"instance": "instance1",
+		},
+		NameToTimestampedMetricFamilyMap{},
+	)
+	addGroup(
+		mg,
+		map[string]string{
+			"job":      "job3",
+			"instance": "instance2",
+		},
+		NameToTimestampedMetricFamilyMap{
+			"mf4": TimestampedMetricFamily{
+				Timestamp:    testTime,
+				MetricFamily: mf4,
+			},
+			"mf1": TimestampedMetricFamily{
+				Timestamp:    testTime,
+				MetricFamily: mf1d,
+			},
+		},
+	)
+	addGroup(
+		mg,
+		map[string]string{
+			"job": "job4",
+		},
+		NameToTimestampedMetricFamilyMap{},
+	)
+
+	dms := &DiskMetricStore{metricGroups: mg}
 
 	if err := checkMetricFamilies(dms, mf1acd, mf2, mf3, mf4); err != nil {
 		t.Error(err)
@@ -325,8 +373,10 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	// Submit a single simple metric family.
 	ts1 := time.Now()
 	dms.SubmitWriteRequest(WriteRequest{
-		Job:            "job1",
-		Instance:       "instance1",
+		Labels: map[string]string{
+			"job":      "job1",
+			"instance": "instance1",
+		},
 		Timestamp:      ts1,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf3": mf3},
 	})
@@ -338,8 +388,10 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	// Submit two metric families for a different instance.
 	ts2 := ts1.Add(time.Second)
 	dms.SubmitWriteRequest(WriteRequest{
-		Job:            "job1",
-		Instance:       "instance2",
+		Labels: map[string]string{
+			"job":      "job1",
+			"instance": "instance2",
+		},
 		Timestamp:      ts2,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf1": mf1b, "mf2": mf2},
 	})
@@ -352,8 +404,10 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	// Should overwrite the previous metric family for the same job/instance
 	ts3 := ts2.Add(time.Second)
 	dms.SubmitWriteRequest(WriteRequest{
-		Job:            "job1",
-		Instance:       "instance2",
+		Labels: map[string]string{
+			"job":      "job1",
+			"instance": "instance2",
+		},
 		Timestamp:      ts3,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf1": mf1a},
 	})
@@ -373,15 +427,20 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		t.Error(err)
 	}
 	// Spot-check timestamp.
-	tmf := dms.metricFamilies["job1"]["instance2"]["mf1"]
+	tmf := dms.metricGroups[model.LabelsToSignature(map[string]string{
+		"job":      "job1",
+		"instance": "instance2",
+	})].Metrics["mf1"]
 	if expected, got := ts3, tmf.Timestamp; expected != got {
 		t.Errorf("Expected timestamp %v, got %v.", expected, got)
 	}
 
-	// Delete an instance.
+	// Delete a group.
 	dms.SubmitWriteRequest(WriteRequest{
-		Job:      "job1",
-		Instance: "instance1",
+		Labels: map[string]string{
+			"job":      "job1",
+			"instance": "instance1",
+		},
 	})
 	time.Sleep(time.Microsecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf1a, mf2); err != nil {
@@ -391,8 +450,10 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	// Submit another one.
 	ts4 := ts3.Add(time.Second)
 	dms.SubmitWriteRequest(WriteRequest{
-		Job:            "job3",
-		Instance:       "instance2",
+		Labels: map[string]string{
+			"job":      "job3",
+			"instance": "instance2",
+		},
 		Timestamp:      ts4,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf4": mf4},
 	})
@@ -401,44 +462,45 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Delete a job.
+	// Delete a job does not remove anything because there is no suitable
+	// grouping.
 	dms.SubmitWriteRequest(WriteRequest{
-		Job: "job1",
+		Labels: map[string]string{
+			"job": "job1",
+		},
 	})
 	time.Sleep(time.Microsecond) // Give loop() time to process.
-	if err := checkMetricFamilies(dms, mf4); err != nil {
+	if err := checkMetricFamilies(dms, mf1a, mf2, mf4); err != nil {
 		t.Error(err)
 	}
 
-	// Delete last instance of a job.
+	// Delete another group.
 	dms.SubmitWriteRequest(WriteRequest{
-		Job:      "job3",
-		Instance: "instance2",
+		Labels: map[string]string{
+			"job":      "job3",
+			"instance": "instance2",
+		},
 	})
 	time.Sleep(time.Microsecond) // Give loop() time to process.
-	if err := checkMetricFamilies(dms); err != nil {
+	if err := checkMetricFamilies(dms, mf1a, mf2); err != nil {
 		t.Error(err)
 	}
-	// Check that no empty instance map for job3 was left behind.
-	if _, stillExists := dms.metricFamilies["job3"]; stillExists {
+	// Check that no empty  map entry for job3 was left behind.
+	if _, stillExists := dms.metricGroups[model.LabelsToSignature(map[string]string{
+		"job":      "job3",
+		"instance": "instance2",
+	})]; stillExists {
 		t.Error("An instance map for 'job3' still exists.")
-	}
-
-	// Delete a non existing job.
-	dms.SubmitWriteRequest(WriteRequest{
-		Job: "job4",
-	})
-	time.Sleep(150 * time.Millisecond) // Give time for persistence to kick in.
-	if err := checkMetricFamilies(dms); err != nil {
-		t.Error(err)
 	}
 
 	// Shutdown the dms again, directly after a number of write request
 	// (to check draining).
 	for i := 0; i < 10; i++ {
 		dms.SubmitWriteRequest(WriteRequest{
-			Job:            "job3",
-			Instance:       "instance2",
+			Labels: map[string]string{
+				"job":      "job3",
+				"instance": "instance2",
+			},
 			Timestamp:      ts4,
 			MetricFamilies: map[string]*dto.MetricFamily{"mf4": mf4},
 		})
@@ -446,18 +508,20 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	if err := dms.Shutdown(); err != nil {
 		t.Fatal(err)
 	}
-	if err := checkMetricFamilies(dms, mf4); err != nil {
+	if err := checkMetricFamilies(dms, mf1a, mf2, mf4); err != nil {
 		t.Error(err)
 	}
 }
 
-func checkNoPersistenc(t *testing.T) {
+func TestNoPersistence(t *testing.T) {
 	dms := NewDiskMetricStore("", 100*time.Millisecond)
 
 	ts1 := time.Now()
 	dms.SubmitWriteRequest(WriteRequest{
-		Job:            "job1",
-		Instance:       "instance1",
+		Labels: map[string]string{
+			"job":      "job1",
+			"instance": "instance1",
+		},
 		Timestamp:      ts1,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf3": mf3},
 	})
