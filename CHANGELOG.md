@@ -1,3 +1,6 @@
+## 0.2.0 / 2015-06-25
+* [CHANGE] Support arbitrary grouping of metrics.
+
 ## 0.1.2 / 2015-06-08
 * [CHANGE] Move pushgateway binary in archive from bin/ to /.
 * [CHANGE] Migrate logging to prometheus/log.
