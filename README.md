@@ -50,7 +50,7 @@ packet, will result in a protocol error.*
 
 Examples:
 
-* Push a single sample into the group identified by `{job="some_job}`:
+* Push a single sample into the group identified by `{job="some_job"}`:
 
         echo "some_metric 3.14" | curl --data-binary @- http://pushgateway.example.org:8080/metrics/job/some_job
 
