@@ -21,7 +21,7 @@ used for service-level metrics.
 Compile the binary using the provided Makefile (type `make`).
 
 For the most basic setup, just start the binary. To change the address
-to listen on, use the `-addr` flag. The `-persistence.file` flag
+to listen on, use the `-web.listen-address` flag. The `-persistence.file` flag
 allows you to specify a file in which the pushed metrics will be
 persisted (so that they survive restarts of the Pushgateway).
 
@@ -125,7 +125,7 @@ You can still force Prometheus to attach a different timestamp by
 using the optional timestamp field in the exchange format. However,
 there are very few use cases where that would make
 sense. (Essentially, if you push more often than every 5min, you
-could attach the time of pushing as a timestamp.) 
+could attach the time of pushing as a timestamp.)
 
 ## API
 
@@ -260,3 +260,15 @@ Comments](https://code.google.com/p/go-wiki/wiki/CodeReviewComments)
 and the _Formatting and style_ section of Peter Bourgon's [Go:
 Best Practices for Production
 Environments](http://peter.bourgon.org/go-in-production/#formatting-and-style).
+
+## Using Docker
+
+You can deploy the Pushgateway using the [prom/pushgateway](https://registry.hub.docker.com/u/prom/pushgateway/) Docker image.
+
+For example:
+
+```bash
+docker pull prom/pushgateway
+
+docker run -d -p 9091:9091 prom/pushgateway
+```
