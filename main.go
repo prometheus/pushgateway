@@ -15,19 +15,16 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/julienschmidt/httprouter"
-	"github.com/prometheus/client_golang/model"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/log"
 
@@ -40,7 +37,6 @@ var (
 	metricsPath         = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
 	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
-	requiredLabels      = flag.String("required-labels", "instance", "Comma-separated list of label names that will be attached to pushed metric (with an empty label value) if missing.")
 )
 
 func main() {
@@ -51,8 +47,6 @@ func main() {
 		flags[f.Name] = f.Value.String()
 	})
 
-	requiredLabels := parseRequiredLabels()
-
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
 	prometheus.SetMetricFamilyInjectionHook(ms.GetMetricFamilies)
 	// Enable collect checks for debugging.
@@ -62,19 +56,19 @@ func main() {
 	r.Handler("GET", *metricsPath, prometheus.Handler())
 
 	// Handlers for pushing and deleting metrics.
-	r.PUT("/metrics/job/:job/*labels", handler.Push(ms, true, requiredLabels))
-	r.POST("/metrics/job/:job/*labels", handler.Push(ms, false, requiredLabels))
+	r.PUT("/metrics/job/:job/*labels", handler.Push(ms, true))
+	r.POST("/metrics/job/:job/*labels", handler.Push(ms, false))
 	r.DELETE("/metrics/job/:job/*labels", handler.Delete(ms))
-	r.PUT("/metrics/job/:job", handler.Push(ms, true, requiredLabels))
-	r.POST("/metrics/job/:job", handler.Push(ms, false, requiredLabels))
+	r.PUT("/metrics/job/:job", handler.Push(ms, true))
+	r.POST("/metrics/job/:job", handler.Push(ms, false))
 	r.DELETE("/metrics/job/:job", handler.Delete(ms))
 
 	// Handlers for the deprecated API.
-	r.PUT("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, true, requiredLabels))
-	r.POST("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, false, requiredLabels))
+	r.PUT("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, true))
+	r.POST("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, false))
 	r.DELETE("/metrics/jobs/:job/instances/:instance", handler.LegacyDelete(ms))
-	r.PUT("/metrics/jobs/:job", handler.LegacyPush(ms, true, requiredLabels))
-	r.POST("/metrics/jobs/:job", handler.LegacyPush(ms, false, requiredLabels))
+	r.PUT("/metrics/jobs/:job", handler.LegacyPush(ms, true))
+	r.POST("/metrics/jobs/:job", handler.LegacyPush(ms, false))
 	r.DELETE("/metrics/jobs/:job", handler.LegacyDelete(ms))
 
 	r.Handler("GET", "/static/*filepath", prometheus.InstrumentHandler(
@@ -126,23 +120,4 @@ func interruptHandler(l net.Listener) {
 	<-notifier
 	log.Print("Received SIGINT/SIGTERM; exiting gracefully...")
 	l.Close()
-}
-
-// parseRequiredLabels parses the required-labels flag. It returns a set of
-// names of required labels. In case of an parse error, it prints an error,
-// followed by the usage, and calls os.Exit(2), which mimics the behavior of the
-// flags package in case of invalid flag values.
-func parseRequiredLabels() map[string]struct{} {
-	labels := map[string]struct{}{}
-
-	for _, label := range strings.Split(*requiredLabels, ",") {
-		label = strings.TrimSpace(label)
-		if !model.LabelNameRE.MatchString(label) {
-			fmt.Fprintf(os.Stderr, "Invalid required label name: %s\n", label)
-			flag.Usage()
-			os.Exit(2)
-		}
-		labels[label] = struct{}{}
-	}
-	return labels
 }

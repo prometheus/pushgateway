@@ -27,6 +27,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
+	"github.com/prometheus/client_golang/model"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/text"
 
@@ -41,7 +42,7 @@ import (
 //
 // The returned handler is already instrumented for Prometheus.
 func Push(
-	ms storage.MetricStore, replace bool, requiredLabels map[string]struct{},
+	ms storage.MetricStore, replace bool,
 ) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
@@ -98,11 +99,7 @@ func Push(
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			sanitizeLabels(
-				metricFamilies,
-				labels,
-				requiredLabels,
-			)
+			sanitizeLabels(metricFamilies, labels)
 			ms.SubmitWriteRequest(storage.WriteRequest{
 				Labels:         labels,
 				Timestamp:      time.Now(),
@@ -127,7 +124,7 @@ func Push(
 //
 // The returned handler is already instrumented for Prometheus.
 func LegacyPush(
-	ms storage.MetricStore, replace bool, requiredLabels map[string]struct{},
+	ms storage.MetricStore, replace bool,
 ) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
@@ -186,11 +183,7 @@ func LegacyPush(
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			sanitizeLabels(
-				metricFamilies,
-				labels,
-				requiredLabels,
-			)
+			sanitizeLabels(metricFamilies, labels)
 			ms.SubmitWriteRequest(storage.WriteRequest{
 				Labels:         labels,
 				Timestamp:      time.Now(),
@@ -207,20 +200,18 @@ func LegacyPush(
 	}
 }
 
-// sanitizeLabels ensures that all the labels in groupingLabels and
-// requiredLabels are present in each MetricFamily in metricFamilies. The label
-// values from groupingLabels are set in each MetricFamily, no matter what. In
-// contrast, requiredLabels contains only label names and no label values. Only
-// if any of those labels are not present at all in a MetricFamily, they will be
-// created (with an empty string as value).
+// sanitizeLabels ensures that all the labels in groupingLabels and the
+// `instance` label are present in each MetricFamily in metricFamilies. The
+// label values from groupingLabels are set in each MetricFamily, no matter
+// what. After that, if the 'instance' label is not present at all in a
+// MetricFamily, it will be created (with an empty string as value).
 //
 // Finally, sanitizeLabels sorts the label pairs of all metrics.
 func sanitizeLabels(
 	metricFamilies map[string]*dto.MetricFamily,
-	groupingLabels map[string]string, requiredLabels map[string]struct{},
+	groupingLabels map[string]string,
 ) {
 	gLabelsNotYetDone := make(map[string]string, len(groupingLabels))
-	rLabelsNotYetDone := make(map[string]struct{}, len(requiredLabels))
 
 	for _, mf := range metricFamilies {
 	metric:
@@ -228,17 +219,17 @@ func sanitizeLabels(
 			for ln, lv := range groupingLabels {
 				gLabelsNotYetDone[ln] = lv
 			}
-			for ln := range requiredLabels {
-				rLabelsNotYetDone[ln] = struct{}{}
-			}
+			hasInstanceLabel := false
 			for _, lp := range m.GetLabel() {
 				ln := lp.GetName()
-				delete(rLabelsNotYetDone, ln)
 				if lv, ok := gLabelsNotYetDone[ln]; ok {
 					lp.Value = proto.String(lv)
 					delete(gLabelsNotYetDone, ln)
 				}
-				if len(gLabelsNotYetDone)+len(rLabelsNotYetDone) == 0 {
+				if ln == string(model.InstanceLabel) {
+					hasInstanceLabel = true
+				}
+				if len(gLabelsNotYetDone) == 0 && hasInstanceLabel {
 					sort.Sort(prometheus.LabelPairSorter(m.Label))
 					continue metric
 				}
@@ -248,15 +239,16 @@ func sanitizeLabels(
 					Name:  proto.String(ln),
 					Value: proto.String(lv),
 				})
-				delete(rLabelsNotYetDone, ln)
+				if ln == string(model.InstanceLabel) {
+					hasInstanceLabel = true
+				}
 				delete(gLabelsNotYetDone, ln) // To prepare map for next metric.
 			}
-			for ln := range rLabelsNotYetDone {
+			if !hasInstanceLabel {
 				m.Label = append(m.Label, &dto.LabelPair{
-					Name:  proto.String(ln),
+					Name:  proto.String(string(model.InstanceLabel)),
 					Value: proto.String(""),
 				})
-				delete(rLabelsNotYetDone, ln) // To prepare map for next metric.
 			}
 			sort.Sort(prometheus.LabelPairSorter(m.Label))
 		}

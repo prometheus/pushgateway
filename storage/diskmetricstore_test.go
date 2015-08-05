@@ -35,13 +35,13 @@ var (
 		Name: proto.String("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job1"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance2"),
 					},
@@ -57,13 +57,13 @@ var (
 		Name: proto.String("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job1"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance2"),
 					},
@@ -78,13 +78,13 @@ var (
 		Name: proto.String("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job2"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance1"),
 					},
@@ -99,13 +99,13 @@ var (
 		Name: proto.String("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job3"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance2"),
 					},
@@ -121,13 +121,13 @@ var (
 		Name: proto.String("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job1"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance2"),
 					},
@@ -137,13 +137,13 @@ var (
 				},
 				TimestampMs: proto.Int64(103948),
 			},
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job2"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance1"),
 					},
@@ -152,13 +152,13 @@ var (
 					Value: proto.Float64(42),
 				},
 			},
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job3"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance2"),
 					},
@@ -174,21 +174,21 @@ var (
 		Help: proto.String("doc string 2"),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job1"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance2"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("labelname"),
 						Value: proto.String("val2"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("basename"),
 						Value: proto.String("basevalue2"),
 					},
@@ -198,17 +198,17 @@ var (
 				},
 				TimestampMs: proto.Int64(54321),
 			},
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job1"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance2"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("labelname"),
 						Value: proto.String("val1"),
 					},
@@ -223,13 +223,13 @@ var (
 		Name: proto.String("mf3"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job1"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance1"),
 					},
@@ -244,13 +244,13 @@ var (
 		Name: proto.String("mf4"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
-			&dto.Metric{
+			{
 				Label: []*dto.LabelPair{
-					&dto.LabelPair{
+					{
 						Name:  proto.String("job"),
 						Value: proto.String("job3"),
 					},
-					&dto.LabelPair{
+					{
 						Name:  proto.String("instance"),
 						Value: proto.String("instance2"),
 					},
