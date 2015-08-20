@@ -14,8 +14,8 @@
 VERSION  := 0.2.0
 TARGET   := pushgateway
 
-REV        := $(shell git rev-parse --short HEAD)
-BRANCH     := $(shell git rev-parse --abbrev-ref HEAD)
+REV        := $(shell git rev-parse --short HEAD 2> /dev/null  || echo 'unknown')
+BRANCH     := $(shell git rev-parse --abbrev-ref HEAD 2> /dev/null  || echo 'unknown')
 HOSTNAME   := $(shell hostname -f)
 BUILD_DATE := $(shell date +%Y%m%d-%H:%M:%S)
 GOFLAGS := -ldflags \
