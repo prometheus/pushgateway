@@ -27,9 +27,9 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
-	"github.com/prometheus/client_golang/model"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/text"
+	"github.com/prometheus/common/model"
 
 	dto "github.com/prometheus/client_model/go"
 
