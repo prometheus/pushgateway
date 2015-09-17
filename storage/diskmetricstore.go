@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/prometheus/client_golang/model"
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/log"
 
 	dto "github.com/prometheus/client_model/go"

@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/prometheus/common/model"
 
-	"github.com/prometheus/client_golang/model"
 	dto "github.com/prometheus/client_model/go"
 )
 
@@ -380,7 +380,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		Timestamp:      ts1,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf3": mf3},
 	})
-	time.Sleep(time.Microsecond) // Give loop() time to process.
+	time.Sleep(10 * time.Millisecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf3); err != nil {
 		t.Error(err)
 	}
