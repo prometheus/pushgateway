@@ -28,7 +28,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/text"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 
@@ -177,7 +176,7 @@ func LegacyPush(
 				// We could do further content-type checks here, but the
 				// fallback for now will anyway be the text format
 				// version 0.0.4, so just go for it and see if it works.
-				var parser text.Parser
+				var parser expfmt.TextParser
 				metricFamilies, err = parser.TextToMetricFamilies(r.Body)
 			}
 			if err != nil {
