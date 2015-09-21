@@ -52,8 +52,8 @@ func Status(
 	return func(w http.ResponseWriter, _ *http.Request) {
 		t := template.New("status")
 		t.Funcs(template.FuncMap{
-			"value": func(f *float64) string {
-				return strconv.FormatFloat(*f, 'f', -1, 64)
+			"value": func(f float64) string {
+				return strconv.FormatFloat(f, 'f', -1, 64)
 			},
 		})
 		tpl, err := assetFunc("template.html")
