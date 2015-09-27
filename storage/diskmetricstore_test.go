@@ -380,7 +380,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		Timestamp:      ts1,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf3": mf3},
 	})
-	time.Sleep(10 * time.Millisecond) // Give loop() time to process.
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf3); err != nil {
 		t.Error(err)
 	}
@@ -395,7 +395,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		Timestamp:      ts2,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf1": mf1b, "mf2": mf2},
 	})
-	time.Sleep(time.Microsecond) // Give loop() time to process.
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf1b, mf2, mf3); err != nil {
 		t.Error(err)
 	}
@@ -411,7 +411,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		Timestamp:      ts3,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf1": mf1a},
 	})
-	time.Sleep(time.Microsecond) // Give loop() time to process.
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf1a, mf2, mf3); err != nil {
 		t.Error(err)
 	}
@@ -442,7 +442,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 			"instance": "instance1",
 		},
 	})
-	time.Sleep(time.Microsecond) // Give loop() time to process.
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf1a, mf2); err != nil {
 		t.Error(err)
 	}
@@ -457,7 +457,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		Timestamp:      ts4,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf4": mf4},
 	})
-	time.Sleep(time.Microsecond) // Give loop() time to process.
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf1a, mf2, mf4); err != nil {
 		t.Error(err)
 	}
@@ -469,7 +469,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 			"job": "job1",
 		},
 	})
-	time.Sleep(time.Microsecond) // Give loop() time to process.
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf1a, mf2, mf4); err != nil {
 		t.Error(err)
 	}
@@ -481,7 +481,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 			"instance": "instance2",
 		},
 	})
-	time.Sleep(time.Microsecond) // Give loop() time to process.
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf1a, mf2); err != nil {
 		t.Error(err)
 	}
@@ -525,7 +525,7 @@ func TestNoPersistence(t *testing.T) {
 		Timestamp:      ts1,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf3": mf3},
 	})
-	time.Sleep(time.Microsecond) // Give loop() time to process.
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 	if err := checkMetricFamilies(dms, mf3); err != nil {
 		t.Error(err)
 	}
