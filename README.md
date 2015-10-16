@@ -52,13 +52,13 @@ Examples:
 
 * Push a single sample into the group identified by `{job="some_job"}`:
 
-        echo "some_metric 3.14" | curl --data-binary @- http://pushgateway.example.org:8080/metrics/job/some_job
+        echo "some_metric 3.14" | curl --data-binary @- http://pushgateway.example.org:9091/metrics/job/some_job
 
   Since no type information has been provided, `some_metric` will be of type `untyped`.
 
 * Push something more complex into the group identified by `{job="some_job",instance="some_instance"}`:
 
-        cat <<EOF | curl --data-binary @- http://pushgateway.example.org:8080/metrics/job/some_job/instance/some_instance
+        cat <<EOF | curl --data-binary @- http://pushgateway.example.org:9091/metrics/job/some_job/instance/some_instance
         # TYPE some_metric counter
         some_metric{label="val1"} 42
         # This one even has a timestamp (but beware, see below).
@@ -73,11 +73,11 @@ Examples:
 
 * Delete all metrics grouped by job and instance:
 
-        curl -X DELETE http://pushgateway.example.org:8080/metrics/job/some_job/instance/some_instance
+        curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job/instance/some_instance
 
 * Delete all metrics grouped by job only:
 
-        curl -X DELETE http://pushgateway.example.org:8080/metrics/job/some_job
+        curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job
 
 ### About the instance label
 
@@ -133,7 +133,7 @@ All pushes are done via HTTP. The interface is vaguely REST-like.
 
 ### URL
 
-The default port the push gateway is listening to is 8080. The path looks like
+The default port the push gateway is listening to is 9091. The path looks like
 
     /metrics/job/<JOBNAME>{/<LABEL_NAME>/<LABEL_VALUE>}
 
