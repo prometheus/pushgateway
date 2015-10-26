@@ -11,5 +11,5 @@ The following individuals have contributed code to this repository
 * Bernerd Schaefer <bj.schaefer@gmail.com>
 * Björn Rabenstein <beorn@soundcloud.com>
 * Johannes 'fish' Ziemke <github@freigeist.org>
-* Julius Volz <julius@soundcloud.com>
+* Julius Volz <julius.volz@gmail.com>
 * Tobias Schmidt <ts@soundcloud.com>
