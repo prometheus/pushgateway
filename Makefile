@@ -19,11 +19,11 @@ BRANCH     := $(shell git rev-parse --abbrev-ref HEAD 2> /dev/null  || echo 'unk
 HOSTNAME   := $(shell hostname -f)
 BUILD_DATE := $(shell date +%Y%m%d-%H:%M:%S)
 GOFLAGS := -ldflags \
-        "-X main.buildVersion $(VERSION)\
-         -X main.buildRev $(REV)\
-         -X main.buildBranch $(BRANCH)\
-         -X main.buildUser $(USER)@$(HOSTNAME)\
-         -X main.buildDate $(BUILD_DATE)"
+        "-X main.buildVersion=$(VERSION)\
+         -X main.buildRev=$(REV)\
+         -X main.buildBranch=$(BRANCH)\
+         -X main.buildUser=$(USER)@$(HOSTNAME)\
+         -X main.buildDate=$(BUILD_DATE)"
 
 include Makefile.COMMON
 
