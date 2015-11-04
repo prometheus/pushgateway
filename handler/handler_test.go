@@ -401,3 +401,36 @@ func TestDelete(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 }
+
+func TestSplitLabels(t *testing.T) {
+	proper_labels := "/label_name1/label_value1/label_name2/label_value2"
+	expected_parsed := map[string]string{
+		"label_name1": "label_value1",
+		"label_name2": "label_value2",
+	}
+	parsed, err := splitLabels(proper_labels)
+	if err != nil {
+		t.Errorf("Got unexpected error: %s.", err)
+	}
+	for k, v := range expected_parsed {
+		got, ok := parsed[k]
+		if !ok {
+			t.Errorf("Expected to find key %s.", k)
+		}
+		if got != v {
+			t.Errorf("Expected %s but got %s.", v, got)
+		}
+	}
+
+	improper_labels := "/label_name1/label_value1/a=b/label_value2"
+	_, err = splitLabels(improper_labels)
+	if err == nil {
+		t.Error("Expected splitLabels to return an error when given improper labels.")
+	}
+
+	reserved_labels := "/label_name1/label_value1/__label_name2/label_value2"
+	_, err = splitLabels(reserved_labels)
+	if err == nil {
+		t.Error("Expected splitLabels to return an error when given a reserved label.")
+	}
+}

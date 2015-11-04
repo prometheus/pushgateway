@@ -265,7 +265,12 @@ func splitLabels(labels string) (map[string]string, error) {
 	if len(components)%2 != 0 {
 		return nil, fmt.Errorf("odd number of components in label string %q", labels)
 	}
+
 	for i := 0; i < len(components)-1; i += 2 {
+		if !model.LabelNameRE.MatchString(components[i]) ||
+			strings.HasPrefix(components[i], model.ReservedLabelPrefix) {
+			return nil, fmt.Errorf("improper label name %q", components[i])
+		}
 		result[components[i]] = components[i+1]
 	}
 	return result, nil
