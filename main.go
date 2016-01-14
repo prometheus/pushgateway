@@ -74,7 +74,7 @@ func main() {
 	r.Handler("GET", "/static/*filepath", prometheus.InstrumentHandler(
 		"static",
 		http.FileServer(
-			&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir},
+			&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: AssetInfo},
 		),
 	))
 	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, Asset, flags, BuildInfo))
