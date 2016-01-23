@@ -1,5 +1,4 @@
 pushgateway
-bindata.go
 dependencies-stamp
 .build
 .deps
