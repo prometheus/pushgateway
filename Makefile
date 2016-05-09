@@ -1,4 +1,4 @@
-# Copyright 2014 The Prometheus Authors
+# Copyright 2016 The Prometheus Authors
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,36 +11,59 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION  := 0.2.0
-TARGET   := pushgateway
+GO    := GO15VENDOREXPERIMENT=1 go
+PROMU := $(GOPATH)/bin/promu
+pkgs   = $(shell $(GO) list ./... | grep -v /vendor/)
 
-REV        := $(shell git rev-parse --short HEAD 2> /dev/null  || echo 'unknown')
-BRANCH     := $(shell git rev-parse --abbrev-ref HEAD 2> /dev/null  || echo 'unknown')
-HOSTNAME   := $(shell hostname -f)
-BUILD_DATE := $(shell date +%Y%m%d-%H:%M:%S)
-GOFLAGS := -ldflags \
-        "-X main.buildVersion=$(VERSION)\
-         -X main.buildRev=$(REV)\
-         -X main.buildBranch=$(BRANCH)\
-         -X main.buildUser=$(USER)@$(HOSTNAME)\
-         -X main.buildDate=$(BUILD_DATE)"
+PREFIX                  ?= $(shell pwd)
+BIN_DIR                 ?= $(shell pwd)
+DOCKER_IMAGE_NAME       ?= pushgateway
+DOCKER_IMAGE_TAG        ?= $(subst /,-,$(shell git rev-parse --abbrev-ref HEAD))
 
-include Makefile.COMMON
+ifdef DEBUG
+	bindata_flags = -debug
+endif
 
-$(BINARY): bindata.go
 
-bindata.go: $(GOPATH)/bin/go-bindata $(shell find resources -type f)
-	$(GOPATH)/bin/go-bindata -prefix=resources resources/...
+all: format build test
 
-# Target to unconditionally compile the debug bindata.
-.PHONY: bindata-debug
-bindata-debug: $(GOPATH)/bin/go-bindata
-	$(GOPATH)/bin/go-bindata -debug -prefix=resources resources/...
+style:
+	@echo ">> checking code style"
+	@! gofmt -d $(shell find . -path ./vendor -prune -o -name '*.go' -print) | grep '^'
 
-# Target to unconditionally compile the embedded bindata.
-.PHONY: bindata-embed
-bindata-embed: $(GOPATH)/bin/go-bindata
-	$(GOPATH)/bin/go-bindata -prefix=resources resources/...
+test:
+	@echo ">> running tests"
+	@$(GO) test -short $(pkgs)
 
-$(GOPATH)/bin/go-bindata:
-	$(GO) get github.com/jteeuwen/go-bindata/...
+format:
+	@echo ">> formatting code"
+	@$(GO) fmt $(pkgs)
+
+vet:
+	@echo ">> vetting code"
+	@$(GO) vet $(pkgs)
+
+build: promu
+	@echo ">> building binaries"
+	@$(PROMU) build --prefix $(PREFIX)
+
+tarball: promu
+	@echo ">> building release tarball"
+	@$(PROMU) tarball --prefix $(PREFIX) $(BIN_DIR)
+
+docker:
+	@echo ">> building docker image"
+	@docker build -t "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" .
+
+assets:
+	@echo ">> writing assets"
+	@$(GO) get -u github.com/jteeuwen/go-bindata/...
+	@go-bindata $(bindata_flags) -prefix=resources resources/...
+
+promu:
+	@GOOS=$(shell uname -s | tr A-Z a-z) \
+	        GOARCH=$(subst x86_64,amd64,$(patsubst i%86,386,$(shell uname -m))) \
+	        $(GO) get -u github.com/prometheus/promu
+
+
+.PHONY: all style format build test vet assets tarball docker promu

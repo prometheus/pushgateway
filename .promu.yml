@@ -1,0 +1,15 @@
+go: 1.6.2
+repository:
+    path: github.com/prometheus/pushgateway
+build:
+    flags: -a -tags netgo
+    ldflags: |
+        -X main.buildVersion={{.Version}}
+        -X main.buildRev={{.Revision}}
+        -X main.buildBranch={{.Branch}}
+        -X main.buildUser={{user}}@{{host}}
+        -X main.buildDate={{date "20060102-15:04:05"}}
+tarball:
+    files:
+        - LICENSE
+        - NOTICE

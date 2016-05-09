@@ -1,6 +1,8 @@
-pushgateway
+/pushgateway
 dependencies-stamp
-.build
+/.build
+/.release
+/.tarballs
 .deps
 *.test
 *~

@@ -1,10 +1,8 @@
-FROM        sdurrheimer/alpine-golang-make-onbuild
+FROM        quay.io/prometheus/busybox:latest
 MAINTAINER  The Prometheus Authors <prometheus-developers@googlegroups.com>
 
-USER root
-RUN  mkdir /pushgateway \
-     && chown golang:golang /pushgateway
+COPY pushgateway /bin/pushgateway
 
-USER        golang
-WORKDIR     /pushgateway
-EXPOSE      9091
+EXPOSE     9091
+WORKDIR    /pushgateway
+ENTRYPOINT [ "/bin/pushgateway" ]
