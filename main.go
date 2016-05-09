@@ -26,7 +26,7 @@ import (
 	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
 
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
@@ -84,20 +84,20 @@ func main() {
 	// Re-enable pprof.
 	r.GET("/debug/pprof/*pprof", handlePprof)
 
-	log.Printf("Listening on %s.", *listenAddress)
+	log.Infof("Listening on %s.", *listenAddress)
 	l, err := net.Listen("tcp", *listenAddress)
 	if err != nil {
 		log.Fatal(err)
 	}
 	go interruptHandler(l)
 	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
-	log.Print("HTTP server stopped: ", err)
+	log.Errorln("HTTP server stopped:", err)
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections
 	// are done) to not delay the shutdown.
 	time.Sleep(time.Second)
 	if err := ms.Shutdown(); err != nil {
-		log.Print("Problem shutting down metric storage: ", err)
+		log.Errorln("Problem shutting down metric storage:", err)
 	}
 }
 
@@ -118,6 +118,6 @@ func interruptHandler(l net.Listener) {
 	notifier := make(chan os.Signal)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 	<-notifier
-	log.Print("Received SIGINT/SIGTERM; exiting gracefully...")
+	log.Info("Received SIGINT/SIGTERM; exiting gracefully...")
 	l.Close()
 }

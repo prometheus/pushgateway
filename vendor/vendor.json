@@ -63,16 +63,16 @@
 			"revisionTime": "2016-05-03T22:05:32Z"
 		},
 		{
-			"checksumSHA1": "IwxsYOL9A/K9rvHvGxfyY37dusk=",
-			"path": "github.com/prometheus/common/model",
+			"checksumSHA1": "koBNYQryxAG8hyHBlpn8pcnSVdM=",
+			"path": "github.com/prometheus/common/log",
 			"revision": "dd586c1c5abb0be59e60f942c22af711a2008cb4",
 			"revisionTime": "2016-05-03T22:05:32Z"
 		},
 		{
-			"checksumSHA1": "ziqY/FHc6pialrm9Xd2wUlS9f5w=",
-			"path": "github.com/prometheus/log",
-			"revision": "9a3136781e1ff7bc42736ba4acb81339b1422551",
-			"revisionTime": "2015-10-26T01:24:52Z"
+			"checksumSHA1": "IwxsYOL9A/K9rvHvGxfyY37dusk=",
+			"path": "github.com/prometheus/common/model",
+			"revision": "dd586c1c5abb0be59e60f942c22af711a2008cb4",
+			"revisionTime": "2016-05-03T22:05:32Z"
 		},
 		{
 			"checksumSHA1": "W218eJZPXJG783fUr/z6IaAZyes=",
