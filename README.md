@@ -1,4 +1,8 @@
-# Prometheus Pushgateway
+# Prometheus Pushgateway [![Build Status](https://travis-ci.org/prometheus/pushgateway.svg)][travis]
+
+[![CircleCI](https://circleci.com/gh/prometheus/pushgateway/tree/master.svg?style=shield)][circleci]
+[![Docker Repository on Quay](https://quay.io/repository/prometheus/pushgateway/status)][quay]
+[![Docker Pulls](https://img.shields.io/docker/pulls/prom/pushgateway.svg?maxAge=604800)][hub]
 
 The Prometheus Pushgateway exists to allow ephemeral and batch jobs to
 expose their metrics to Prometheus. Since these kinds of jobs may not
@@ -273,3 +277,9 @@ docker pull prom/pushgateway
 
 docker run -d -p 9091:9091 prom/pushgateway
 ```
+
+
+[travis]: https://travis-ci.org/prometheus/pushgateway
+[hub]: https://hub.docker.com/r/prom/pushgateway/
+[circleci]: https://circleci.com/gh/prometheus/pushgateway
+[quay]: https://quay.io/repository/prometheus/pushgateway

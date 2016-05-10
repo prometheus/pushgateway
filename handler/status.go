@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/common/version"
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -46,7 +47,6 @@ func Status(
 	ms storage.MetricStore,
 	assetFunc func(string) ([]byte, error),
 	flags map[string]string,
-	buildInfo map[string]string,
 ) func(http.ResponseWriter, *http.Request) {
 	birth := time.Now()
 	return func(w http.ResponseWriter, _ *http.Request) {
@@ -66,6 +66,16 @@ func Status(
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		buildInfo := map[string]string{
+			"version":   version.Version,
+			"revision":  version.Revision,
+			"branch":    version.Branch,
+			"buildUser": version.BuildUser,
+			"buildDate": version.BuildDate,
+			"goVersion": version.GoVersion,
+		}
+
 		d := &data{
 			MetricGroups: ms.GetMetricFamiliesMap(),
 			Flags:        flags,

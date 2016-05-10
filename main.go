@@ -15,6 +15,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -26,22 +27,36 @@ import (
 	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/log"
+	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/version"
 
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
 )
 
 var (
+	showVersion         = flag.Bool("version", false, "Print version information.")
 	listenAddress       = flag.String("web.listen-address", ":9091", "Address to listen on for the web interface, API, and telemetry.")
 	metricsPath         = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
 	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
 )
 
+func init() {
+	prometheus.MustRegister(version.NewCollector("pushgateway"))
+}
+
 func main() {
 	flag.Parse()
-	versionInfoTmpl.Execute(os.Stdout, BuildInfo)
+
+	if *showVersion {
+		fmt.Fprintln(os.Stdout, version.Print("pushgateway"))
+		os.Exit(0)
+	}
+
+	log.Infoln("Starting pushgateway", version.Info())
+	log.Infoln("Build context", version.BuildContext())
+
 	flags := map[string]string{}
 	flag.VisitAll(func(f *flag.Flag) {
 		flags[f.Name] = f.Value.String()
@@ -77,27 +92,27 @@ func main() {
 			&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: AssetInfo},
 		),
 	))
-	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, Asset, flags, BuildInfo))
+	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, Asset, flags))
 	r.Handler("GET", "/status", statusHandler)
 	r.Handler("GET", "/", statusHandler)
 
 	// Re-enable pprof.
 	r.GET("/debug/pprof/*pprof", handlePprof)
 
-	log.Printf("Listening on %s.", *listenAddress)
+	log.Infof("Listening on %s.", *listenAddress)
 	l, err := net.Listen("tcp", *listenAddress)
 	if err != nil {
 		log.Fatal(err)
 	}
 	go interruptHandler(l)
 	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
-	log.Print("HTTP server stopped: ", err)
+	log.Errorln("HTTP server stopped:", err)
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections
 	// are done) to not delay the shutdown.
 	time.Sleep(time.Second)
 	if err := ms.Shutdown(); err != nil {
-		log.Print("Problem shutting down metric storage: ", err)
+		log.Errorln("Problem shutting down metric storage:", err)
 	}
 }
 
@@ -118,6 +133,6 @@ func interruptHandler(l net.Listener) {
 	notifier := make(chan os.Signal)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 	<-notifier
-	log.Print("Received SIGINT/SIGTERM; exiting gracefully...")
+	log.Info("Received SIGINT/SIGTERM; exiting gracefully...")
 	l.Close()
 }

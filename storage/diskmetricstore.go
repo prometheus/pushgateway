@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/log"
 
 	dto "github.com/prometheus/client_model/go"
 )
@@ -69,10 +69,10 @@ func NewDiskMetricStore(
 		persistenceFile: persistenceFile,
 	}
 	if err := dms.restore(); err != nil {
-		log.Print("Could not load persisted metrics: ", err)
-		log.Print("Retrying assuming legacy format for persisted metrics...")
+		log.Errorln("Could not load persisted metrics:", err)
+		log.Info("Retrying assuming legacy format for persisted metrics...")
 		if err := dms.legacyRestore(); err != nil {
-			log.Print("Could not load persisted metrics in legacy format: ", err)
+			log.Errorln("Could not load persisted metrics in legacy format: ", err)
 		}
 	}
 
@@ -108,7 +108,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 					result[stat.pos] = existingMF
 				}
 				if mf.GetHelp() != existingMF.GetHelp() || mf.GetType() != existingMF.GetType() {
-					log.Printf(
+					log.Warnf(
 						"Metric families '%s' and '%s' are inconsistent, help and type of the latter will have priority. This is bad. Fix your pushed metrics!",
 						mf, existingMF,
 					)
@@ -148,9 +148,9 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 				func() {
 					persistStarted := time.Now()
 					if err := dms.persist(); err != nil {
-						log.Print("Error persisting metrics: ", err)
+						log.Errorln("Error persisting metrics:", err)
 					} else {
-						log.Printf(
+						log.Infof(
 							"Metrics persisted to '%s'.",
 							dms.persistenceFile,
 						)
