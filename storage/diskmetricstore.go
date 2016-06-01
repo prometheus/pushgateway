@@ -211,6 +211,32 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 			}
 			dms.metricGroups[key] = group
 		}
+
+		if wr.Lifetime != 0 {
+			// this is needed for closure awareness
+			n := name
+
+			// schedule timeout
+			time.AfterFunc( wr.Lifetime, func () {
+				dms.lock.Lock()
+				defer dms.lock.Unlock()
+
+				m, ok := group.Metrics[n]
+
+				if !ok {
+					// the metric seems already deleted
+					return
+				}
+
+				if !wr.Timestamp.Equal(m.Timestamp) {
+					// the metric has updated since this timeout
+					return
+				}
+
+				delete(group.Metrics, n)
+			})
+		}
+
 		group.Metrics[name] = TimestampedMetricFamily{
 			Timestamp:    wr.Timestamp,
 			MetricFamily: mf,
