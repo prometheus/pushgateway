@@ -1,9 +1,7 @@
 /pushgateway
-dependencies-stamp
 /.build
 /.release
 /.tarballs
-.deps
 *.test
 *~
 *.exe
