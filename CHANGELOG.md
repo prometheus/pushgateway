@@ -1,3 +1,15 @@
+## 0.3.0 / 2016-06-07
+* [CHANGE] Push now rejects improper and reserved labels.
+* [CHANGE] Required labels flag removed.
+* [BUGFIX] Docker image actually works now.
+* [ENHANCEMENT] Converted to Promu build process.
+* [CHANGE] As a consequence of the above, changed dir structure in tar ball.
+* [ENHANCEMENT] Updated dependencies, with all the necessary code changes.
+* [ENHANCEMENT] Dependencies now vendored.
+* [ENHANCEMENT] `bindata.go` checked in, Pushgateway now `go get`-able.
+* [ENHANCEMENT] Various documentation improvements.
+* [CLEANUP] Various code cleanups.
+
 ## 0.2.0 / 2015-06-25
 * [CHANGE] Support arbitrary grouping of metrics.
 * [CHANGE] Changed behavior of HTTP DELETE method (see README.md for details).
