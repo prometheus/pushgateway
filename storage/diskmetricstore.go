@@ -246,7 +246,11 @@ func (dms *DiskMetricStore) persist() error {
 	}
 	inProgressFileName := f.Name()
 	e := gob.NewEncoder(f)
-	if err := e.Encode(dms.metricGroups); err != nil {
+
+	dms.lock.RLock()
+	err = e.Encode(dms.metricGroups)
+	dms.lock.RUnlock()
+	if err != nil {
 		f.Close()
 		os.Remove(inProgressFileName)
 		return err
