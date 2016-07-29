@@ -31,6 +31,13 @@ persisted (so that they survive restarts of the Pushgateway).
 
 ## Use it
 
+### Configure the Pushgateway as a target to scrape
+
+The Pushgateway has to be configured as a target to scrape by Prometheus, using
+one of the usual methods. _However, you should always set `honor_labels: true`
+in the scrape config_ (see [below](#about-the-job-and-instance-labels) for a
+detailed explanation).
+
 ### Libraries
 
 Prometheus client libraries should have a feature to push the
@@ -83,34 +90,44 @@ Examples:
 
         curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job
 
-### About the instance label
+### About the job and instance labels
 
-The Prometheus server will attach an `instance` label to each scraped
-metric that does not already have one. The automatically attached
-instance label contains the host and port of the target scraped. If a
-metric already has an instance label, an `exporter_instance` label is
-attached instead. (This behavior will be configurable once
-[server issue #490](https://github.com/prometheus/prometheus/issues/490) is
-fixed.)
+The Prometheus server will attach a `job` label and an `instance` label to each
+scraped metric. The value of the `job` label comes from the scrape
+configuration. When you configure the Pushgateway as a scrape target for your
+Prometheus server, you will probably pick a job name like `pushgateway`. The
+value of the `instance` label is automatically set to the host and port of the
+target scraped. Hence, all the metrics scraped from the Pushgateway will have
+the host and port of the Pushgateway as the `instance` label and a `job` label
+like `pushgateway`. The conflict with the `job` and `instance` labels you might
+have attached to the metrics pushed to the Pushgateway is solved by renaming
+those labels to `exported_job` and `exported_instance`.
 
-However, metrics pushed to the Pushgateway are often on a service
-level and therefore not related to a particular instance. Not
-attaching an instance label in that case is not an option because the
-server will then attach the host and port of the Pushgateway as an
-instance label (which is actually desired for metrics about the state
-of the Pushgateway itself).
+However, this behavior is usually undesired when scraping a
+Pushgateway. Generally, you would like to retain the `job` and `instance`
+labels of the metrics pushed to the Pushgateway. That's why you have set
+`honor_labels: true` in the scrape config for the Pushgateway. It enables the
+desired behavior. See the
+[documentation](https://prometheus.io/docs/operating/configuration/#scrape_config)
+for details.
 
-Therefore, if a metric is pushed to the Pushgateway without an
-instance label (and without instance label in the grouping key, see
-below), the Pushgateway will export it with an emtpy instance label
-(`{instance=""}`).
+This leaves us with the case where the metrics pushed to the Pushgateway do not
+feature an `instance` label. This case is quite commen as the pushed metrics
+are often on a service level and therefore not related to a particular
+instance. Even with `honor_labels: true`, the Prometheus server will attach an
+`instance` label if no `instance` label has been set in the first
+place. Therefore, if a metric is pushed to the Pushgateway without an instance
+label (and without instance label in the grouping key, see below), the
+Pushgateway will export it with an emtpy instance label (`{instance=""}`),
+which is equivalent to having no `instance` label at all but prevents the
+server from attaching one.
 
 ### About timestamps
 
-If you push metrics at time *t<sub>1</sub>*, you might be tempted to
-believe that Prometheus will scrape them with that same timestamp
-*t<sub>1</sub>*. Instead, what Prometheus attaches as a timestamp is
-the time when it scrapes the push gateway. Why so?
+If you push metrics at time *t*<sub>1</sub>, you might be tempted to believe
+that Prometheus will scrape them with that same timestamp
+*t*<sub>1</sub>. Instead, what Prometheus attaches as a timestamp is the time
+when it scrapes the Pushgateway. Why so?
 
 In the world view of Prometheus, a metric can be scraped at any
 time. A metric that cannot be scraped has basically ceased to
