@@ -1,5 +1,6 @@
-# Prometheus Pushgateway [![Build Status](https://travis-ci.org/prometheus/pushgateway.svg)][travis]
+# Prometheus Pushgateway
 
+[![Build Status](https://travis-ci.org/prometheus/pushgateway.svg)][travis]
 [![CircleCI](https://circleci.com/gh/prometheus/pushgateway/tree/master.svg?style=shield)][circleci]
 [![Docker Repository on Quay](https://quay.io/repository/prometheus/pushgateway/status)][quay]
 [![Docker Pulls](https://img.shields.io/docker/pulls/prom/pushgateway.svg?maxAge=604800)][hub]
@@ -10,19 +11,32 @@ exist long enough to be scraped, they can instead push their metrics
 to a Pushgateway. The Pushgateway then exposes these metrics to
 Prometheus.
 
-The Pushgateway is explicitly not an aggregator, but rather a metrics
-cache. It does not have a statsd-like semantics. The metrics pushed
-are exactly the same as you would present for scraping in a
-permanently running program.
+## Non-goals
+
+The Pushgateway is explicitly not an _aggregator or distributed counter_ but
+rather a metrics cache. It does not have a statsd-like semantics. The metrics
+pushed are exactly the same as you would present for scraping in a permanently
+running program.
 
 For machine-level metrics, the
 [textfile](https://github.com/prometheus/node_exporter/blob/master/README.md#textfile-collector)
-collector of the Node exporter is usually more appropriate. The Pushgateway is best
-used for service-level metrics.
+collector of the Node exporter is usually more appropriate. The Pushgateway is
+intended for service-level metrics.
+
+The Pushgateway is not an _event store_. While you can use Prometheus as a data
+source for
+[Grafana annotations](http://docs.grafana.org/reference/annotations/), tracking
+something like release events has to happen with some event-logging framework.
+
 
 ## Run it
 
-Compile the binary using the provided Makefile (type `make`).
+Download binary releases for your platform from the
+[release page](https://github.com/prometheus/pushgateway/releases) and unpack
+the tarball.
+
+If you want to compile yourself from the sources, you need a working Go
+setup. Then use the provided Makefile (type `make`).
 
 For the most basic setup, just start the binary. To change the address
 to listen on, use the `-web.listen-address` flag. The `-persistence.file` flag
