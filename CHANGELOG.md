@@ -1,3 +1,7 @@
+## 0.3.1 / 2016-11-03
+* [BUGFIX] Fixed a race condition in the storage layer.
+* [ENHANCEMENT] Improved README.md.
+
 ## 0.3.0 / 2016-06-07
 * [CHANGE] Push now rejects improper and reserved labels.
 * [CHANGE] Required labels flag removed.
