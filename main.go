@@ -40,6 +40,8 @@ var (
 	metricsPath         = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
 	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
+	basicAuthUsername   = flag.String("basic_auth.username", "", "Username for basic authorization.")
+	basicAuthPassword   = flag.String("basic_auth.password", "", "Password for basic authorization.")
 )
 
 func init() {
@@ -105,7 +107,10 @@ func main() {
 		log.Fatal(err)
 	}
 	go interruptHandler(l)
-	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
+
+	basicAuth := basicAuthHandler(*basicAuthUsername, *basicAuthPassword)
+
+	err = (&http.Server{Addr: *listenAddress, Handler: basicAuth(r)}).Serve(l)
 	log.Errorln("HTTP server stopped:", err)
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections
@@ -135,4 +140,28 @@ func interruptHandler(l net.Listener) {
 	<-notifier
 	log.Info("Received SIGINT/SIGTERM; exiting gracefully...")
 	l.Close()
+}
+
+func basicAuthHandler(requiredUser, requiredPassword string) func(http.Handler) http.Handler {
+	if requiredUser == "" || requiredPassword == "" {
+		return func(h http.Handler) http.Handler {
+			return h
+		}
+	}
+	return func(h http.Handler) http.Handler {
+		f := func(w http.ResponseWriter, r *http.Request) {
+			// Get the Basic Authentication credentials
+			user, password, hasAuth := r.BasicAuth()
+
+			if hasAuth && user == requiredUser && password == requiredPassword {
+				// Delegate request to the given handle
+				h.ServeHTTP(w, r)
+			} else {
+				// Request Basic Authentication otherwise
+				w.Header().Set("WWW-Authenticate", "Basic realm=Restricted")
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			}
+		}
+		return http.HandlerFunc(f)
+	}
 }
