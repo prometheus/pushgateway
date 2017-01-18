@@ -39,7 +39,8 @@ If you want to compile yourself from the sources, you need a working Go
 setup. Then use the provided Makefile (type `make`).
 
 For the most basic setup, just start the binary. To change the address
-to listen on, use the `-web.listen-address` flag. The `-persistence.file` flag
+to listen on, use the `-web.listen-address` flag. By default, Pushgateway 
+does not persist metrics. However, the `-persistence.file` flag
 allows you to specify a file in which the pushed metrics will be
 persisted (so that they survive restarts of the Pushgateway).
 
