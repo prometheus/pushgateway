@@ -38,6 +38,7 @@ var (
 	showVersion         = flag.Bool("version", false, "Print version information.")
 	listenAddress       = flag.String("web.listen-address", ":9091", "Address to listen on for the web interface, API, and telemetry.")
 	metricsPath         = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
+	prefixPath          = flag.String("web.external-url", "", "The URL under which PushGateway is externally reachable.")
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
 	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
 )
@@ -71,33 +72,33 @@ func main() {
 	r.Handler("GET", *metricsPath, prometheus.Handler())
 
 	// Handlers for pushing and deleting metrics.
-	r.PUT("/metrics/job/:job/*labels", handler.Push(ms, true))
-	r.POST("/metrics/job/:job/*labels", handler.Push(ms, false))
-	r.DELETE("/metrics/job/:job/*labels", handler.Delete(ms))
-	r.PUT("/metrics/job/:job", handler.Push(ms, true))
-	r.POST("/metrics/job/:job", handler.Push(ms, false))
-	r.DELETE("/metrics/job/:job", handler.Delete(ms))
+	r.PUT(*prefixPath+"/metrics/job/:job/*labels", handler.Push(ms, true))
+	r.POST(*prefixPath+"/metrics/job/:job/*labels", handler.Push(ms, false))
+	r.DELETE(*prefixPath+"/metrics/job/:job/*labels", handler.Delete(ms))
+	r.PUT(*prefixPath+"/metrics/job/:job", handler.Push(ms, true))
+	r.POST(*prefixPath+"/metrics/job/:job", handler.Push(ms, false))
+	r.DELETE(*prefixPath+"/metrics/job/:job", handler.Delete(ms))
 
 	// Handlers for the deprecated API.
-	r.PUT("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, true))
-	r.POST("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, false))
-	r.DELETE("/metrics/jobs/:job/instances/:instance", handler.LegacyDelete(ms))
-	r.PUT("/metrics/jobs/:job", handler.LegacyPush(ms, true))
-	r.POST("/metrics/jobs/:job", handler.LegacyPush(ms, false))
-	r.DELETE("/metrics/jobs/:job", handler.LegacyDelete(ms))
+	r.PUT(*prefixPath+"/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, true))
+	r.POST(*prefixPath+"/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, false))
+	r.DELETE(*prefixPath+"/metrics/jobs/:job/instances/:instance", handler.LegacyDelete(ms))
+	r.PUT(*prefixPath+"/metrics/jobs/:job", handler.LegacyPush(ms, true))
+	r.POST(*prefixPath+"/metrics/jobs/:job", handler.LegacyPush(ms, false))
+	r.DELETE(*prefixPath+"/metrics/jobs/:job", handler.LegacyDelete(ms))
 
-	r.Handler("GET", "/static/*filepath", prometheus.InstrumentHandler(
+	r.Handler("GET", *prefixPath+"/static/*filepath", prometheus.InstrumentHandler(
 		"static",
 		http.FileServer(
 			&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: AssetInfo},
 		),
 	))
 	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, Asset, flags))
-	r.Handler("GET", "/status", statusHandler)
-	r.Handler("GET", "/", statusHandler)
+	r.Handler("GET", *prefixPath+"/status", statusHandler)
+	r.Handler("GET", *prefixPath+"/", statusHandler)
 
 	// Re-enable pprof.
-	r.GET("/debug/pprof/*pprof", handlePprof)
+	r.GET(*prefixPath+"/debug/pprof/*pprof", handlePprof)
 
 	log.Infof("Listening on %s.", *listenAddress)
 	l, err := net.Listen("tcp", *listenAddress)
@@ -118,11 +119,11 @@ func main() {
 
 func handlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	switch p.ByName("pprof") {
-	case "/cmdline":
+	case *prefixPath + "/cmdline":
 		pprof.Cmdline(w, r)
-	case "/profile":
+	case *prefixPath + "/profile":
 		pprof.Profile(w, r)
-	case "/symbol":
+	case *prefixPath + "/symbol":
 		pprof.Symbol(w, r)
 	default:
 		pprof.Index(w, r)
