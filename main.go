@@ -38,7 +38,7 @@ var (
 	showVersion         = flag.Bool("version", false, "Print version information.")
 	listenAddress       = flag.String("web.listen-address", ":9091", "Address to listen on for the web interface, API, and telemetry.")
 	metricsPath         = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-	prefixPath          = flag.String("web.external-url", "", "The URL under which PushGateway is externally reachable.")
+	prefixPath          = flag.String("web.external-url", "", "The URL under which Pushgateway is externally reachable.")
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
 	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
 )
