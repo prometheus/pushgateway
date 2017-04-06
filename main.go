@@ -69,36 +69,40 @@ func main() {
 	// prometheus.EnableCollectChecks(true)
 
 	r := httprouter.New()
+	if *prefixPath != "" {
+		r = r.WithPrefix(*prefixPath)
+	}
+
 	r.Handler("GET", *metricsPath, prometheus.Handler())
 
 	// Handlers for pushing and deleting metrics.
-	r.PUT(*prefixPath+"/metrics/job/:job/*labels", handler.Push(ms, true))
-	r.POST(*prefixPath+"/metrics/job/:job/*labels", handler.Push(ms, false))
-	r.DELETE(*prefixPath+"/metrics/job/:job/*labels", handler.Delete(ms))
-	r.PUT(*prefixPath+"/metrics/job/:job", handler.Push(ms, true))
-	r.POST(*prefixPath+"/metrics/job/:job", handler.Push(ms, false))
-	r.DELETE(*prefixPath+"/metrics/job/:job", handler.Delete(ms))
+	r.PUT("/metrics/job/:job/*labels", handler.Push(ms, true))
+	r.POST("/metrics/job/:job/*labels", handler.Push(ms, false))
+	r.DELETE("/metrics/job/:job/*labels", handler.Delete(ms))
+	r.PUT("/metrics/job/:job", handler.Push(ms, true))
+	r.POST("/metrics/job/:job", handler.Push(ms, false))
+	r.DELETE("/metrics/job/:job", handler.Delete(ms))
 
 	// Handlers for the deprecated API.
-	r.PUT(*prefixPath+"/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, true))
-	r.POST(*prefixPath+"/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, false))
-	r.DELETE(*prefixPath+"/metrics/jobs/:job/instances/:instance", handler.LegacyDelete(ms))
-	r.PUT(*prefixPath+"/metrics/jobs/:job", handler.LegacyPush(ms, true))
-	r.POST(*prefixPath+"/metrics/jobs/:job", handler.LegacyPush(ms, false))
-	r.DELETE(*prefixPath+"/metrics/jobs/:job", handler.LegacyDelete(ms))
+	r.PUT("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, true))
+	r.POST("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, false))
+	r.DELETE("/metrics/jobs/:job/instances/:instance", handler.LegacyDelete(ms))
+	r.PUT("/metrics/jobs/:job", handler.LegacyPush(ms, true))
+	r.POST("/metrics/jobs/:job", handler.LegacyPush(ms, false))
+	r.DELETE("/metrics/jobs/:job", handler.LegacyDelete(ms))
 
-	r.Handler("GET", *prefixPath+"/static/*filepath", prometheus.InstrumentHandler(
+	r.Handler("GET", "/static/*filepath", prometheus.InstrumentHandler(
 		"static",
 		http.FileServer(
 			&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: AssetInfo},
 		),
 	))
 	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, Asset, flags))
-	r.Handler("GET", *prefixPath+"/status", statusHandler)
-	r.Handler("GET", *prefixPath+"/", statusHandler)
+	r.Handler("GET", "/status", statusHandler)
+	r.Handler("GET", "/", statusHandler)
 
 	// Re-enable pprof.
-	r.GET(*prefixPath+"/debug/pprof/*pprof", handlePprof)
+	r.GET("/debug/pprof/*pprof", handlePprof)
 
 	log.Infof("Listening on %s.", *listenAddress)
 	l, err := net.Listen("tcp", *listenAddress)
@@ -119,11 +123,11 @@ func main() {
 
 func handlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	switch p.ByName("pprof") {
-	case *prefixPath + "/cmdline":
+	case "/cmdline":
 		pprof.Cmdline(w, r)
-	case *prefixPath + "/profile":
+	case "/profile":
 		pprof.Profile(w, r)
-	case *prefixPath + "/symbol":
+	case "/symbol":
 		pprof.Symbol(w, r)
 	default:
 		pprof.Index(w, r)
