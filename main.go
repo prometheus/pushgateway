@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/elazarl/go-bindata-assetfs"
-	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/route"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 
@@ -68,7 +68,7 @@ func main() {
 	// Enable collect checks for debugging.
 	// prometheus.EnableCollectChecks(true)
 
-	r := httprouter.New()
+	r := route.New()
 	if *prefixPath != "" {
 		r = r.WithPrefix(*prefixPath)
 	}
