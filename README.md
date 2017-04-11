@@ -127,7 +127,7 @@ desired behavior. See the
 for details.
 
 This leaves us with the case where the metrics pushed to the Pushgateway do not
-feature an `instance` label. This case is quite commen as the pushed metrics
+feature an `instance` label. This case is quite common as the pushed metrics
 are often on a service level and therefore not related to a particular
 instance. Even with `honor_labels: true`, the Prometheus server will attach an
 `instance` label if no `instance` label has been set in the first
