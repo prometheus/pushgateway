@@ -70,6 +70,7 @@ type MetricStore interface {
 type WriteRequest struct {
 	Labels         map[string]string
 	Timestamp      time.Time
+	Lifetime       time.Duration
 	MetricFamilies map[string]*dto.MetricFamily
 }
 
