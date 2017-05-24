@@ -195,6 +195,30 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
+	// With job name and instance name and timestamp specified.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	req, err = http.NewRequest(
+		"POST", "http://example.org/",
+		bytes.NewBufferString("a 1\nb 1 1000\n"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+	handler(
+		w, req,
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "testjob"},
+			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
+		},
+	)
+	if expected, got := http.StatusBadRequest, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if !mms.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp unexpectedly set: %#v", mms.lastWriteRequest)
+	}
+
 	// With job name and instance name and text content, legacy handler.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
@@ -229,6 +253,30 @@ func TestPush(t *testing.T) {
 	}
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
+	}
+
+	// With job name and instance name and timestamp, legacy handler.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	req, err = http.NewRequest(
+		"POST", "http://example.org/",
+		bytes.NewBufferString("a 1\nb 1 1000\n"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+	legacyHandler(
+		w, req,
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "testjob"},
+			httprouter.Param{Key: "instance", Value: "testinstance"},
+		},
+	)
+	if expected, got := http.StatusBadRequest, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if !mms.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp unexpectedly set: %#v", mms.lastWriteRequest)
 	}
 
 	// With job name and instance name and text content and job and instance labels.
