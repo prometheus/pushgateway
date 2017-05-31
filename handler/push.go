@@ -99,6 +99,10 @@ func Push(
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			if timestampsPresent(metricFamilies) {
+				http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
+				return
+			}
 			sanitizeLabels(metricFamilies, labels)
 			ms.SubmitWriteRequest(storage.WriteRequest{
 				Labels:         labels,
@@ -181,6 +185,10 @@ func LegacyPush(
 			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if timestampsPresent(metricFamilies) {
+				http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
 				return
 			}
 			sanitizeLabels(metricFamilies, labels)
@@ -274,4 +282,16 @@ func splitLabels(labels string) (map[string]string, error) {
 		result[components[i]] = components[i+1]
 	}
 	return result, nil
+}
+
+// Checks if any timestamps have been specified.
+func timestampsPresent(metricFamilies map[string]*dto.MetricFamily) bool {
+	for _, mf := range metricFamilies {
+		for _, m := range mf.GetMetric() {
+			if m.TimestampMs != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
