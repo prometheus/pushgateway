@@ -36,6 +36,11 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
+const (
+	pushMetricName = "push_time_seconds"
+	pushMetricHelp = "Last Unix time when this group was changed in the Pushgateway."
+)
+
 // Push returns an http.Handler which accepts samples over HTTP and stores them
 // in the MetricStore. If replace is true, all metrics for the job and instance
 // given by the request are deleted before new ones are stored.
@@ -103,10 +108,12 @@ func Push(
 				http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
 				return
 			}
+			now := time.Now()
+			addPushTimestamp(metricFamilies, now)
 			sanitizeLabels(metricFamilies, labels)
 			ms.SubmitWriteRequest(storage.WriteRequest{
 				Labels:         labels,
-				Timestamp:      time.Now(),
+				Timestamp:      now,
 				MetricFamilies: metricFamilies,
 			})
 			w.WriteHeader(http.StatusAccepted)
@@ -191,10 +198,12 @@ func LegacyPush(
 				http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
 				return
 			}
+			now := time.Now()
+			addPushTimestamp(metricFamilies, now)
 			sanitizeLabels(metricFamilies, labels)
 			ms.SubmitWriteRequest(storage.WriteRequest{
 				Labels:         labels,
-				Timestamp:      time.Now(),
+				Timestamp:      now,
 				MetricFamilies: metricFamilies,
 			})
 			w.WriteHeader(http.StatusAccepted)
@@ -294,4 +303,20 @@ func timestampsPresent(metricFamilies map[string]*dto.MetricFamily) bool {
 		}
 	}
 	return false
+}
+
+// Add metric to indicate the push time.
+func addPushTimestamp(metricFamilies map[string]*dto.MetricFamily, t time.Time) {
+	metricFamilies[pushMetricName] = &dto.MetricFamily{
+		Name: proto.String(pushMetricName),
+		Help: proto.String(pushMetricHelp),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(float64(t.UnixNano()) / 1e9),
+				},
+			},
+		},
+	}
 }

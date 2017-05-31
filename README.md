@@ -147,7 +147,7 @@ time. A metric that cannot be scraped has basically ceased to
 exist. Prometheus is somewhat tolerant, but if it cannot get any
 samples for a metric in 5min, it will behave as if that metric does
 not exist anymore. Preventing that is actually one of the reasons to
-use a push gateway. The push gateway will make the metrics of your
+use a Pushgateway. The Pushgateway will make the metrics of your
 ephemeral job scrapable at any time. Attaching the time of pushing as
 a timestamp would defeat that purpose because 5min after the last
 push, your metric will look as stale to Prometheus as if it could not
@@ -161,6 +161,11 @@ client library supporting this) any pushes with timestamps will be rejected.
 
 If you think you need to push a timestamp, please see [When To Use The
 Pushgateway](https://prometheus.io/docs/practices/pushing/).
+
+In order to make it easier to alert on pushers that have not run recently, the
+Pushgateway will add in a metric `push_time_seconds` with the Unix timestamp
+of the last `POST`/`PUT` to each group. This will override any pushed metric by
+that name.
 
 ## API
 

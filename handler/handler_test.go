@@ -159,6 +159,9 @@ func TestPush(t *testing.T) {
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
+	if _, ok := mms.lastWriteRequest.MetricFamilies["push_time_seconds"]; !ok {
+		t.Errorf("Wanted metric family push_time_seconds missing.")
+	}
 
 	// With job name and no instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
@@ -253,6 +256,9 @@ func TestPush(t *testing.T) {
 	}
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
+	}
+	if _, ok := mms.lastWriteRequest.MetricFamilies["push_time_seconds"]; !ok {
+		t.Errorf("Wanted metric family push_time_seconds missing.")
 	}
 
 	// With job name and instance name and timestamp, legacy handler.
