@@ -1,3 +1,9 @@
+## 0.4.0 / 2017-06-09
+* [CHANGE] Pushes with timestamps are now rejected.
+* [FEATURE] Added push_time_seconds metric to each push.
+* [ENHANCEMENT] Point at community page rather than the dev list in the UI.
+* [BUGFIX] Return HTTP 400 on parse error, rather than 500.
+
 ## 0.3.1 / 2016-11-03
 * [BUGFIX] Fixed a race condition in the storage layer.
 * [ENHANCEMENT] Improved README.md.
