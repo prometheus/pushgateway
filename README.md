@@ -44,6 +44,11 @@ does not persist metrics. However, the `-persistence.file` flag
 allows you to specify a file in which the pushed metrics will be
 persisted (so that they survive restarts of the Pushgateway).
 
+You can also build from scratch, and just start it as a docker container.
+
+    docker build -t xyz/prompush:0.2.0 ./ 
+    docker run docker run -p 9091:9091 xyz/prompush:0.2.0 
+
 ## Use it
 
 ### Configure the Pushgateway as a target to scrape
