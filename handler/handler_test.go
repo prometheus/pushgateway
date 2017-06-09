@@ -117,7 +117,7 @@ func TestPush(t *testing.T) {
 			httprouter.Param{Key: "instance", Value: "testinstance"},
 		},
 	)
-	if expected, got := http.StatusInternalServerError, w.Code; expected != got {
+	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 	if !mms.lastWriteRequest.Timestamp.IsZero() {

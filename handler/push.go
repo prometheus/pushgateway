@@ -101,7 +101,7 @@ func Push(
 				metricFamilies, err = parser.TextToMetricFamilies(r.Body)
 			}
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			if timestampsPresent(metricFamilies) {
