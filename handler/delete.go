@@ -20,6 +20,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/log"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -41,10 +42,12 @@ func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, htt
 			labels, err := splitLabels(labelsString)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
+				log.Debugf("Failed to parse URL: %v, %v", labelsString, err.Error())
 				return
 			}
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
+				log.Debug("job name is required")
 				return
 			}
 			labels["job"] = job
@@ -79,6 +82,7 @@ func LegacyDelete(ms storage.MetricStore) func(http.ResponseWriter, *http.Reques
 
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
+				log.Debug("job name is required")
 				return
 			}
 			labels := map[string]string{"job": job}

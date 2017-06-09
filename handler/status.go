@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -38,7 +39,7 @@ func (d *data) Count() int {
 	return d.counter
 }
 
-func (_ data) FormatTimestamp(ts int64) string {
+func (data) FormatTimestamp(ts int64) string {
 	return time.Unix(ts/1000, ts%1000*1000000).String()
 }
 
@@ -59,11 +60,13 @@ func Status(
 		tpl, err := assetFunc("template.html")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Errorf("Error loading template.html, %v", err.Error())
 			return
 		}
 		_, err = t.Parse(string(tpl))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Errorf("Error parsing template, %v", err.Error())
 			return
 		}
 

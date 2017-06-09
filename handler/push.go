@@ -29,6 +29,7 @@ import (
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 
 	dto "github.com/prometheus/client_model/go"
@@ -62,10 +63,12 @@ func Push(
 			labels, err := splitLabels(labelsString)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
+				log.Debugf("Failed to parse URL: %v, %v", labelsString, err.Error())
 				return
 			}
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
+				log.Debug("job name is reuqired")
 				return
 			}
 			labels["job"] = job
@@ -102,10 +105,12 @@ func Push(
 			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
+				log.Debugf("Failed to parse text, %v", err.Error())
 				return
 			}
 			if timestampsPresent(metricFamilies) {
 				http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
+				log.Debug("pushed metrics must not have timestamps")
 				return
 			}
 			now := time.Now()
@@ -150,6 +155,7 @@ func LegacyPush(
 			var err error
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
+				log.Debug("job name is required")
 				return
 			}
 			if instance == "" {
@@ -192,10 +198,12 @@ func LegacyPush(
 			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
+				log.Debugf("Error parsing request body, %v", err.Error())
 				return
 			}
 			if timestampsPresent(metricFamilies) {
 				http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
+				log.Debug("pushed metrics must not have timestamps")
 				return
 			}
 			now := time.Now()

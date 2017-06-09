@@ -108,7 +108,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 					result[stat.pos] = existingMF
 				}
 				if mf.GetHelp() != existingMF.GetHelp() || mf.GetType() != existingMF.GetType() {
-					log.Warnf(
+					log.Infof(
 						"Metric families '%s' and '%s' are inconsistent, help and type of the latter will have priority. This is bad. Fix your pushed metrics!",
 						mf, existingMF,
 					)
