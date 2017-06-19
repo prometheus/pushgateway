@@ -61,7 +61,6 @@ func main() {
 	flag.VisitAll(func(f *flag.Flag) {
 		flags[f.Name] = f.Value.String()
 	})
-
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
 	prometheus.SetMetricFamilyInjectionHook(ms.GetMetricFamilies)
 	// Enable collect checks for debugging.
