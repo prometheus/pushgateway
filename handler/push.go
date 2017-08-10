@@ -68,7 +68,7 @@ func Push(
 			}
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
-				log.Debug("job name is reuqired")
+				log.Debug("job name is required")
 				return
 			}
 			labels["job"] = job
