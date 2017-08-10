@@ -14,9 +14,10 @@ Prometheus.
 ## Non-goals
 
 The Pushgateway is explicitly not an _aggregator or distributed counter_ but
-rather a metrics cache. It does not have a statsd-like semantics. The metrics
-pushed are exactly the same as you would present for scraping in a permanently
-running program.
+rather a metrics cache. It does not have
+[statsd](https://github.com/etsy/statsd)-like semantics. The metrics pushed are
+exactly the same as you would present for scraping in a permanently running
+program.
 
 For machine-level metrics, the
 [textfile](https://github.com/prometheus/node_exporter/blob/master/README.md#textfile-collector)
@@ -250,11 +251,19 @@ processed. Neither is there a guarantee that the pushed metrics are
 persisted to disk. (A server crash may cause data loss. Or the push
 gateway is configured to not persist to disk at all.)
 
+A `PUT` request with an empty body effectively deletes all metrics with the
+specified grouping key. However, in contrast to the
+[`DELETE` request](#delete-method) described below, it does update the
+`push_time_seconds` metrics.
+
 ### `POST` method
 
 `POST` works exactly like the `PUT` method but only metrics with the
 same name as the newly pushed metrics are replaced (among those with
 the same grouping key).
+
+A `POST` request with an empty body merely updates the `push_time_seconds`
+metrics but does not change any of the previously pushed metrics.
 
 ### `DELETE` method
 
