@@ -45,6 +45,18 @@ does not persist metrics. However, the `-persistence.file` flag
 allows you to specify a file in which the pushed metrics will be
 persisted (so that they survive restarts of the Pushgateway).
 
+### Using Docker
+
+You can deploy the Pushgateway using the [prom/pushgateway](https://registry.hub.docker.com/u/prom/pushgateway/) Docker image.
+
+For example:
+
+```bash
+docker pull prom/pushgateway
+
+docker run -d -p 9091:9091 prom/pushgateway
+```
+
 ## Use it
 
 ### Configure the Pushgateway as a target to scrape
@@ -310,19 +322,6 @@ Comments](https://code.google.com/p/go-wiki/wiki/CodeReviewComments)
 and the _Formatting and style_ section of Peter Bourgon's [Go:
 Best Practices for Production
 Environments](http://peter.bourgon.org/go-in-production/#formatting-and-style).
-
-## Using Docker
-
-You can deploy the Pushgateway using the [prom/pushgateway](https://registry.hub.docker.com/u/prom/pushgateway/) Docker image.
-
-For example:
-
-```bash
-docker pull prom/pushgateway
-
-docker run -d -p 9091:9091 prom/pushgateway
-```
-
 
 [travis]: https://travis-ci.org/prometheus/pushgateway
 [hub]: https://hub.docker.com/r/prom/pushgateway/
