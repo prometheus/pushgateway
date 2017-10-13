@@ -47,6 +47,36 @@ func (m *MockMetricStore) Shutdown() error {
 	return nil
 }
 
+func (m *MockMetricStore) Healthy() error {
+	return nil
+}
+
+func (m *MockMetricStore) Ready() error {
+	return nil
+}
+
+func TestHealthyReady(t *testing.T) {
+	mms := MockMetricStore{}
+	req, err := http.NewRequest("GET", "http://example.org/", &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	healthyHandler := Healthy(&mms)
+	readyHandler := Ready(&mms)
+
+	w := httptest.NewRecorder()
+	healthyHandler(w, req)
+	if expected, got := http.StatusOK, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+
+	readyHandler(w, req)
+	if expected, got := http.StatusOK, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+}
+
 func TestPush(t *testing.T) {
 	mms := MockMetricStore{}
 	handler := Push(&mms, false)

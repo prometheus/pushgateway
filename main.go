@@ -67,6 +67,9 @@ func main() {
 	// prometheus.EnableCollectChecks(true)
 
 	r := httprouter.New()
+	r.Handler("GET", "/-/healthy", prometheus.InstrumentHandlerFunc("healthy", handler.Healthy(ms)))
+	r.Handler("GET", "/-/ready", prometheus.InstrumentHandlerFunc("ready", handler.Ready(ms)))
+
 	r.Handler("GET", *metricsPath, prometheus.Handler())
 
 	// Handlers for pushing and deleting metrics.

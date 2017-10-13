@@ -15,6 +15,7 @@ package storage
 
 import (
 	"encoding/gob"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -61,6 +62,8 @@ func NewDiskMetricStore(
 	persistenceFile string,
 	persistenceInterval time.Duration,
 ) *DiskMetricStore {
+	// TODO: Do that outside of the constructor to allow the HTTP server to
+	//  serve /-/healthy and /-/ready earlier.
 	dms := &DiskMetricStore{
 		writeQueue:      make(chan WriteRequest, writeQueueCapacity),
 		drain:           make(chan struct{}),
@@ -132,6 +135,26 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 func (dms *DiskMetricStore) Shutdown() error {
 	close(dms.drain)
 	return <-dms.done
+}
+
+// Healthy implements the MetricStore interface.
+func (dms *DiskMetricStore) Healthy() error {
+	// By taking the lock we check that there is no deadlock.
+	dms.lock.Lock()
+	defer dms.lock.Unlock()
+
+	// A pushgateway that cannot be written to should not be
+	// considered as healthy.
+	if len(dms.writeQueue) == cap(dms.writeQueue) {
+		return fmt.Errorf("write queue is full")
+	}
+
+	return nil
+}
+
+// Ready implements the MetricStore interface.
+func (dms *DiskMetricStore) Ready() error {
+	return dms.Healthy()
 }
 
 func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {

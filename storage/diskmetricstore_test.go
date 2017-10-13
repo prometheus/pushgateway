@@ -538,6 +538,14 @@ func TestNoPersistence(t *testing.T) {
 	if err := checkMetricFamilies(dms); err != nil {
 		t.Error(err)
 	}
+
+	if err := dms.Ready(); err != nil {
+		t.Error(err)
+	}
+
+	if err := dms.Healthy(); err != nil {
+		t.Error(err)
+	}
 }
 
 func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily) error {

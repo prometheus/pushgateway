@@ -56,6 +56,13 @@ type MetricStore interface {
 	// undefinded state). If nil is returned, the MetricStore cannot be
 	// "restarted" again, but it can still be used for read operations.
 	Shutdown() error
+	// Healthy returns nil if the MetricStore is currently working as
+	// expected or false, Error if it is not.
+	Healthy() error
+	// Ready returns nil if the MetricStore is ready to be used (all files
+	// are opened and checkpoints have been restored) or false, Error if it
+	// is not.
+	Ready() error
 }
 
 // WriteRequest is a request to change the MetricStore, i.e. to process it, a
