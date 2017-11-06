@@ -17,7 +17,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/monzo/pushgateway/storage"
 )
 
 func Healthy(

@@ -23,7 +23,7 @@ import (
 
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/monzo/pushgateway/storage"
 )
 
 type data struct {
