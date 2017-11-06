@@ -22,7 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/monzo/pushgateway/storage"
 )
 
 // Delete returns a handler that accepts delete requests.

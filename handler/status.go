@@ -21,9 +21,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/monzo/pushgateway/storage"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-	"github.com/prometheus/pushgateway/storage"
 )
 
 type data struct {

@@ -1,5 +1,12 @@
 # Prometheus Pushgateway
 
+This is a forked version of prometheus/pushgateway implementing timestamps and Time to Live/expiry for metrics
+
+As the prometheus team have repeatedly said they will not accept timestamps or expiry this fork will never get reintegrated with prom/prometheus
+
+## Original Readme
+
+
 [![Build Status](https://travis-ci.org/prometheus/pushgateway.svg)][travis]
 [![CircleCI](https://circleci.com/gh/prometheus/pushgateway/tree/master.svg?style=shield)][circleci]
 [![Docker Repository on Quay](https://quay.io/repository/prometheus/pushgateway/status)][quay]

@@ -30,8 +30,8 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 
-	"github.com/prometheus/pushgateway/handler"
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/monzo/pushgateway/handler"
+	"github.com/monzo/pushgateway/storage"
 )
 
 var (

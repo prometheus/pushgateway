@@ -95,7 +95,7 @@ func staticBootstrap334DistLicense() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/LICENSE", size: 1084, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/LICENSE", size: 1084, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -115,7 +115,7 @@ func staticBootstrap334DistCssBootstrapThemeMinCss() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/css/bootstrap-theme.min.css", size: 19963, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/css/bootstrap-theme.min.css", size: 19963, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -135,7 +135,7 @@ func staticBootstrap334DistCssBootstrapMinCss() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/css/bootstrap.min.css", size: 117305, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/css/bootstrap.min.css", size: 117305, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -155,7 +155,7 @@ func staticBootstrap334DistFontsGlyphiconsHalflingsRegularEot() (*asset, error) 
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.eot", size: 20127, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.eot", size: 20127, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -175,7 +175,7 @@ func staticBootstrap334DistFontsGlyphiconsHalflingsRegularSvg() (*asset, error) 
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.svg", size: 108738, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.svg", size: 108738, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -195,7 +195,7 @@ func staticBootstrap334DistFontsGlyphiconsHalflingsRegularTtf() (*asset, error) 
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.ttf", size: 45404, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.ttf", size: 45404, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -215,7 +215,7 @@ func staticBootstrap334DistFontsGlyphiconsHalflingsRegularWoff() (*asset, error)
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.woff", size: 23424, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.woff", size: 23424, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -235,7 +235,7 @@ func staticBootstrap334DistFontsGlyphiconsHalflingsRegularWoff2() (*asset, error
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.woff2", size: 18028, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.woff2", size: 18028, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -255,7 +255,7 @@ func staticBootstrap334DistJsBootstrapMinJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/js/bootstrap.min.js", size: 35951, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/bootstrap-3.3.4-dist/js/bootstrap.min.js", size: 35951, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -275,7 +275,7 @@ func staticFunctionsJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/functions.js", size: 1706, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/functions.js", size: 1706, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -295,7 +295,7 @@ func staticJquery214MinJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/jquery-2.1.4.min.js", size: 84345, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/jquery-2.1.4.min.js", size: 84345, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -315,7 +315,7 @@ func staticJqueryLicense() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "static/jquery-license", size: 1606, mode: os.FileMode(436), modTime: time.Unix(1492689558, 0)}
+	info := bindataFileInfo{name: "static/jquery-license", size: 1606, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -335,7 +335,7 @@ func templateHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "template.html", size: 8035, mode: os.FileMode(436), modTime: time.Unix(1492689650, 0)}
+	info := bindataFileInfo{name: "template.html", size: 8035, mode: os.FileMode(420), modTime: time.Unix(1509974178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
