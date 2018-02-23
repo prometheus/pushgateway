@@ -19,11 +19,12 @@ limitations under the License.
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prometheus Pushgateway</title>
 
-    <script src="/static/jquery-2.1.4.min.js"></script>
-    <link rel="stylesheet" href="/static/bootstrap-3.3.4-dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/static/bootstrap-3.3.4-dist/css/bootstrap-theme.min.css">
-    <script src="/static/bootstrap-3.3.4-dist/js/bootstrap.min.js"></script>
-    <script src="/static/functions.js"></script>
+    {{- $prefix := index .Flags "web.route-prefix" }}
+    <script src="{{$prefix}}/static/jquery-2.1.4.min.js"></script>
+    <link rel="stylesheet" href="{{$prefix}}/static/bootstrap-3.3.4-dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{$prefix}}/static/bootstrap-3.3.4-dist/css/bootstrap-theme.min.css">
+    <script src="{{$prefix}}/static/bootstrap-3.3.4-dist/js/bootstrap.min.js"></script>
+    <script src="{{$prefix}}/static/functions.js"></script>
 
     <style type="text/css">
       .cursor-pointer {
