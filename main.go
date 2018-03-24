@@ -21,6 +21,8 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/signal"
+	"path"
+	"strings"
 	"syscall"
 	"time"
 
@@ -38,6 +40,7 @@ var (
 	showVersion         = flag.Bool("version", false, "Print version information.")
 	listenAddress       = flag.String("web.listen-address", ":9091", "Address to listen on for the web interface, API, and telemetry.")
 	metricsPath         = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
+	routePrefix         = flag.String("web.route-prefix", "", "Prefix for the internal routes of web endpoints.")
 	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
 	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
 )
@@ -49,6 +52,13 @@ func init() {
 func main() {
 	flag.Parse()
 
+	if *routePrefix == "/" {
+		*routePrefix = ""
+	}
+	if *routePrefix != "" {
+		*routePrefix = "/" + strings.Trim(*routePrefix, "/")
+	}
+
 	if *showVersion {
 		fmt.Fprintln(os.Stdout, version.Print("pushgateway"))
 		os.Exit(0)
@@ -56,6 +66,7 @@ func main() {
 
 	log.Infoln("Starting pushgateway", version.Info())
 	log.Infoln("Build context", version.BuildContext())
+	log.Debugf("Prefix path is '%s'", *routePrefix)
 
 	flags := map[string]string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -67,39 +78,45 @@ func main() {
 	// prometheus.EnableCollectChecks(true)
 
 	r := httprouter.New()
-	r.Handler("GET", "/-/healthy", prometheus.InstrumentHandlerFunc("healthy", handler.Healthy(ms)))
-	r.Handler("GET", "/-/ready", prometheus.InstrumentHandlerFunc("ready", handler.Ready(ms)))
+	r.Handler("GET", *routePrefix+"/-/healthy", prometheus.InstrumentHandlerFunc("healthy", handler.Healthy(ms)))
+	r.Handler("GET", *routePrefix+"/-/ready", prometheus.InstrumentHandlerFunc("ready", handler.Ready(ms)))
 
-	r.Handler("GET", *metricsPath, prometheus.Handler())
+	r.Handler("GET", path.Join(*routePrefix, *metricsPath), prometheus.Handler())
 
 	// Handlers for pushing and deleting metrics.
-	r.PUT("/metrics/job/:job/*labels", handler.Push(ms, true))
-	r.POST("/metrics/job/:job/*labels", handler.Push(ms, false))
-	r.DELETE("/metrics/job/:job/*labels", handler.Delete(ms))
-	r.PUT("/metrics/job/:job", handler.Push(ms, true))
-	r.POST("/metrics/job/:job", handler.Push(ms, false))
-	r.DELETE("/metrics/job/:job", handler.Delete(ms))
+	pushAPIPath := *routePrefix + "/metrics"
+	r.PUT(pushAPIPath+"/job/:job/*labels", handler.Push(ms, true))
+	r.POST(pushAPIPath+"/job/:job/*labels", handler.Push(ms, false))
+	r.DELETE(pushAPIPath+"/job/:job/*labels", handler.Delete(ms))
+	r.PUT(pushAPIPath+"/job/:job", handler.Push(ms, true))
+	r.POST(pushAPIPath+"/job/:job", handler.Push(ms, false))
+	r.DELETE(pushAPIPath+"/job/:job", handler.Delete(ms))
 
 	// Handlers for the deprecated API.
-	r.PUT("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, true))
-	r.POST("/metrics/jobs/:job/instances/:instance", handler.LegacyPush(ms, false))
-	r.DELETE("/metrics/jobs/:job/instances/:instance", handler.LegacyDelete(ms))
-	r.PUT("/metrics/jobs/:job", handler.LegacyPush(ms, true))
-	r.POST("/metrics/jobs/:job", handler.LegacyPush(ms, false))
-	r.DELETE("/metrics/jobs/:job", handler.LegacyDelete(ms))
+	r.PUT(pushAPIPath+"/jobs/:job/instances/:instance", handler.LegacyPush(ms, true))
+	r.POST(pushAPIPath+"/jobs/:job/instances/:instance", handler.LegacyPush(ms, false))
+	r.DELETE(pushAPIPath+"/jobs/:job/instances/:instance", handler.LegacyDelete(ms))
+	r.PUT(pushAPIPath+"/jobs/:job", handler.LegacyPush(ms, true))
+	r.POST(pushAPIPath+"/jobs/:job", handler.LegacyPush(ms, false))
+	r.DELETE(pushAPIPath+"/jobs/:job", handler.LegacyDelete(ms))
 
-	r.Handler("GET", "/static/*filepath", prometheus.InstrumentHandler(
+	r.Handler("GET", *routePrefix+"/static/*filepath", prometheus.InstrumentHandler(
 		"static",
 		http.FileServer(
-			&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: AssetInfo},
+			&assetfs.AssetFS{
+				Asset: func(name string) ([]byte, error) {
+					path := name[len(*routePrefix):]
+					return Asset(path)
+				},
+				AssetDir: AssetDir, AssetInfo: AssetInfo},
 		),
 	))
 	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, Asset, flags))
-	r.Handler("GET", "/status", statusHandler)
-	r.Handler("GET", "/", statusHandler)
+	r.Handler("GET", *routePrefix+"/status", statusHandler)
+	r.Handler("GET", *routePrefix+"/", statusHandler)
 
 	// Re-enable pprof.
-	r.GET("/debug/pprof/*pprof", handlePprof)
+	r.GET(*routePrefix+"/debug/pprof/*pprof", handlePprof)
 
 	log.Infof("Listening on %s.", *listenAddress)
 	l, err := net.Listen("tcp", *listenAddress)
