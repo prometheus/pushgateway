@@ -14,17 +14,18 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/julienschmidt/httprouter"
@@ -36,21 +37,23 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
-var (
-	showVersion         = flag.Bool("version", false, "Print version information.")
-	listenAddress       = flag.String("web.listen-address", ":9091", "Address to listen on for the web interface, API, and telemetry.")
-	metricsPath         = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-	routePrefix         = flag.String("web.route-prefix", "", "Prefix for the internal routes of web endpoints.")
-	persistenceFile     = flag.String("persistence.file", "", "File to persist metrics. If empty, metrics are only kept in memory.")
-	persistenceInterval = flag.Duration("persistence.interval", 5*time.Minute, "The minimum interval at which to write out the persistence file.")
-)
-
 func init() {
 	prometheus.MustRegister(version.NewCollector("pushgateway"))
 }
 
 func main() {
-	flag.Parse()
+	var (
+		app = kingpin.New(filepath.Base(os.Args[0]), "The Pushgateway")
+
+		listenAddress       = app.Flag("web.listen-address", "Address to listen on for the web interface, API, and telemetry.").Default(":9091").String()
+		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
+		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints.").Default("").String()
+		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
+		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
+	)
+	app.Version(version.Print("pushgateway"))
+	app.HelpFlag.Short('h')
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	if *routePrefix == "/" {
 		*routePrefix = ""
@@ -59,19 +62,14 @@ func main() {
 		*routePrefix = "/" + strings.Trim(*routePrefix, "/")
 	}
 
-	if *showVersion {
-		fmt.Fprintln(os.Stdout, version.Print("pushgateway"))
-		os.Exit(0)
-	}
-
 	log.Infoln("Starting pushgateway", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 	log.Debugf("Prefix path is '%s'", *routePrefix)
 
 	flags := map[string]string{}
-	flag.VisitAll(func(f *flag.Flag) {
+	for _, f := range app.Model().Flags {
 		flags[f.Name] = f.Value.String()
-	})
+	}
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
 	prometheus.SetMetricFamilyInjectionHook(ms.GetMetricFamilies)
 	// Enable collect checks for debugging.

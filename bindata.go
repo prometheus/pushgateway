@@ -392,19 +392,19 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"static/bootstrap-3.3.4-dist/LICENSE": staticBootstrap334DistLicense,
-	"static/bootstrap-3.3.4-dist/css/bootstrap-theme.min.css": staticBootstrap334DistCssBootstrapThemeMinCss,
-	"static/bootstrap-3.3.4-dist/css/bootstrap.min.css": staticBootstrap334DistCssBootstrapMinCss,
-	"static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.eot": staticBootstrap334DistFontsGlyphiconsHalflingsRegularEot,
-	"static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.svg": staticBootstrap334DistFontsGlyphiconsHalflingsRegularSvg,
-	"static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.ttf": staticBootstrap334DistFontsGlyphiconsHalflingsRegularTtf,
-	"static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.woff": staticBootstrap334DistFontsGlyphiconsHalflingsRegularWoff,
+	"static/bootstrap-3.3.4-dist/LICENSE":                                  staticBootstrap334DistLicense,
+	"static/bootstrap-3.3.4-dist/css/bootstrap-theme.min.css":              staticBootstrap334DistCssBootstrapThemeMinCss,
+	"static/bootstrap-3.3.4-dist/css/bootstrap.min.css":                    staticBootstrap334DistCssBootstrapMinCss,
+	"static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.eot":   staticBootstrap334DistFontsGlyphiconsHalflingsRegularEot,
+	"static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.svg":   staticBootstrap334DistFontsGlyphiconsHalflingsRegularSvg,
+	"static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.ttf":   staticBootstrap334DistFontsGlyphiconsHalflingsRegularTtf,
+	"static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.woff":  staticBootstrap334DistFontsGlyphiconsHalflingsRegularWoff,
 	"static/bootstrap-3.3.4-dist/fonts/glyphicons-halflings-regular.woff2": staticBootstrap334DistFontsGlyphiconsHalflingsRegularWoff2,
-	"static/bootstrap-3.3.4-dist/js/bootstrap.min.js": staticBootstrap334DistJsBootstrapMinJs,
-	"static/functions.js": staticFunctionsJs,
-	"static/jquery-2.1.4.min.js": staticJquery214MinJs,
-	"static/jquery-license": staticJqueryLicense,
-	"template.html": templateHtml,
+	"static/bootstrap-3.3.4-dist/js/bootstrap.min.js":                      staticBootstrap334DistJsBootstrapMinJs,
+	"static/functions.js":                                                  staticFunctionsJs,
+	"static/jquery-2.1.4.min.js":                                           staticJquery214MinJs,
+	"static/jquery-license":                                                staticJqueryLicense,
+	"template.html":                                                        templateHtml,
 }
 
 // AssetDir returns the file names below a certain
@@ -446,28 +446,29 @@ type bintree struct {
 	Func     func() (*asset, error)
 	Children map[string]*bintree
 }
+
 var _bintree = &bintree{nil, map[string]*bintree{
 	"static": &bintree{nil, map[string]*bintree{
 		"bootstrap-3.3.4-dist": &bintree{nil, map[string]*bintree{
 			"LICENSE": &bintree{staticBootstrap334DistLicense, map[string]*bintree{}},
 			"css": &bintree{nil, map[string]*bintree{
 				"bootstrap-theme.min.css": &bintree{staticBootstrap334DistCssBootstrapThemeMinCss, map[string]*bintree{}},
-				"bootstrap.min.css": &bintree{staticBootstrap334DistCssBootstrapMinCss, map[string]*bintree{}},
+				"bootstrap.min.css":       &bintree{staticBootstrap334DistCssBootstrapMinCss, map[string]*bintree{}},
 			}},
 			"fonts": &bintree{nil, map[string]*bintree{
-				"glyphicons-halflings-regular.eot": &bintree{staticBootstrap334DistFontsGlyphiconsHalflingsRegularEot, map[string]*bintree{}},
-				"glyphicons-halflings-regular.svg": &bintree{staticBootstrap334DistFontsGlyphiconsHalflingsRegularSvg, map[string]*bintree{}},
-				"glyphicons-halflings-regular.ttf": &bintree{staticBootstrap334DistFontsGlyphiconsHalflingsRegularTtf, map[string]*bintree{}},
-				"glyphicons-halflings-regular.woff": &bintree{staticBootstrap334DistFontsGlyphiconsHalflingsRegularWoff, map[string]*bintree{}},
+				"glyphicons-halflings-regular.eot":   &bintree{staticBootstrap334DistFontsGlyphiconsHalflingsRegularEot, map[string]*bintree{}},
+				"glyphicons-halflings-regular.svg":   &bintree{staticBootstrap334DistFontsGlyphiconsHalflingsRegularSvg, map[string]*bintree{}},
+				"glyphicons-halflings-regular.ttf":   &bintree{staticBootstrap334DistFontsGlyphiconsHalflingsRegularTtf, map[string]*bintree{}},
+				"glyphicons-halflings-regular.woff":  &bintree{staticBootstrap334DistFontsGlyphiconsHalflingsRegularWoff, map[string]*bintree{}},
 				"glyphicons-halflings-regular.woff2": &bintree{staticBootstrap334DistFontsGlyphiconsHalflingsRegularWoff2, map[string]*bintree{}},
 			}},
 			"js": &bintree{nil, map[string]*bintree{
 				"bootstrap.min.js": &bintree{staticBootstrap334DistJsBootstrapMinJs, map[string]*bintree{}},
 			}},
 		}},
-		"functions.js": &bintree{staticFunctionsJs, map[string]*bintree{}},
+		"functions.js":        &bintree{staticFunctionsJs, map[string]*bintree{}},
 		"jquery-2.1.4.min.js": &bintree{staticJquery214MinJs, map[string]*bintree{}},
-		"jquery-license": &bintree{staticJqueryLicense, map[string]*bintree{}},
+		"jquery-license":      &bintree{staticJqueryLicense, map[string]*bintree{}},
 	}},
 	"template.html": &bintree{templateHtml, map[string]*bintree{}},
 }}
@@ -518,4 +519,3 @@ func _filePath(dir, name string) string {
 	cannonicalName := strings.Replace(name, "\\", "/", -1)
 	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
-
