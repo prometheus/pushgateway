@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
-
 	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
