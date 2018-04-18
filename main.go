@@ -25,15 +25,14 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/alecthomas/kingpin.v2"
 	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func init() {
