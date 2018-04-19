@@ -159,10 +159,15 @@ func LegacyPush(
 				return
 			}
 			if instance == "" {
-				// Remote IP number (without port).
-				instance, _, err = net.SplitHostPort(r.RemoteAddr)
-				if err != nil || instance == "" {
-					instance = "localhost"
+				if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+					// Use X-Forwarded-For header
+					instance = xff
+				} else {
+					// Remote IP number (without port).
+					instance, _, err = net.SplitHostPort(r.RemoteAddr)
+					if err != nil || instance == "" {
+						instance = "localhost"
+					}
 				}
 			}
 			labels := map[string]string{"job": job, "instance": instance}
