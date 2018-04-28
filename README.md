@@ -307,13 +307,12 @@ and instance label as their grouping key.
 
 ## Development
 
-The normal binary embeds the files in `resources`. For development
-purposes, it is handy to have a running binary use those files
-directly (so that you can see the effect of changes immediately). To
-switch to direct usage, type `make bindata-debug` just before
-compiling the binary. Switch back to "normal" mode by typing `make
-bindata-embed`. (Just `make` after a resource has changed will result
-in the same.)
+The normal binary embeds the web files in the `resources` directory.
+For development purposes, it is handy to have a running binary use
+those files directly (so that you can see the effect of changes
+immediately). To switch to direct usage, type `DEBUG=1 make assets`
+just before compiling the binary. Switch back to "normal" mode by
+typing `make assets`.
 
 ##  Contributing
 
