@@ -431,7 +431,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		"job":      "job1",
 		"instance": "instance2",
 	})].Metrics["mf1"]
-	if expected, got := ts3, tmf.Timestamp; expected != got {
+	if expected, got := ts3, tmf.Timestamp; !expected.Equal(got) {
 		t.Errorf("Expected timestamp %v, got %v.", expected, got)
 	}
 
