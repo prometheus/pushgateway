@@ -294,16 +294,18 @@ guaranteed that the `DELETE` will be processed first (and vice versa).
 Deleting a grouping key without metrics is a no-op and will not result
 in an error.
 
-**Caution:** Up to version 0.1.1 of the Pushgateway, a `DELETE` request
-using the following path in the URL would delete _all_ metrics with
-the job label 'foo':
+**Caution:** Up to version 0.1.1 of the Pushgateway, a `DELETE` request using
+the following path (the deprecated form, see above) in the URL would delete
+_all_ metrics with the job label 'foo':
 
     /metrics/jobs/foo
 
-Newer versions will interpret the above URL path as deprecated (see
-above). Consequently, they will add the IP number of the client as an
-instance label and then delete all metrics with the corresponding job
-and instance label as their grouping key.
+Newer versions will treat this path in the same way as
+
+    /metrics/job/foo
+
+Note that no implicit addition of an instance label is happening here (in
+contrast to how the deprecated form of the path is treated during pushing).
 
 ## Development
 
