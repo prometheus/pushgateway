@@ -81,10 +81,10 @@
 			"revisionTime": "2016-05-03T22:05:32Z"
 		},
 		{
-			"checksumSHA1": "koBNYQryxAG8hyHBlpn8pcnSVdM=",
+			"checksumSHA1": "MGnqHnmEqc1fjnYiWReSiW8C27A=",
 			"path": "github.com/prometheus/common/log",
-			"revision": "dd586c1c5abb0be59e60f942c22af711a2008cb4",
-			"revisionTime": "2016-05-03T22:05:32Z"
+			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"revisionTime": "2018-05-18T15:47:59Z"
 		},
 		{
 			"checksumSHA1": "IwxsYOL9A/K9rvHvGxfyY37dusk=",
