@@ -3,12 +3,6 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "SdEcxwaW92m0H3pao3BPj2ZpvaU=",
-			"path": "github.com/Sirupsen/logrus",
-			"revision": "446d1c146faa8ed3f4218f056fcd165f6bcfda81",
-			"revisionTime": "2015-12-04T14:14:43Z"
-		},
-		{
 			"checksumSHA1": "KmjnydoAbofMieIWm+it5OWERaM=",
 			"path": "github.com/alecthomas/template",
 			"revision": "a0175ee3bccc567396460bf5acd36800cb10c49c",
@@ -103,6 +97,12 @@
 			"path": "github.com/prometheus/procfs",
 			"revision": "abf152e5f3e97f2fafac028d2cc06c1feb87ffa5",
 			"revisionTime": "2016-04-11T19:08:41Z"
+		},
+		{
+			"checksumSHA1": "L717AHU7fEd3BdmK20VaW2pxBls=",
+			"path": "github.com/sirupsen/logrus",
+			"revision": "0dad3b6953e73d351ec8ebfd8a8c6b088d320381",
+			"revisionTime": "2018-05-15T15:40:58Z"
 		},
 		{
 			"checksumSHA1": "c8iMfP5+K3GEg26HJiO0OVVLiM4=",
