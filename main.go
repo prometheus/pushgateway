@@ -145,7 +145,7 @@ func handlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 }
 
 func interruptHandler(l net.Listener) {
-	notifier := make(chan os.Signal)
+	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 	<-notifier
 	log.Info("Received SIGINT/SIGTERM; exiting gracefully...")
