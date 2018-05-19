@@ -30,9 +30,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+	"gopkg.in/alecthomas/kingpin.v2"
+
+	dto "github.com/prometheus/client_model/go"
+
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func init() {
@@ -70,9 +73,12 @@ func main() {
 		flags[f.Name] = f.Value.String()
 	}
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
-	prometheus.SetMetricFamilyInjectionHook(ms.GetMetricFamilies)
-	// Enable collect checks for debugging.
-	// prometheus.EnableCollectChecks(true)
+
+	// Inject the metric families returned by ms.GetMetricFamilies into the default Gatherer:
+	prometheus.DefaultGatherer = prometheus.Gatherers{
+		prometheus.DefaultGatherer,
+		prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) { return ms.GetMetricFamilies(), nil }),
+	}
 
 	r := httprouter.New()
 	r.Handler("GET", *routePrefix+"/-/healthy", prometheus.InstrumentHandlerFunc("healthy", handler.Healthy(ms)))
