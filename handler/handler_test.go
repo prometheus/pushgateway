@@ -487,16 +487,16 @@ func TestDelete(t *testing.T) {
 }
 
 func TestSplitLabels(t *testing.T) {
-	proper_labels := "/label_name1/label_value1/label_name2/label_value2"
-	expected_parsed := map[string]string{
+	properLabels := "/label_name1/label_value1/label_name2/label_value2"
+	expectedParsed := map[string]string{
 		"label_name1": "label_value1",
 		"label_name2": "label_value2",
 	}
-	parsed, err := splitLabels(proper_labels)
+	parsed, err := splitLabels(properLabels)
 	if err != nil {
 		t.Errorf("Got unexpected error: %s.", err)
 	}
-	for k, v := range expected_parsed {
+	for k, v := range expectedParsed {
 		got, ok := parsed[k]
 		if !ok {
 			t.Errorf("Expected to find key %s.", k)
@@ -506,14 +506,14 @@ func TestSplitLabels(t *testing.T) {
 		}
 	}
 
-	improper_labels := "/label_name1/label_value1/a=b/label_value2"
-	_, err = splitLabels(improper_labels)
+	improperLabels := "/label_name1/label_value1/a=b/label_value2"
+	_, err = splitLabels(improperLabels)
 	if err == nil {
 		t.Error("Expected splitLabels to return an error when given improper labels.")
 	}
 
-	reserved_labels := "/label_name1/label_value1/__label_name2/label_value2"
-	_, err = splitLabels(reserved_labels)
+	reservedLabels := "/label_name1/label_value1/__label_name2/label_value2"
+	_, err = splitLabels(reservedLabels)
 	if err == nil {
 		t.Error("Expected splitLabels to return an error when given a reserved label.")
 	}
