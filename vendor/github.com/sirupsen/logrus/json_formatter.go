@@ -58,7 +58,7 @@ func (f *JSONFormatter) Format(entry *Entry) ([]byte, error) {
 			data[k] = v
 		}
 	}
-	prefixFieldClashes(data, f.FieldMap)
+	prefixFieldClashes(data)
 
 	timestampFormat := f.TimestampFormat
 	if timestampFormat == "" {
