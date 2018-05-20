@@ -43,10 +43,10 @@
 			"versionExact": "v1.1.0"
 		},
 		{
-			"checksumSHA1": "ezRkrYYy9mMxREVDryjD5NlHa7M=",
+			"checksumSHA1": "X7g98YfLr+zM7aN76AZvAfpZyfk=",
 			"path": "github.com/julienschmidt/httprouter",
-			"revision": "8c199fb6259ffc1af525cc3ad52ee60ba8359669",
-			"revisionTime": "2015-04-21T17:00:07Z"
+			"revision": "adbc77eec0d91467376ca515bc3a14b8434d0f18",
+			"revisionTime": "2018-04-11T15:45:01Z"
 		},
 		{
 			"checksumSHA1": "Q2vw4HZBbnU8BLFt8VrzStwqSJg=",
