@@ -30,190 +30,251 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*
-	Package proto converts data structures to and from the wire format of
-	protocol buffers.  It works in concert with the Go source code generated
-	for .proto files by the protocol compiler.
+Package proto converts data structures to and from the wire format of
+protocol buffers.  It works in concert with the Go source code generated
+for .proto files by the protocol compiler.
 
-	A summary of the properties of the protocol buffer interface
-	for a protocol buffer variable v:
+A summary of the properties of the protocol buffer interface
+for a protocol buffer variable v:
 
-	  - Names are turned from camel_case to CamelCase for export.
-	  - There are no methods on v to set fields; just treat
-		them as structure fields.
-	  - There are getters that return a field's value if set,
-		and return the field's default value if unset.
-		The getters work even if the receiver is a nil message.
-	  - The zero value for a struct is its correct initialization state.
-		All desired fields must be set before marshaling.
-	  - A Reset() method will restore a protobuf struct to its zero state.
-	  - Non-repeated fields are pointers to the values; nil means unset.
-		That is, optional or required field int32 f becomes F *int32.
-	  - Repeated fields are slices.
-	  - Helper functions are available to aid the setting of fields.
-		msg.Foo = proto.String("hello") // set field
-	  - Constants are defined to hold the default values of all fields that
-		have them.  They have the form Default_StructName_FieldName.
-		Because the getter methods handle defaulted values,
-		direct use of these constants should be rare.
-	  - Enums are given type names and maps from names to values.
-		Enum values are prefixed by the enclosing message's name, or by the
-		enum's type name if it is a top-level enum. Enum types have a String
-		method, and a Enum method to assist in message construction.
-	  - Nested messages, groups and enums have type names prefixed with the name of
-	  	the surrounding message type.
-	  - Extensions are given descriptor names that start with E_,
-		followed by an underscore-delimited list of the nested messages
-		that contain it (if any) followed by the CamelCased name of the
-		extension field itself.  HasExtension, ClearExtension, GetExtension
-		and SetExtension are functions for manipulating extensions.
-	  - Marshal and Unmarshal are functions to encode and decode the wire format.
+  - Names are turned from camel_case to CamelCase for export.
+  - There are no methods on v to set fields; just treat
+	them as structure fields.
+  - There are getters that return a field's value if set,
+	and return the field's default value if unset.
+	The getters work even if the receiver is a nil message.
+  - The zero value for a struct is its correct initialization state.
+	All desired fields must be set before marshaling.
+  - A Reset() method will restore a protobuf struct to its zero state.
+  - Non-repeated fields are pointers to the values; nil means unset.
+	That is, optional or required field int32 f becomes F *int32.
+  - Repeated fields are slices.
+  - Helper functions are available to aid the setting of fields.
+	msg.Foo = proto.String("hello") // set field
+  - Constants are defined to hold the default values of all fields that
+	have them.  They have the form Default_StructName_FieldName.
+	Because the getter methods handle defaulted values,
+	direct use of these constants should be rare.
+  - Enums are given type names and maps from names to values.
+	Enum values are prefixed by the enclosing message's name, or by the
+	enum's type name if it is a top-level enum. Enum types have a String
+	method, and a Enum method to assist in message construction.
+  - Nested messages, groups and enums have type names prefixed with the name of
+	the surrounding message type.
+  - Extensions are given descriptor names that start with E_,
+	followed by an underscore-delimited list of the nested messages
+	that contain it (if any) followed by the CamelCased name of the
+	extension field itself.  HasExtension, ClearExtension, GetExtension
+	and SetExtension are functions for manipulating extensions.
+  - Oneof field sets are given a single field in their message,
+	with distinguished wrapper types for each possible field value.
+  - Marshal and Unmarshal are functions to encode and decode the wire format.
 
-	The simplest way to describe this is to see an example.
-	Given file test.proto, containing
+When the .proto file specifies `syntax="proto3"`, there are some differences:
 
-		package example;
+  - Non-repeated fields of non-message type are values instead of pointers.
+  - Enum types do not get an Enum method.
 
-		enum FOO { X = 17; }
+The simplest way to describe this is to see an example.
+Given file test.proto, containing
 
-		message Test {
-		  required string label = 1;
-		  optional int32 type = 2 [default=77];
-		  repeated int64 reps = 3;
-		  optional group OptionalGroup = 4 {
-		    required string RequiredField = 5;
-		  }
+	package example;
+
+	enum FOO { X = 17; }
+
+	message Test {
+	  required string label = 1;
+	  optional int32 type = 2 [default=77];
+	  repeated int64 reps = 3;
+	  optional group OptionalGroup = 4 {
+	    required string RequiredField = 5;
+	  }
+	  oneof union {
+	    int32 number = 6;
+	    string name = 7;
+	  }
+	}
+
+The resulting file, test.pb.go, is:
+
+	package example
+
+	import proto "github.com/golang/protobuf/proto"
+	import math "math"
+
+	type FOO int32
+	const (
+		FOO_X FOO = 17
+	)
+	var FOO_name = map[int32]string{
+		17: "X",
+	}
+	var FOO_value = map[string]int32{
+		"X": 17,
+	}
+
+	func (x FOO) Enum() *FOO {
+		p := new(FOO)
+		*p = x
+		return p
+	}
+	func (x FOO) String() string {
+		return proto.EnumName(FOO_name, int32(x))
+	}
+	func (x *FOO) UnmarshalJSON(data []byte) error {
+		value, err := proto.UnmarshalJSONEnum(FOO_value, data)
+		if err != nil {
+			return err
 		}
+		*x = FOO(value)
+		return nil
+	}
 
-	The resulting file, test.pb.go, is:
+	type Test struct {
+		Label         *string             `protobuf:"bytes,1,req,name=label" json:"label,omitempty"`
+		Type          *int32              `protobuf:"varint,2,opt,name=type,def=77" json:"type,omitempty"`
+		Reps          []int64             `protobuf:"varint,3,rep,name=reps" json:"reps,omitempty"`
+		Optionalgroup *Test_OptionalGroup `protobuf:"group,4,opt,name=OptionalGroup" json:"optionalgroup,omitempty"`
+		// Types that are valid to be assigned to Union:
+		//	*Test_Number
+		//	*Test_Name
+		Union            isTest_Union `protobuf_oneof:"union"`
+		XXX_unrecognized []byte       `json:"-"`
+	}
+	func (m *Test) Reset()         { *m = Test{} }
+	func (m *Test) String() string { return proto.CompactTextString(m) }
+	func (*Test) ProtoMessage() {}
 
-		package example
+	type isTest_Union interface {
+		isTest_Union()
+	}
 
-		import proto "github.com/golang/protobuf/proto"
-		import math "math"
+	type Test_Number struct {
+		Number int32 `protobuf:"varint,6,opt,name=number"`
+	}
+	type Test_Name struct {
+		Name string `protobuf:"bytes,7,opt,name=name"`
+	}
 
-		type FOO int32
-		const (
-			FOO_X FOO = 17
-		)
-		var FOO_name = map[int32]string{
-			17: "X",
+	func (*Test_Number) isTest_Union() {}
+	func (*Test_Name) isTest_Union()   {}
+
+	func (m *Test) GetUnion() isTest_Union {
+		if m != nil {
+			return m.Union
 		}
-		var FOO_value = map[string]int32{
-			"X": 17,
+		return nil
+	}
+	const Default_Test_Type int32 = 77
+
+	func (m *Test) GetLabel() string {
+		if m != nil && m.Label != nil {
+			return *m.Label
 		}
+		return ""
+	}
 
-		func (x FOO) Enum() *FOO {
-			p := new(FOO)
-			*p = x
-			return p
+	func (m *Test) GetType() int32 {
+		if m != nil && m.Type != nil {
+			return *m.Type
 		}
-		func (x FOO) String() string {
-			return proto.EnumName(FOO_name, int32(x))
+		return Default_Test_Type
+	}
+
+	func (m *Test) GetOptionalgroup() *Test_OptionalGroup {
+		if m != nil {
+			return m.Optionalgroup
 		}
-		func (x *FOO) UnmarshalJSON(data []byte) error {
-			value, err := proto.UnmarshalJSONEnum(FOO_value, data)
-			if err != nil {
-				return err
-			}
-			*x = FOO(value)
-			return nil
+		return nil
+	}
+
+	type Test_OptionalGroup struct {
+		RequiredField *string `protobuf:"bytes,5,req" json:"RequiredField,omitempty"`
+	}
+	func (m *Test_OptionalGroup) Reset()         { *m = Test_OptionalGroup{} }
+	func (m *Test_OptionalGroup) String() string { return proto.CompactTextString(m) }
+
+	func (m *Test_OptionalGroup) GetRequiredField() string {
+		if m != nil && m.RequiredField != nil {
+			return *m.RequiredField
 		}
+		return ""
+	}
 
-		type Test struct {
-			Label            *string             `protobuf:"bytes,1,req,name=label" json:"label,omitempty"`
-			Type             *int32              `protobuf:"varint,2,opt,name=type,def=77" json:"type,omitempty"`
-			Reps             []int64             `protobuf:"varint,3,rep,name=reps" json:"reps,omitempty"`
-			Optionalgroup    *Test_OptionalGroup `protobuf:"group,4,opt,name=OptionalGroup" json:"optionalgroup,omitempty"`
-			XXX_unrecognized []byte              `json:"-"`
+	func (m *Test) GetNumber() int32 {
+		if x, ok := m.GetUnion().(*Test_Number); ok {
+			return x.Number
 		}
-		func (m *Test) Reset()         { *m = Test{} }
-		func (m *Test) String() string { return proto.CompactTextString(m) }
-		func (*Test) ProtoMessage()    {}
-		const Default_Test_Type int32 = 77
+		return 0
+	}
 
-		func (m *Test) GetLabel() string {
-			if m != nil && m.Label != nil {
-				return *m.Label
-			}
-			return ""
+	func (m *Test) GetName() string {
+		if x, ok := m.GetUnion().(*Test_Name); ok {
+			return x.Name
 		}
+		return ""
+	}
 
-		func (m *Test) GetType() int32 {
-			if m != nil && m.Type != nil {
-				return *m.Type
-			}
-			return Default_Test_Type
+	func init() {
+		proto.RegisterEnum("example.FOO", FOO_name, FOO_value)
+	}
+
+To create and play with a Test object:
+
+	package main
+
+	import (
+		"log"
+
+		"github.com/golang/protobuf/proto"
+		pb "./example.pb"
+	)
+
+	func main() {
+		test := &pb.Test{
+			Label: proto.String("hello"),
+			Type:  proto.Int32(17),
+			Reps:  []int64{1, 2, 3},
+			Optionalgroup: &pb.Test_OptionalGroup{
+				RequiredField: proto.String("good bye"),
+			},
+			Union: &pb.Test_Name{"fred"},
 		}
-
-		func (m *Test) GetOptionalgroup() *Test_OptionalGroup {
-			if m != nil {
-				return m.Optionalgroup
-			}
-			return nil
+		data, err := proto.Marshal(test)
+		if err != nil {
+			log.Fatal("marshaling error: ", err)
 		}
-
-		type Test_OptionalGroup struct {
-			RequiredField *string `protobuf:"bytes,5,req" json:"RequiredField,omitempty"`
+		newTest := &pb.Test{}
+		err = proto.Unmarshal(data, newTest)
+		if err != nil {
+			log.Fatal("unmarshaling error: ", err)
 		}
-		func (m *Test_OptionalGroup) Reset()         { *m = Test_OptionalGroup{} }
-		func (m *Test_OptionalGroup) String() string { return proto.CompactTextString(m) }
-
-		func (m *Test_OptionalGroup) GetRequiredField() string {
-			if m != nil && m.RequiredField != nil {
-				return *m.RequiredField
-			}
-			return ""
+		// Now test and newTest contain the same data.
+		if test.GetLabel() != newTest.GetLabel() {
+			log.Fatalf("data mismatch %q != %q", test.GetLabel(), newTest.GetLabel())
 		}
-
-		func init() {
-			proto.RegisterEnum("example.FOO", FOO_name, FOO_value)
+		// Use a type switch to determine which oneof was set.
+		switch u := test.Union.(type) {
+		case *pb.Test_Number: // u.Number contains the number.
+		case *pb.Test_Name: // u.Name contains the string.
 		}
-
-	To create and play with a Test object:
-
-		package main
-
-		import (
-			"log"
-
-			"github.com/golang/protobuf/proto"
-			pb "./example.pb"
-		)
-
-		func main() {
-			test := &pb.Test{
-				Label: proto.String("hello"),
-				Type:  proto.Int32(17),
-				Optionalgroup: &pb.Test_OptionalGroup{
-					RequiredField: proto.String("good bye"),
-				},
-			}
-			data, err := proto.Marshal(test)
-			if err != nil {
-				log.Fatal("marshaling error: ", err)
-			}
-			newTest := &pb.Test{}
-			err = proto.Unmarshal(data, newTest)
-			if err != nil {
-				log.Fatal("unmarshaling error: ", err)
-			}
-			// Now test and newTest contain the same data.
-			if test.GetLabel() != newTest.GetLabel() {
-				log.Fatalf("data mismatch %q != %q", test.GetLabel(), newTest.GetLabel())
-			}
-			// etc.
-		}
+		// etc.
+	}
 */
 package proto
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
+	"sort"
 	"strconv"
 	"sync"
 )
+
+var errInvalidUTF8 = errors.New("proto: invalid UTF-8 string")
 
 // Message is implemented by generated protocol buffer messages.
 type Message interface {
@@ -249,18 +310,9 @@ func GetStats() Stats { return stats }
 // temporary Buffer and are fine for most applications.
 type Buffer struct {
 	buf   []byte // encode/decode byte stream
-	index int    // write point
+	index int    // read point
 
-	// pools of basic types to amortize allocation.
-	bools   []bool
-	uint32s []uint32
-	uint64s []uint64
-
-	// extra pools, only used with pointer_reflect.go
-	int32s   []int32
-	int64s   []int64
-	float32s []float32
-	float64s []float64
+	deterministic bool
 }
 
 // NewBuffer allocates a new Buffer and initializes its internal data to
@@ -284,6 +336,30 @@ func (p *Buffer) SetBuf(s []byte) {
 
 // Bytes returns the contents of the Buffer.
 func (p *Buffer) Bytes() []byte { return p.buf }
+
+// SetDeterministic sets whether to use deterministic serialization.
+//
+// Deterministic serialization guarantees that for a given binary, equal
+// messages will always be serialized to the same bytes. This implies:
+//
+//   - Repeated serialization of a message will return the same bytes.
+//   - Different processes of the same binary (which may be executing on
+//     different machines) will serialize equal messages to the same bytes.
+//
+// Note that the deterministic serialization is NOT canonical across
+// languages. It is not guaranteed to remain stable over time. It is unstable
+// across different builds with schema changes due to unknown fields.
+// Users who need canonical serialization (e.g., persistent storage in a
+// canonical form, fingerprinting, etc.) should define their own
+// canonicalization specification and implement their own serializer rather
+// than relying on this API.
+//
+// If deterministic serialization is requested, map entries will be sorted
+// by keys in lexographical order. This is an implementation detail and
+// subject to change.
+func (p *Buffer) SetDeterministic(deterministic bool) {
+	p.deterministic = deterministic
+}
 
 /*
  * Helper routines for simplifying the creation of optional fields of basic type.
@@ -385,13 +461,13 @@ func UnmarshalJSONEnum(m map[string]int32, data []byte, enumName string) (int32,
 
 // DebugPrint dumps the encoded data in b in a debugging format with a header
 // including the string s. Used in testing but made available for general debugging.
-func (o *Buffer) DebugPrint(s string, b []byte) {
+func (p *Buffer) DebugPrint(s string, b []byte) {
 	var u uint64
 
-	obuf := o.buf
-	index := o.index
-	o.buf = b
-	o.index = 0
+	obuf := p.buf
+	index := p.index
+	p.buf = b
+	p.index = 0
 	depth := 0
 
 	fmt.Printf("\n--- %s ---\n", s)
@@ -402,12 +478,12 @@ out:
 			fmt.Print("  ")
 		}
 
-		index := o.index
-		if index == len(o.buf) {
+		index := p.index
+		if index == len(p.buf) {
 			break
 		}
 
-		op, err := o.DecodeVarint()
+		op, err := p.DecodeVarint()
 		if err != nil {
 			fmt.Printf("%3d: fetching op err %v\n", index, err)
 			break out
@@ -424,7 +500,7 @@ out:
 		case WireBytes:
 			var r []byte
 
-			r, err = o.DecodeRawBytes(false)
+			r, err = p.DecodeRawBytes(false)
 			if err != nil {
 				break out
 			}
@@ -445,7 +521,7 @@ out:
 			fmt.Printf("\n")
 
 		case WireFixed32:
-			u, err = o.DecodeFixed32()
+			u, err = p.DecodeFixed32()
 			if err != nil {
 				fmt.Printf("%3d: t=%3d fix32 err %v\n", index, tag, err)
 				break out
@@ -453,16 +529,15 @@ out:
 			fmt.Printf("%3d: t=%3d fix32 %d\n", index, tag, u)
 
 		case WireFixed64:
-			u, err = o.DecodeFixed64()
+			u, err = p.DecodeFixed64()
 			if err != nil {
 				fmt.Printf("%3d: t=%3d fix64 err %v\n", index, tag, err)
 				break out
 			}
 			fmt.Printf("%3d: t=%3d fix64 %d\n", index, tag, u)
-			break
 
 		case WireVarint:
-			u, err = o.DecodeVarint()
+			u, err = p.DecodeVarint()
 			if err != nil {
 				fmt.Printf("%3d: t=%3d varint err %v\n", index, tag, err)
 				break out
@@ -470,30 +545,22 @@ out:
 			fmt.Printf("%3d: t=%3d varint %d\n", index, tag, u)
 
 		case WireStartGroup:
-			if err != nil {
-				fmt.Printf("%3d: t=%3d start err %v\n", index, tag, err)
-				break out
-			}
 			fmt.Printf("%3d: t=%3d start\n", index, tag)
 			depth++
 
 		case WireEndGroup:
 			depth--
-			if err != nil {
-				fmt.Printf("%3d: t=%3d end err %v\n", index, tag, err)
-				break out
-			}
 			fmt.Printf("%3d: t=%3d end\n", index, tag)
 		}
 	}
 
 	if depth != 0 {
-		fmt.Printf("%3d: start-end not balanced %d\n", o.index, depth)
+		fmt.Printf("%3d: start-end not balanced %d\n", p.index, depth)
 	}
 	fmt.Printf("\n")
 
-	o.buf = obuf
-	o.index = index
+	p.buf = obuf
+	p.index = index
 }
 
 // SetDefaults sets unset protocol buffer fields to their default values.
@@ -668,123 +735,187 @@ func buildDefaultMessage(t reflect.Type) (dm defaultMessage) {
 		}
 		ft := t.Field(fi).Type
 
-		var canHaveDefault, nestedMessage bool
-		switch ft.Kind() {
-		case reflect.Ptr:
-			if ft.Elem().Kind() == reflect.Struct {
-				nestedMessage = true
-			} else {
-				canHaveDefault = true // proto2 scalar field
-			}
-
-		case reflect.Slice:
-			switch ft.Elem().Kind() {
-			case reflect.Ptr:
-				nestedMessage = true // repeated message
-			case reflect.Uint8:
-				canHaveDefault = true // bytes field
-			}
-
-		case reflect.Map:
-			if ft.Elem().Kind() == reflect.Ptr {
-				nestedMessage = true // map with message values
-			}
+		sf, nested, err := fieldDefault(ft, prop)
+		switch {
+		case err != nil:
+			log.Print(err)
+		case nested:
+			dm.nested = append(dm.nested, fi)
+		case sf != nil:
+			sf.index = fi
+			dm.scalars = append(dm.scalars, *sf)
 		}
-
-		if !canHaveDefault {
-			if nestedMessage {
-				dm.nested = append(dm.nested, fi)
-			}
-			continue
-		}
-
-		sf := scalarField{
-			index: fi,
-			kind:  ft.Elem().Kind(),
-		}
-
-		// scalar fields without defaults
-		if !prop.HasDefault {
-			dm.scalars = append(dm.scalars, sf)
-			continue
-		}
-
-		// a scalar field: either *T or []byte
-		switch ft.Elem().Kind() {
-		case reflect.Bool:
-			x, err := strconv.ParseBool(prop.Default)
-			if err != nil {
-				log.Printf("proto: bad default bool %q: %v", prop.Default, err)
-				continue
-			}
-			sf.value = x
-		case reflect.Float32:
-			x, err := strconv.ParseFloat(prop.Default, 32)
-			if err != nil {
-				log.Printf("proto: bad default float32 %q: %v", prop.Default, err)
-				continue
-			}
-			sf.value = float32(x)
-		case reflect.Float64:
-			x, err := strconv.ParseFloat(prop.Default, 64)
-			if err != nil {
-				log.Printf("proto: bad default float64 %q: %v", prop.Default, err)
-				continue
-			}
-			sf.value = x
-		case reflect.Int32:
-			x, err := strconv.ParseInt(prop.Default, 10, 32)
-			if err != nil {
-				log.Printf("proto: bad default int32 %q: %v", prop.Default, err)
-				continue
-			}
-			sf.value = int32(x)
-		case reflect.Int64:
-			x, err := strconv.ParseInt(prop.Default, 10, 64)
-			if err != nil {
-				log.Printf("proto: bad default int64 %q: %v", prop.Default, err)
-				continue
-			}
-			sf.value = x
-		case reflect.String:
-			sf.value = prop.Default
-		case reflect.Uint8:
-			// []byte (not *uint8)
-			sf.value = []byte(prop.Default)
-		case reflect.Uint32:
-			x, err := strconv.ParseUint(prop.Default, 10, 32)
-			if err != nil {
-				log.Printf("proto: bad default uint32 %q: %v", prop.Default, err)
-				continue
-			}
-			sf.value = uint32(x)
-		case reflect.Uint64:
-			x, err := strconv.ParseUint(prop.Default, 10, 64)
-			if err != nil {
-				log.Printf("proto: bad default uint64 %q: %v", prop.Default, err)
-				continue
-			}
-			sf.value = x
-		default:
-			log.Printf("proto: unhandled def kind %v", ft.Elem().Kind())
-			continue
-		}
-
-		dm.scalars = append(dm.scalars, sf)
 	}
 
 	return dm
 }
 
+// fieldDefault returns the scalarField for field type ft.
+// sf will be nil if the field can not have a default.
+// nestedMessage will be true if this is a nested message.
+// Note that sf.index is not set on return.
+func fieldDefault(ft reflect.Type, prop *Properties) (sf *scalarField, nestedMessage bool, err error) {
+	var canHaveDefault bool
+	switch ft.Kind() {
+	case reflect.Ptr:
+		if ft.Elem().Kind() == reflect.Struct {
+			nestedMessage = true
+		} else {
+			canHaveDefault = true // proto2 scalar field
+		}
+
+	case reflect.Slice:
+		switch ft.Elem().Kind() {
+		case reflect.Ptr:
+			nestedMessage = true // repeated message
+		case reflect.Uint8:
+			canHaveDefault = true // bytes field
+		}
+
+	case reflect.Map:
+		if ft.Elem().Kind() == reflect.Ptr {
+			nestedMessage = true // map with message values
+		}
+	}
+
+	if !canHaveDefault {
+		if nestedMessage {
+			return nil, true, nil
+		}
+		return nil, false, nil
+	}
+
+	// We now know that ft is a pointer or slice.
+	sf = &scalarField{kind: ft.Elem().Kind()}
+
+	// scalar fields without defaults
+	if !prop.HasDefault {
+		return sf, false, nil
+	}
+
+	// a scalar field: either *T or []byte
+	switch ft.Elem().Kind() {
+	case reflect.Bool:
+		x, err := strconv.ParseBool(prop.Default)
+		if err != nil {
+			return nil, false, fmt.Errorf("proto: bad default bool %q: %v", prop.Default, err)
+		}
+		sf.value = x
+	case reflect.Float32:
+		x, err := strconv.ParseFloat(prop.Default, 32)
+		if err != nil {
+			return nil, false, fmt.Errorf("proto: bad default float32 %q: %v", prop.Default, err)
+		}
+		sf.value = float32(x)
+	case reflect.Float64:
+		x, err := strconv.ParseFloat(prop.Default, 64)
+		if err != nil {
+			return nil, false, fmt.Errorf("proto: bad default float64 %q: %v", prop.Default, err)
+		}
+		sf.value = x
+	case reflect.Int32:
+		x, err := strconv.ParseInt(prop.Default, 10, 32)
+		if err != nil {
+			return nil, false, fmt.Errorf("proto: bad default int32 %q: %v", prop.Default, err)
+		}
+		sf.value = int32(x)
+	case reflect.Int64:
+		x, err := strconv.ParseInt(prop.Default, 10, 64)
+		if err != nil {
+			return nil, false, fmt.Errorf("proto: bad default int64 %q: %v", prop.Default, err)
+		}
+		sf.value = x
+	case reflect.String:
+		sf.value = prop.Default
+	case reflect.Uint8:
+		// []byte (not *uint8)
+		sf.value = []byte(prop.Default)
+	case reflect.Uint32:
+		x, err := strconv.ParseUint(prop.Default, 10, 32)
+		if err != nil {
+			return nil, false, fmt.Errorf("proto: bad default uint32 %q: %v", prop.Default, err)
+		}
+		sf.value = uint32(x)
+	case reflect.Uint64:
+		x, err := strconv.ParseUint(prop.Default, 10, 64)
+		if err != nil {
+			return nil, false, fmt.Errorf("proto: bad default uint64 %q: %v", prop.Default, err)
+		}
+		sf.value = x
+	default:
+		return nil, false, fmt.Errorf("proto: unhandled def kind %v", ft.Elem().Kind())
+	}
+
+	return sf, false, nil
+}
+
+// mapKeys returns a sort.Interface to be used for sorting the map keys.
 // Map fields may have key types of non-float scalars, strings and enums.
-// The easiest way to sort them in some deterministic order is to use fmt.
-// If this turns out to be inefficient we can always consider other options,
-// such as doing a Schwartzian transform.
+func mapKeys(vs []reflect.Value) sort.Interface {
+	s := mapKeySorter{vs: vs}
 
-type mapKeys []reflect.Value
+	// Type specialization per https://developers.google.com/protocol-buffers/docs/proto#maps.
+	if len(vs) == 0 {
+		return s
+	}
+	switch vs[0].Kind() {
+	case reflect.Int32, reflect.Int64:
+		s.less = func(a, b reflect.Value) bool { return a.Int() < b.Int() }
+	case reflect.Uint32, reflect.Uint64:
+		s.less = func(a, b reflect.Value) bool { return a.Uint() < b.Uint() }
+	case reflect.Bool:
+		s.less = func(a, b reflect.Value) bool { return !a.Bool() && b.Bool() } // false < true
+	case reflect.String:
+		s.less = func(a, b reflect.Value) bool { return a.String() < b.String() }
+	default:
+		panic(fmt.Sprintf("unsupported map key type: %v", vs[0].Kind()))
+	}
 
-func (s mapKeys) Len() int      { return len(s) }
-func (s mapKeys) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s mapKeys) Less(i, j int) bool {
-	return fmt.Sprint(s[i].Interface()) < fmt.Sprint(s[j].Interface())
+	return s
+}
+
+type mapKeySorter struct {
+	vs   []reflect.Value
+	less func(a, b reflect.Value) bool
+}
+
+func (s mapKeySorter) Len() int      { return len(s.vs) }
+func (s mapKeySorter) Swap(i, j int) { s.vs[i], s.vs[j] = s.vs[j], s.vs[i] }
+func (s mapKeySorter) Less(i, j int) bool {
+	return s.less(s.vs[i], s.vs[j])
+}
+
+// isProto3Zero reports whether v is a zero proto3 value.
+func isProto3Zero(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint32, reflect.Uint64:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.String:
+		return v.String() == ""
+	}
+	return false
+}
+
+// ProtoPackageIsVersion2 is referenced from generated protocol buffer files
+// to assert that that code is compatible with this version of the proto package.
+const ProtoPackageIsVersion2 = true
+
+// ProtoPackageIsVersion1 is referenced from generated protocol buffer files
+// to assert that that code is compatible with this version of the proto package.
+const ProtoPackageIsVersion1 = true
+
+// InternalMessageInfo is a type used internally by generated .pb.go files.
+// This type is not intended to be used by non-generated code.
+// This type is not subject to any compatibility guarantee.
+type InternalMessageInfo struct {
+	marshal   *marshalInfo
+	unmarshal *unmarshalInfo
+	merge     *mergeInfo
+	discard   *discardInfo
 }

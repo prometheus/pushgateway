@@ -30,27 +30,44 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Protocol buffer deep copy and merge.
-// TODO: MessageSet and RawMessage.
+// TODO: RawMessage.
 
 package proto
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 	"strings"
 )
 
 // Clone returns a deep copy of a protocol buffer.
-func Clone(pb Message) Message {
-	in := reflect.ValueOf(pb)
+func Clone(src Message) Message {
+	in := reflect.ValueOf(src)
 	if in.IsNil() {
-		return pb
+		return src
 	}
-
 	out := reflect.New(in.Type().Elem())
-	// out is empty so a merge is a deep copy.
-	mergeStruct(out.Elem(), in.Elem())
-	return out.Interface().(Message)
+	dst := out.Interface().(Message)
+	Merge(dst, src)
+	return dst
+}
+
+// Merger is the interface representing objects that can merge messages of the same type.
+type Merger interface {
+	// Merge merges src into this message.
+	// Required and optional fields that are set in src will be set to that value in dst.
+	// Elements of repeated fields will be appended.
+	//
+	// Merge may panic if called with a different argument type than the receiver.
+	Merge(src Message)
+}
+
+// generatedMerger is the custom merge method that generated protos will have.
+// We must add this method since a generate Merge method will conflict with
+// many existing protos that have a Merge data field already defined.
+type generatedMerger interface {
+	XXX_Merge(src Message)
 }
 
 // Merge merges src into dst.
@@ -58,34 +75,48 @@ func Clone(pb Message) Message {
 // Elements of repeated fields will be appended.
 // Merge panics if src and dst are not the same type, or if dst is nil.
 func Merge(dst, src Message) {
+	if m, ok := dst.(Merger); ok {
+		m.Merge(src)
+		return
+	}
+
 	in := reflect.ValueOf(src)
 	out := reflect.ValueOf(dst)
 	if out.IsNil() {
 		panic("proto: nil destination")
 	}
 	if in.Type() != out.Type() {
-		// Explicit test prior to mergeStruct so that mistyped nils will fail
-		panic("proto: type mismatch")
+		panic(fmt.Sprintf("proto.Merge(%T, %T) type mismatch", dst, src))
 	}
 	if in.IsNil() {
-		// Merging nil into non-nil is a quiet no-op
+		return // Merge from nil src is a noop
+	}
+	if m, ok := dst.(generatedMerger); ok {
+		m.XXX_Merge(src)
 		return
 	}
 	mergeStruct(out.Elem(), in.Elem())
 }
 
 func mergeStruct(out, in reflect.Value) {
+	sprop := GetProperties(in.Type())
 	for i := 0; i < in.NumField(); i++ {
 		f := in.Type().Field(i)
 		if strings.HasPrefix(f.Name, "XXX_") {
 			continue
 		}
-		mergeAny(out.Field(i), in.Field(i))
+		mergeAny(out.Field(i), in.Field(i), false, sprop.Prop[i])
 	}
 
-	if emIn, ok := in.Addr().Interface().(extendableProto); ok {
-		emOut := out.Addr().Interface().(extendableProto)
-		mergeExtension(emOut.ExtensionMap(), emIn.ExtensionMap())
+	if emIn, err := extendable(in.Addr().Interface()); err == nil {
+		emOut, _ := extendable(out.Addr().Interface())
+		mIn, muIn := emIn.extensionsRead()
+		if mIn != nil {
+			mOut := emOut.extensionsWrite()
+			muIn.Lock()
+			mergeExtension(mOut, mIn)
+			muIn.Unlock()
+		}
 	}
 
 	uf := in.FieldByName("XXX_unrecognized")
@@ -98,7 +129,10 @@ func mergeStruct(out, in reflect.Value) {
 	}
 }
 
-func mergeAny(out, in reflect.Value) {
+// mergeAny performs a merge between two values of the same type.
+// viaPtr indicates whether the values were indirected through a pointer (implying proto2).
+// prop is set if this is a struct field (it may be nil).
+func mergeAny(out, in reflect.Value, viaPtr bool, prop *Properties) {
 	if in.Type() == protoMessageType {
 		if !in.IsNil() {
 			if out.IsNil() {
@@ -112,7 +146,21 @@ func mergeAny(out, in reflect.Value) {
 	switch in.Kind() {
 	case reflect.Bool, reflect.Float32, reflect.Float64, reflect.Int32, reflect.Int64,
 		reflect.String, reflect.Uint32, reflect.Uint64:
+		if !viaPtr && isProto3Zero(in) {
+			return
+		}
 		out.Set(in)
+	case reflect.Interface:
+		// Probably a oneof field; copy non-nil values.
+		if in.IsNil() {
+			return
+		}
+		// Allocate destination if it is not set, or set to a different type.
+		// Otherwise we will merge as normal.
+		if out.IsNil() || out.Elem().Type() != in.Elem().Type() {
+			out.Set(reflect.New(in.Elem().Elem().Type())) // interface -> *T -> T -> new(T)
+		}
+		mergeAny(out.Elem(), in.Elem(), false, nil)
 	case reflect.Map:
 		if in.Len() == 0 {
 			return
@@ -127,7 +175,7 @@ func mergeAny(out, in reflect.Value) {
 			switch elemKind {
 			case reflect.Ptr:
 				val = reflect.New(in.Type().Elem().Elem())
-				mergeAny(val, in.MapIndex(key))
+				mergeAny(val, in.MapIndex(key), false, nil)
 			case reflect.Slice:
 				val = in.MapIndex(key)
 				val = reflect.ValueOf(append([]byte{}, val.Bytes()...))
@@ -143,13 +191,21 @@ func mergeAny(out, in reflect.Value) {
 		if out.IsNil() {
 			out.Set(reflect.New(in.Elem().Type()))
 		}
-		mergeAny(out.Elem(), in.Elem())
+		mergeAny(out.Elem(), in.Elem(), true, nil)
 	case reflect.Slice:
 		if in.IsNil() {
 			return
 		}
 		if in.Type().Elem().Kind() == reflect.Uint8 {
 			// []byte is a scalar bytes field, not a repeated field.
+
+			// Edge case: if this is in a proto3 message, a zero length
+			// bytes field is considered the zero value, and should not
+			// be merged.
+			if prop != nil && prop.proto3 && in.Len() == 0 {
+				return
+			}
+
 			// Make a deep copy.
 			// Append to []byte{} instead of []byte(nil) so that we never end up
 			// with a nil result.
@@ -167,7 +223,7 @@ func mergeAny(out, in reflect.Value) {
 		default:
 			for i := 0; i < n; i++ {
 				x := reflect.Indirect(reflect.New(in.Type().Elem()))
-				mergeAny(x, in.Index(i))
+				mergeAny(x, in.Index(i), false, nil)
 				out.Set(reflect.Append(out, x))
 			}
 		}
@@ -184,7 +240,7 @@ func mergeExtension(out, in map[int32]Extension) {
 		eOut := Extension{desc: eIn.desc}
 		if eIn.value != nil {
 			v := reflect.New(reflect.TypeOf(eIn.value)).Elem()
-			mergeAny(v, reflect.ValueOf(eIn.value))
+			mergeAny(v, reflect.ValueOf(eIn.value), false, nil)
 			eOut.value = v.Interface()
 		}
 		if eIn.enc != nil {
