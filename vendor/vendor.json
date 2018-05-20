@@ -99,10 +99,28 @@
 			"revisionTime": "2018-05-18T15:47:59Z"
 		},
 		{
-			"checksumSHA1": "W218eJZPXJG783fUr/z6IaAZyes=",
+			"checksumSHA1": "qG0ClCTt2wuQnYLsFvtlQB8J5FQ=",
 			"path": "github.com/prometheus/procfs",
-			"revision": "abf152e5f3e97f2fafac028d2cc06c1feb87ffa5",
-			"revisionTime": "2016-04-11T19:08:41Z"
+			"revision": "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e",
+			"revisionTime": "2018-04-08T09:29:02Z"
+		},
+		{
+			"checksumSHA1": "lv9rIcjbVEGo8AT1UCUZXhXrfQc=",
+			"path": "github.com/prometheus/procfs/internal/util",
+			"revision": "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e",
+			"revisionTime": "2018-04-08T09:29:02Z"
+		},
+		{
+			"checksumSHA1": "HSP5hVT0CNMRa8+Xtz4z2Ic5U0E=",
+			"path": "github.com/prometheus/procfs/nfs",
+			"revision": "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e",
+			"revisionTime": "2018-04-08T09:29:02Z"
+		},
+		{
+			"checksumSHA1": "yItvTQLUVqm/ArLEbvEhqG0T5a0=",
+			"path": "github.com/prometheus/procfs/xfs",
+			"revision": "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e",
+			"revisionTime": "2018-04-08T09:29:02Z"
 		},
 		{
 			"checksumSHA1": "GWtDi0sYbtCQzF/ZaVhaHvCMvuk=",
