@@ -1,3 +1,17 @@
+## 0.5.0 / 2018-05-20
+
+Breaking change:
+* Flags now require double-dash.
+* The persistence storage format has been updated.  Upgrade is transparent, but downgrade to 0.4.0 and prior is unsupported.
+* Persistence storage prior to 0.1.0 is unsupported.
+
+* [CHANGE] Replaced Flags with Kingpin #152
+* [CHANGE] Slightly changed disk format for persistence. v0.5 can still read the pre-v0.5 format. #172
+* [ENHANCEMENT] Debug level logging now shows client-induced errors #123
+* [FEATURE] Add /-/ready and /-/healty #135
+* [FEATURE] Add web.route-prefix flag #146
+* [BUGFIX] Fix incorrect persistence of certain values in a metric family. #172
+
 ## 0.4.0 / 2017-06-09
 * [CHANGE] Pushes with timestamps are now rejected.
 * [FEATURE] Added push_time_seconds metric to each push.
