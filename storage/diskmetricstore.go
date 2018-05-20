@@ -165,7 +165,7 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 	var persistTimer *time.Timer
 
 	checkPersist := func() {
-		if !persistScheduled && lastWrite.After(lastPersist) {
+		if dms.persistenceFile != "" && !persistScheduled && lastWrite.After(lastPersist) {
 			persistTimer = time.AfterFunc(
 				persistenceInterval-lastWrite.Sub(lastPersist),
 				func() {
@@ -257,6 +257,8 @@ func (dms *DiskMetricStore) GetMetricFamiliesMap() GroupingKeyToMetricGroup {
 }
 
 func (dms *DiskMetricStore) persist() error {
+	// Check (again) if persistence is configured because some code paths
+	// will call this method even if it is not.
 	if dms.persistenceFile == "" {
 		return nil
 	}

@@ -20,6 +20,8 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
+// Healthy is used to report the health of the Pushgateway. It currently only
+// uses the Healthy method of the MetricScore to detect healthy state.
 func Healthy(
 	ms storage.MetricStore,
 ) func(http.ResponseWriter, *http.Request) {
@@ -33,6 +35,9 @@ func Healthy(
 	}
 }
 
+// Ready is used to report if the Pushgateway is reday to process requests. It
+// currently only uses the Ready method of the MetricScore to detect ready
+// state.
 func Ready(
 	ms storage.MetricStore,
 ) func(http.ResponseWriter, *http.Request) {

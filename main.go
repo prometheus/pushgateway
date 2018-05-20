@@ -30,9 +30,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+	"gopkg.in/alecthomas/kingpin.v2"
+
+	dto "github.com/prometheus/client_model/go"
+
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func init() {
@@ -49,6 +52,7 @@ func main() {
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 	)
+	log.AddFlags(app)
 	app.Version(version.Print("pushgateway"))
 	app.HelpFlag.Short('h')
 	kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -69,9 +73,12 @@ func main() {
 		flags[f.Name] = f.Value.String()
 	}
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
-	prometheus.SetMetricFamilyInjectionHook(ms.GetMetricFamilies)
-	// Enable collect checks for debugging.
-	// prometheus.EnableCollectChecks(true)
+
+	// Inject the metric families returned by ms.GetMetricFamilies into the default Gatherer:
+	prometheus.DefaultGatherer = prometheus.Gatherers{
+		prometheus.DefaultGatherer,
+		prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) { return ms.GetMetricFamilies(), nil }),
+	}
 
 	r := httprouter.New()
 	r.Handler("GET", *routePrefix+"/-/healthy", prometheus.InstrumentHandlerFunc("healthy", handler.Healthy(ms)))
@@ -145,7 +152,7 @@ func handlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 }
 
 func interruptHandler(l net.Listener) {
-	notifier := make(chan os.Signal)
+	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 	<-notifier
 	log.Info("Received SIGINT/SIGTERM; exiting gracefully...")
