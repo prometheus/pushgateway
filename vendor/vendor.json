@@ -27,10 +27,12 @@
 			"revisionTime": "2015-02-23T13:51:52Z"
 		},
 		{
-			"checksumSHA1": "5ftkjfUwI9A6xCQ1PwIAd5+qlo0=",
+			"checksumSHA1": "7DxViusFRJ7UPH0jZqYatwDrOkY=",
 			"path": "github.com/elazarl/go-bindata-assetfs",
-			"revision": "57eb5e1fc594ad4b0b1dbea7b286d299e0cb43c2",
-			"revisionTime": "2015-12-24T04:54:52Z"
+			"revision": "30f82fa23fd844bd5bb1e5f216db87fd77b5eb43",
+			"revisionTime": "2017-02-27T21:27:28Z",
+			"version": "v1.0.0",
+			"versionExact": "v1.0.0"
 		},
 		{
 			"checksumSHA1": "Nc6qWn89u4Xzx6oJK1fDiK4daE0=",
