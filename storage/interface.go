@@ -17,6 +17,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+
 	dto "github.com/prometheus/client_model/go"
 )
 
@@ -80,12 +82,6 @@ type WriteRequest struct {
 	MetricFamilies map[string]*dto.MetricFamily
 }
 
-// TimestampedMetricFamily adds the push timestamp to a MetricFamily-DTO.
-type TimestampedMetricFamily struct {
-	Timestamp    time.Time
-	MetricFamily *dto.MetricFamily
-}
-
 // GroupingKeyToMetricGroup is the first level of the metric store, keyed by
 // grouping key.
 type GroupingKeyToMetricGroup map[uint64]MetricGroup
@@ -114,3 +110,31 @@ func (mg MetricGroup) SortedLabels() []string {
 // NameToTimestampedMetricFamilyMap is the second level of the metric store,
 // keyed by metric name.
 type NameToTimestampedMetricFamilyMap map[string]TimestampedMetricFamily
+
+// TimestampedMetricFamily adds the push timestamp to a gobbable version of the
+// MetricFamily-DTO.
+type TimestampedMetricFamily struct {
+	Timestamp    time.Time
+	MetricFamily *dto.MetricFamily // Only to support decoding the legacy disk format. DO NOT USE!!!
+	// TODO(beorn7): Remove MetricFamily field prior to 1.0 release.
+	GobbableMetricFamily *GobbableMetricFamily
+}
+
+// GetMetricFamily returns the normal GetMetricFamily DTO (without the gob additions).
+func (tmf TimestampedMetricFamily) GetMetricFamily() *dto.MetricFamily {
+	return (*dto.MetricFamily)(tmf.GobbableMetricFamily)
+}
+
+// GobbableMetricFamily is a dto.MetricFamily that implements GobDecoder and
+// GobEncoder.
+type GobbableMetricFamily dto.MetricFamily
+
+// GobDecode implements gob.GobDecoder.
+func (gmf *GobbableMetricFamily) GobDecode(b []byte) error {
+	return proto.Unmarshal(b, (*dto.MetricFamily)(gmf))
+}
+
+// GobEncode implements gob.GobEncoder.
+func (gmf *GobbableMetricFamily) GobEncode() ([]byte, error) {
+	return proto.Marshal((*dto.MetricFamily)(gmf))
+}

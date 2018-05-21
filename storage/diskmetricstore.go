@@ -16,14 +16,12 @@ package storage
 import (
 	"encoding/gob"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 
@@ -73,10 +71,6 @@ func NewDiskMetricStore(
 	}
 	if err := dms.restore(); err != nil {
 		log.Errorln("Could not load persisted metrics:", err)
-		log.Info("Retrying assuming legacy format for persisted metrics...")
-		if err := dms.legacyRestore(); err != nil {
-			log.Errorln("Could not load persisted metrics in legacy format: ", err)
-		}
 	}
 
 	go dms.loop(persistenceInterval)
@@ -98,7 +92,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 
 	for _, group := range dms.metricGroups {
 		for name, tmf := range group.Metrics {
-			mf := tmf.MetricFamily
+			mf := tmf.GetMetricFamily()
 			stat, exists := mfStatByName[name]
 			if exists {
 				existingMF := result[stat.pos]
@@ -235,8 +229,8 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 			dms.metricGroups[key] = group
 		}
 		group.Metrics[name] = TimestampedMetricFamily{
-			Timestamp:    wr.Timestamp,
-			MetricFamily: mf,
+			Timestamp:            wr.Timestamp,
+			GobbableMetricFamily: (*GobbableMetricFamily)(mf),
 		}
 	}
 }
@@ -300,79 +294,23 @@ func (dms *DiskMetricStore) restore() error {
 	}
 	defer f.Close()
 	d := gob.NewDecoder(f)
-	return d.Decode(&dms.metricGroups)
-}
-
-func (dms *DiskMetricStore) legacyRestore() error {
-	if dms.persistenceFile == "" {
-		return nil
-	}
-	f, err := os.Open(dms.persistenceFile)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
+	if err := d.Decode(&dms.metricGroups); err != nil {
 		return err
 	}
-	defer f.Close()
 
-	var tmf TimestampedMetricFamily
-	for d := gob.NewDecoder(f); err == nil; tmf, err = legacyReadTimestampedMetricFamily(d) {
-		if len(tmf.MetricFamily.GetMetric()) == 0 {
-			continue // No metric in this MetricFamily.
-		}
-		name := tmf.MetricFamily.GetName()
-		var job, instance string
-		for _, lp := range tmf.MetricFamily.GetMetric()[0].GetLabel() {
-			// With the way the pushgateway persists things, all
-			// metrics in a single MetricFamily proto message share
-			// the same job and instance label. So we only have to
-			// peek at the first metric to find it.
-			switch lp.GetName() {
-			case "job":
-				job = lp.GetValue()
-			case "instance":
-				instance = lp.GetValue()
-			}
-			if job != "" && instance != "" {
-				break
+	// If we have decoded nothing into GobbableMetricFamily, we have
+	// probably hit the legacy disk format, where a MetricFamily was encoded
+	// (with subtle bugs) into the MetricFamily field. Move it over in that
+	// case. Next time we persist the data, it will be in the new format.
+	for _, mg := range dms.metricGroups {
+		for _, tmf := range mg.Metrics {
+			if tmf.GobbableMetricFamily == nil {
+				tmf.GobbableMetricFamily = (*GobbableMetricFamily)(tmf.MetricFamily)
+				tmf.MetricFamily = nil
 			}
 		}
-		labels := map[string]string{
-			"job":      job,
-			"instance": instance,
-		}
-		key := model.LabelsToSignature(labels)
-		group, ok := dms.metricGroups[key]
-		if !ok {
-			group = MetricGroup{
-				Labels:  labels,
-				Metrics: NameToTimestampedMetricFamilyMap{},
-			}
-			dms.metricGroups[key] = group
-		}
-		group.Metrics[name] = tmf
 	}
-	if err == io.EOF {
-		return nil
-	}
-	return err
-}
-
-func legacyReadTimestampedMetricFamily(d *gob.Decoder) (TimestampedMetricFamily, error) {
-	var buffer []byte
-	if err := d.Decode(&buffer); err != nil {
-		return TimestampedMetricFamily{}, err
-	}
-	mf := &dto.MetricFamily{}
-	if err := proto.Unmarshal(buffer, mf); err != nil {
-		return TimestampedMetricFamily{}, err
-	}
-	var timestamp time.Time
-	if err := d.Decode(&timestamp); err != nil {
-		return TimestampedMetricFamily{}, err
-	}
-	return TimestampedMetricFamily{MetricFamily: mf, Timestamp: timestamp}, nil
+	return nil
 }
 
 func copyMetricFamily(mf *dto.MetricFamily) *dto.MetricFamily {
