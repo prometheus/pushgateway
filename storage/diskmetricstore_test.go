@@ -308,8 +308,8 @@ func TestGetMetricFamilies(t *testing.T) {
 		},
 		NameToTimestampedMetricFamilyMap{
 			"mf2": TimestampedMetricFamily{
-				Timestamp:    testTime,
-				MetricFamily: mf2,
+				Timestamp:            testTime,
+				GobbableMetricFamily: (*GobbableMetricFamily)(mf2),
 			},
 		},
 	)
@@ -321,12 +321,12 @@ func TestGetMetricFamilies(t *testing.T) {
 		},
 		NameToTimestampedMetricFamilyMap{
 			"mf1": TimestampedMetricFamily{
-				Timestamp:    testTime,
-				MetricFamily: mf1a,
+				Timestamp:            testTime,
+				GobbableMetricFamily: (*GobbableMetricFamily)(mf1a),
 			},
 			"mf3": TimestampedMetricFamily{
-				Timestamp:    testTime,
-				MetricFamily: mf3,
+				Timestamp:            testTime,
+				GobbableMetricFamily: (*GobbableMetricFamily)(mf3),
 			},
 		},
 	)
@@ -338,8 +338,8 @@ func TestGetMetricFamilies(t *testing.T) {
 		},
 		NameToTimestampedMetricFamilyMap{
 			"mf1": TimestampedMetricFamily{
-				Timestamp:    testTime,
-				MetricFamily: mf1c,
+				Timestamp:            testTime,
+				GobbableMetricFamily: (*GobbableMetricFamily)(mf1c),
 			},
 		},
 	)
@@ -359,12 +359,12 @@ func TestGetMetricFamilies(t *testing.T) {
 		},
 		NameToTimestampedMetricFamilyMap{
 			"mf4": TimestampedMetricFamily{
-				Timestamp:    testTime,
-				MetricFamily: mf4,
+				Timestamp:            testTime,
+				GobbableMetricFamily: (*GobbableMetricFamily)(mf4),
 			},
 			"mf1": TimestampedMetricFamily{
-				Timestamp:    testTime,
-				MetricFamily: mf1d,
+				Timestamp:            testTime,
+				GobbableMetricFamily: (*GobbableMetricFamily)(mf1d),
 			},
 		},
 	)
@@ -549,7 +549,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	if err := dms.Shutdown(); err != nil {
 		t.Fatal(err)
 	}
-	if err := checkMetricFamilies(dms, mf1a, mf2, mf4, mf5); err != nil {
+	if err := checkMetricFamilies(dms, mf1a, mf2, mf4); err != nil {
 		t.Error(err)
 	}
 }
@@ -604,7 +604,7 @@ func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily)
 
 	gotMFsAsStrings := make([]string, len(gotMFs))
 	for i, mf := range gotMFs {
-		sort.Sort(metricSorter(mf.Metric))
+		sort.Sort(metricSorter(mf.GetMetric()))
 		gotMFsAsStrings[i] = mf.String()
 	}
 	sort.Strings(gotMFsAsStrings)

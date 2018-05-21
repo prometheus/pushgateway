@@ -98,7 +98,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 
 	for _, group := range dms.metricGroups {
 		for name, tmf := range group.Metrics {
-			mf := tmf.MetricFamily
+			mf := tmf.MetricFamily()
 			stat, exists := mfStatByName[name]
 			if exists {
 				existingMF := result[stat.pos]
@@ -235,8 +235,8 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 			dms.metricGroups[key] = group
 		}
 		group.Metrics[name] = TimestampedMetricFamily{
-			Timestamp:    wr.Timestamp,
-			MetricFamily: mf,
+			Timestamp:            wr.Timestamp,
+			GobbableMetricFamily: (*GobbableMetricFamily)(mf),
 		}
 	}
 }
@@ -318,12 +318,12 @@ func (dms *DiskMetricStore) legacyRestore() error {
 
 	var tmf TimestampedMetricFamily
 	for d := gob.NewDecoder(f); err == nil; tmf, err = legacyReadTimestampedMetricFamily(d) {
-		if len(tmf.MetricFamily.GetMetric()) == 0 {
+		if len(tmf.MetricFamily().GetMetric()) == 0 {
 			continue // No metric in this MetricFamily.
 		}
-		name := tmf.MetricFamily.GetName()
+		name := tmf.MetricFamily().GetName()
 		var job, instance string
-		for _, lp := range tmf.MetricFamily.GetMetric()[0].GetLabel() {
+		for _, lp := range tmf.MetricFamily().GetMetric()[0].GetLabel() {
 			// With the way the pushgateway persists things, all
 			// metrics in a single MetricFamily proto message share
 			// the same job and instance label. So we only have to
@@ -372,7 +372,7 @@ func legacyReadTimestampedMetricFamily(d *gob.Decoder) (TimestampedMetricFamily,
 	if err := d.Decode(&timestamp); err != nil {
 		return TimestampedMetricFamily{}, err
 	}
-	return TimestampedMetricFamily{MetricFamily: mf, Timestamp: timestamp}, nil
+	return TimestampedMetricFamily{GobbableMetricFamily: (*GobbableMetricFamily)(mf), Timestamp: timestamp}, nil
 }
 
 func copyMetricFamily(mf *dto.MetricFamily) *dto.MetricFamily {
