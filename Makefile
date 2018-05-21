@@ -28,3 +28,7 @@ assets:
 	@echo ">> writing assets"
 	@$(GO) get -u github.com/jteeuwen/go-bindata/...
 	@go-bindata $(bindata_flags) -prefix=resources resources/...
+
+style:
+	@echo ">> checking code style"
+	! $(GOFMT) -d $$(find . -path ./vendor -prune -o -path ./bindata.go -prune -o -name '*.go' -print) | grep '^'
