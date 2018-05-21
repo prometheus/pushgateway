@@ -23,3 +23,8 @@ DOCKER_IMAGE_NAME ?= pushgateway
 ifdef DEBUG
 	bindata_flags = -debug
 endif
+
+assets:
+	@echo ">> writing assets"
+	@$(GO) get -u github.com/jteeuwen/go-bindata/...
+	@go-bindata $(bindata_flags) -prefix=resources resources/...
