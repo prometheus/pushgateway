@@ -86,8 +86,8 @@ limitations under the License.
 		  <h4 class="panel-title">
 		    <span class="caret"></span>
 		    {{$name}}
-		    <span class="badge">{{$tmf.MetricFamily.GetHelp}}</span>
-		    <span class="label label-success">{{$tmf.MetricFamily.GetType}}</span>
+		    <span class="badge">{{$tmf.GetMetricFamily.GetHelp}}</span>
+		    <span class="label label-success">{{$tmf.GetMetricFamily.GetType}}</span>
 		    last pushed: {{$tmf.Timestamp}}
 		  </h4>
 		</div>
@@ -102,7 +102,7 @@ limitations under the License.
 			</tr>
 		      </thead>
 		      <tbody>
-			{{range $tmf.MetricFamily.Metric}}
+			{{range $tmf.GetMetricFamily.Metric}}
 			<tr>
 			  <td>
 			    {{range .Label}}

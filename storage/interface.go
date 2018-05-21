@@ -114,12 +114,14 @@ type NameToTimestampedMetricFamilyMap map[string]TimestampedMetricFamily
 // TimestampedMetricFamily adds the push timestamp to a gobbable version of the
 // MetricFamily-DTO.
 type TimestampedMetricFamily struct {
-	Timestamp            time.Time
+	Timestamp    time.Time
+	MetricFamily *dto.MetricFamily // Only to support decoding the legacy disk format. DO NOT USE!!!
+	// TODO(beorn7): Remove MetricFamily field prior to 1.0 release.
 	GobbableMetricFamily *GobbableMetricFamily
 }
 
-// MetricFamily returns the normal MetricFamily DTO (without the gob additions).
-func (tmf TimestampedMetricFamily) MetricFamily() *dto.MetricFamily {
+// GetMetricFamily returns the normal GetMetricFamily DTO (without the gob additions).
+func (tmf TimestampedMetricFamily) GetMetricFamily() *dto.MetricFamily {
 	return (*dto.MetricFamily)(tmf.GobbableMetricFamily)
 }
 
