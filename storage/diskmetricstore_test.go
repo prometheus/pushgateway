@@ -261,6 +261,28 @@ var (
 			},
 		},
 	}
+	mf5 = &dto.MetricFamily{
+		Name: proto.String("mf5"),
+		Type: dto.MetricType_SUMMARY.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job5"),
+					},
+					{
+						Name:  proto.String("instance"),
+						Value: proto.String("instance5"),
+					},
+				},
+				Summary: &dto.Summary{
+					SampleCount: proto.Uint64(0),
+					SampleSum:   proto.Float64(0),
+				},
+			},
+		},
+	}
 )
 
 func addGroup(
@@ -416,6 +438,20 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		t.Error(err)
 	}
 
+	// Add a new group by job, with a summary without any observations yet.
+	ts4 := ts3.Add(time.Second)
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels: map[string]string{
+			"job": "job5",
+		},
+		Timestamp:      ts4,
+		MetricFamilies: map[string]*dto.MetricFamily{"mf5": mf5},
+	})
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
+	if err := checkMetricFamilies(dms, mf1a, mf2, mf3, mf5); err != nil {
+		t.Error(err)
+	}
+
 	// Shutdown the dms.
 	if err := dms.Shutdown(); err != nil {
 		t.Fatal(err)
@@ -423,7 +459,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 
 	// Load it again.
 	dms = NewDiskMetricStore(fileName, 100*time.Millisecond)
-	if err := checkMetricFamilies(dms, mf1a, mf2, mf3); err != nil {
+	if err := checkMetricFamilies(dms, mf1a, mf2, mf3, mf5); err != nil {
 		t.Error(err)
 	}
 	// Spot-check timestamp.
@@ -435,11 +471,16 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		t.Errorf("Expected timestamp %v, got %v.", expected, got)
 	}
 
-	// Delete a group.
+	// Delete two groups.
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels: map[string]string{
 			"job":      "job1",
 			"instance": "instance1",
+		},
+	})
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels: map[string]string{
+			"job": "job5",
 		},
 	})
 	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
@@ -448,13 +489,13 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 
 	// Submit another one.
-	ts4 := ts3.Add(time.Second)
+	ts5 := ts4.Add(time.Second)
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels: map[string]string{
 			"job":      "job3",
 			"instance": "instance2",
 		},
-		Timestamp:      ts4,
+		Timestamp:      ts5,
 		MetricFamilies: map[string]*dto.MetricFamily{"mf4": mf4},
 	})
 	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
@@ -485,7 +526,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	if err := checkMetricFamilies(dms, mf1a, mf2); err != nil {
 		t.Error(err)
 	}
-	// Check that no empty  map entry for job3 was left behind.
+	// Check that no empty map entry for job3 was left behind.
 	if _, stillExists := dms.metricGroups[model.LabelsToSignature(map[string]string{
 		"job":      "job3",
 		"instance": "instance2",
@@ -508,7 +549,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	if err := dms.Shutdown(); err != nil {
 		t.Fatal(err)
 	}
-	if err := checkMetricFamilies(dms, mf1a, mf2, mf4); err != nil {
+	if err := checkMetricFamilies(dms, mf1a, mf2, mf4, mf5); err != nil {
 		t.Error(err)
 	}
 }
