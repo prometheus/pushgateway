@@ -1,4 +1,4 @@
-## 0.5.0 / 2018-05-22
+## 0.5.0 / 2018-05-23
 
 Breaking change:
 * Flags now require double-dash.
