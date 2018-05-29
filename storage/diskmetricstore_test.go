@@ -589,6 +589,50 @@ func TestNoPersistence(t *testing.T) {
 	}
 }
 
+func TestLegacyRestore(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "diskmetricstore.TestLegacyRestore.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+	fileName := path.Join(tempDir, "persistence")
+	dms := NewDiskMetricStore(fileName, 100*time.Millisecond)
+
+	// Submit a single simple metric family.
+	ts1 := time.Now()
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels: map[string]string{
+			"job":      "job1",
+			"instance": "instance1",
+		},
+		Timestamp:      ts1,
+		MetricFamilies: map[string]*dto.MetricFamily{"mf3": mf3},
+	})
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
+	if err := checkMetricFamilies(dms, mf3); err != nil {
+		t.Error(err)
+	}
+
+	// Manipulate dms internals to simulate the legacy persistence format.
+	for _, mg := range dms.metricGroups {
+		tmf := mg.Metrics["mf3"]
+		tmf.MetricFamily = (*dto.MetricFamily)(tmf.GobbableMetricFamily)
+		tmf.GobbableMetricFamily = nil
+		mg.Metrics["mf3"] = tmf
+	}
+
+	// Shutdown the dms to persist in legacy format.
+	if err := dms.Shutdown(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Load it again.
+	dms = NewDiskMetricStore(fileName, 100*time.Millisecond)
+	if err := checkMetricFamilies(dms, mf3); err != nil {
+		t.Error(err)
+	}
+}
+
 func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily) error {
 	gotMFs := dms.GetMetricFamilies()
 	if expected, got := len(expectedMFs), len(gotMFs); expected != got {
