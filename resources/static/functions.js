@@ -49,7 +49,7 @@ pushgateway.deleteGroup = function(){
     
     $.ajax({
 	type: 'DELETE',
-	url: '/metrics/job/' + encodeURIComponent(pushgateway.labels['job']) + groupPath,
+	url: 'metrics/job/' + encodeURIComponent(pushgateway.labels['job']) + groupPath,
 	success: function(data, textStatus, jqXHR) {
 	    pushgateway.panel.remove();
 	    $('#del-modal').modal('hide');
