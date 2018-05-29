@@ -1,3 +1,9 @@
+## 0.5.1 / 2018-05-30
+
+* [BUGFIX] Fix conversion of old persistency format (0.4.0 and earlier). #179
+* [BUGFIX] Make _Delete Group_ button work again. #177
+* [BUGFIX] Don't display useless flags on status page. #176
+
 ## 0.5.0 / 2018-05-23
 
 Breaking change:
