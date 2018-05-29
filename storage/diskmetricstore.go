@@ -303,10 +303,11 @@ func (dms *DiskMetricStore) restore() error {
 	// (with subtle bugs) into the MetricFamily field. Move it over in that
 	// case. Next time we persist the data, it will be in the new format.
 	for _, mg := range dms.metricGroups {
-		for _, tmf := range mg.Metrics {
+		for mn, tmf := range mg.Metrics {
 			if tmf.GobbableMetricFamily == nil {
 				tmf.GobbableMetricFamily = (*GobbableMetricFamily)(tmf.MetricFamily)
 				tmf.MetricFamily = nil
+				mg.Metrics[mn] = tmf
 			}
 		}
 	}
