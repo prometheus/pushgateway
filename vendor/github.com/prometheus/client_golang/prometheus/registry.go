@@ -38,12 +38,13 @@ const (
 // Registerer and Gatherer interface a number of convenience functions in this
 // package act on. Initially, both variables point to the same Registry, which
 // has a process collector (currently on Linux only, see NewProcessCollector)
-// and a Go collector (see NewGoCollector) already registered. This approach to
-// keep default instances as global state mirrors the approach of other packages
-// in the Go standard library. Note that there are caveats. Change the variables
-// with caution and only if you understand the consequences. Users who want to
-// avoid global state altogether should not use the convenience functions and
-// act on custom instances instead.
+// and a Go collector (see NewGoCollector, in particular the note about
+// stop-the-world implication with Go versions older than 1.9) already
+// registered. This approach to keep default instances as global state mirrors
+// the approach of other packages in the Go standard library. Note that there
+// are caveats. Change the variables with caution and only if you understand the
+// consequences. Users who want to avoid global state altogether should not use
+// the convenience functions and act on custom instances instead.
 var (
 	defaultRegistry              = NewRegistry()
 	DefaultRegisterer Registerer = defaultRegistry
@@ -726,8 +727,8 @@ func checkMetricConsistency(
 	}
 
 	for _, labelPair := range dtoMetric.GetLabel() {
-		if !utf8.ValidString(*labelPair.Value) {
-			return fmt.Errorf("collected metric's label %s is not utf8: %#v", *labelPair.Name, *labelPair.Value)
+		if !utf8.ValidString(labelPair.GetValue()) {
+			return fmt.Errorf("collected metric's label %s is not utf8: %#v", labelPair.GetName(), labelPair.GetValue())
 		}
 	}
 
