@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"time"
 
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/pushgateway/storage"
@@ -81,10 +83,19 @@ func Status(
 
 		d := &data{
 			MetricGroups: ms.GetMetricFamiliesMap(),
-			Flags:        flags,
 			BuildInfo:    buildInfo,
 			Birth:        birth,
 		}
+		d.Flags = map[string]string{}
+		// Exclude kingpin default flags to expose only Prometheus ones.
+		boilerplateFlags := kingpin.New("", "").Version("")
+		for name, value := range flags {
+			if boilerplateFlags.GetFlag(name) != nil {
+				continue
+			}
+			d.Flags[name] = value
+		}
+
 		err = t.Execute(w, d)
 		if err != nil {
 			// Hack to get a visible error message right at the top.
