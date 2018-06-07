@@ -14,7 +14,7 @@ Breaking change:
 * [CHANGE] Replaced Flags with Kingpin #152
 * [CHANGE] Slightly changed disk format for persistence. v0.5 can still read the pre-v0.5 format. #172
 * [ENHANCEMENT] Debug level logging now shows client-induced errors #123
-* [FEATURE] Add /-/ready and /-/healty #135
+* [FEATURE] Add /-/ready and /-/healthy #135
 * [FEATURE] Add web.route-prefix flag #146
 * [BUGFIX] Fix incorrect persistence of certain values in a metric family. #172
 
