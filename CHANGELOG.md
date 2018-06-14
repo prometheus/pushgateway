@@ -1,3 +1,8 @@
+## 0.5.2 / 2018-06-15
+
+* [BUGFIX] Update client_golang/prometheus vendoring to allow inconsistent
+  labels. #185
+
 ## 0.5.1 / 2018-05-30
 
 * [BUGFIX] Fix conversion of old persistency format (0.4.0 and earlier). #179
