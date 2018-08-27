@@ -27,14 +27,6 @@
 			"revisionTime": "2018-03-21T16:47:47Z"
 		},
 		{
-			"checksumSHA1": "7DxViusFRJ7UPH0jZqYatwDrOkY=",
-			"path": "github.com/elazarl/go-bindata-assetfs",
-			"revision": "30f82fa23fd844bd5bb1e5f216db87fd77b5eb43",
-			"revisionTime": "2017-02-27T21:27:28Z",
-			"version": "v1.0.0",
-			"versionExact": "v1.0.0"
-		},
-		{
 			"checksumSHA1": "Pyou8mceOASSFxc7GeXZuVdSMi0=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "b4deda0973fb4c70b50d226b1af49f3da59f5265",
@@ -121,6 +113,18 @@
 			"path": "github.com/prometheus/procfs/xfs",
 			"revision": "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e",
 			"revisionTime": "2018-04-08T09:29:02Z"
+		},
+		{
+			"checksumSHA1": "fhngc51BJ8gGzM5b8BpSuWjCLao=",
+			"path": "github.com/shurcooL/httpfs/vfsutil",
+			"revision": "809beceb23714880abc4a382a00c05f89d13b1cc",
+			"revisionTime": "2017-11-19T17:43:26Z"
+		},
+		{
+			"checksumSHA1": "VWvna0FKOZGpr1h+cgdgTN6BiEU=",
+			"path": "github.com/shurcooL/vfsgen",
+			"revision": "02ddb050ef6bbe4c2900677ac0df7e9e336d7032",
+			"revisionTime": "2018-06-29T18:06:13Z"
 		},
 		{
 			"checksumSHA1": "GWtDi0sYbtCQzF/ZaVhaHvCMvuk=",

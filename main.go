@@ -25,7 +25,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -34,6 +33,7 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 
+	"github.com/prometheus/pushgateway/asset"
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -105,16 +105,8 @@ func main() {
 
 	r.Handler("GET", *routePrefix+"/static/*filepath", prometheus.InstrumentHandler(
 		"static",
-		http.FileServer(
-			&assetfs.AssetFS{
-				Asset: func(name string) ([]byte, error) {
-					path := name[len(*routePrefix):]
-					return Asset(path)
-				},
-				AssetDir: AssetDir, AssetInfo: AssetInfo},
-		),
-	))
-	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, Asset, flags))
+		http.FileServer(asset.Assets)))
+	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, asset.Assets, flags))
 	r.Handler("GET", *routePrefix+"/status", statusHandler)
 	r.Handler("GET", *routePrefix+"/", statusHandler)
 

@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"html"
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
@@ -48,7 +49,7 @@ func (data) FormatTimestamp(ts int64) string {
 // Status serves the status page.
 func Status(
 	ms storage.MetricStore,
-	assetFunc func(string) ([]byte, error),
+	root http.FileSystem,
 	flags map[string]string,
 ) func(http.ResponseWriter, *http.Request) {
 	birth := time.Now()
@@ -59,10 +60,17 @@ func Status(
 				return strconv.FormatFloat(f, 'f', -1, 64)
 			},
 		})
-		tpl, err := assetFunc("template.html")
+		f, err := root.Open("template.html")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Errorf("Error loading template.html, %v", err.Error())
+			return
+		}
+		defer f.Close()
+		tpl, err := ioutil.ReadAll(f)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Errorf("Error reading template.html, %v", err.Error())
 			return
 		}
 		_, err = t.Parse(string(tpl))
