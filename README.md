@@ -311,10 +311,10 @@ contrast to how the deprecated form of the path is treated during pushing).
 
 The normal binary embeds the web files in the `resources` directory.
 For development purposes, it is handy to have a running binary use
-those files directly (so that you can see the effect of changes
-immediately). To switch to direct usage, type `DEBUG=1 make assets`
-just before compiling the binary. Switch back to "normal" mode by
-typing `make assets`.
+those files directly (so that you can see the effect of changes immediately).
+To switch to direct usage, add `-tags dev` to the `flags` entry in
+`.promu.yml`, and then `make build`. Switch back to "normal" mode by
+reverting the changes to `.promu.yml` and typing `make assets`.
 
 ##  Contributing
 
