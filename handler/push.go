@@ -255,7 +255,7 @@ func sanitizeLabels(
 					hasInstanceLabel = true
 				}
 				if len(gLabelsNotYetDone) == 0 && hasInstanceLabel {
-					sort.Sort(prometheus.LabelPairSorter(m.Label))
+					sort.Sort(labelPairs(m.Label))
 					continue metric
 				}
 			}
@@ -275,7 +275,7 @@ func sanitizeLabels(
 					Value: proto.String(""),
 				})
 			}
-			sort.Sort(prometheus.LabelPairSorter(m.Label))
+			sort.Sort(labelPairs(m.Label))
 		}
 	}
 }
@@ -327,4 +327,20 @@ func addPushTimestamp(metricFamilies map[string]*dto.MetricFamily, t time.Time) 
 			},
 		},
 	}
+}
+
+// labelPairs implements sort.Interface. It provides a sortable version of a
+// slice of dto.LabelPair pointers.
+type labelPairs []*dto.LabelPair
+
+func (s labelPairs) Len() int {
+	return len(s)
+}
+
+func (s labelPairs) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s labelPairs) Less(i, j int) bool {
+	return s[i].GetName() < s[j].GetName()
 }
