@@ -17,36 +17,55 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/prometheus/pushgateway/storage"
 )
 
 // Healthy is used to report the health of the Pushgateway. It currently only
 // uses the Healthy method of the MetricScore to detect healthy state.
-func Healthy(
-	ms storage.MetricStore,
-) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		err := ms.Healthy()
-		if err == nil {
-			io.WriteString(w, "OK")
-		} else {
-			http.Error(w, err.Error(), 500)
-		}
-	}
+//
+// The returned handler is already instrumented for Prometheus.
+func Healthy(ms storage.MetricStore) http.Handler {
+	return promhttp.InstrumentHandlerCounter(
+		httpCnt.MustCurryWith(prometheus.Labels{"handler": "healthy"}),
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			err := ms.Healthy()
+			if err == nil {
+				io.WriteString(w, "OK")
+			} else {
+				http.Error(w, err.Error(), 500)
+			}
+		}),
+	)
 }
 
-// Ready is used to report if the Pushgateway is reday to process requests. It
+// Ready is used to report if the Pushgateway is ready to process requests. It
 // currently only uses the Ready method of the MetricScore to detect ready
 // state.
-func Ready(
-	ms storage.MetricStore,
-) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		err := ms.Ready()
-		if err == nil {
-			io.WriteString(w, "OK")
-		} else {
-			http.Error(w, err.Error(), 500)
-		}
-	}
+//
+// The returned handler is already instrumented for Prometheus.
+func Ready(ms storage.MetricStore) http.Handler {
+	return promhttp.InstrumentHandlerCounter(
+		httpCnt.MustCurryWith(prometheus.Labels{"handler": "ready"}),
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			err := ms.Ready()
+			if err == nil {
+				io.WriteString(w, "OK")
+			} else {
+				http.Error(w, err.Error(), 500)
+			}
+		}),
+	)
+}
+
+// Static serves the static files from the provided http.FileSystem.
+//
+// The returned handler is already instrumented for Prometheus.
+func Static(root http.FileSystem) http.Handler {
+	return promhttp.InstrumentHandlerCounter(
+		httpCnt.MustCurryWith(prometheus.Labels{"handler": "static"}),
+		http.FileServer(root),
+	)
 }

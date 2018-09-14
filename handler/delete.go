@@ -20,6 +20,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 
 	"github.com/prometheus/pushgateway/storage"
@@ -32,9 +33,9 @@ func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, htt
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
 
-	instrumentedHandlerFunc := prometheus.InstrumentHandlerFunc(
-		"delete",
-		func(w http.ResponseWriter, _ *http.Request) {
+	instrumentedHandler := promhttp.InstrumentHandlerCounter(
+		httpCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			job := ps.ByName("job")
 			labelsString := ps.ByName("labels")
 			mtx.Unlock()
@@ -56,12 +57,13 @@ func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, htt
 				Timestamp: time.Now(),
 			})
 			w.WriteHeader(http.StatusAccepted)
-		},
+		}),
 	)
+
 	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 		mtx.Lock()
 		ps = params
-		instrumentedHandlerFunc(w, r)
+		instrumentedHandler.ServeHTTP(w, r)
 	}
 }
 
@@ -73,9 +75,9 @@ func LegacyDelete(ms storage.MetricStore) func(http.ResponseWriter, *http.Reques
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
 
-	instrumentedHandlerFunc := prometheus.InstrumentHandlerFunc(
-		"delete",
-		func(w http.ResponseWriter, _ *http.Request) {
+	instrumentedHandler := promhttp.InstrumentHandlerCounter(
+		httpCnt.MustCurryWith(prometheus.Labels{"handler": "legacy_delete"}),
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			job := ps.ByName("job")
 			instance := ps.ByName("instance")
 			mtx.Unlock()
@@ -94,12 +96,12 @@ func LegacyDelete(ms storage.MetricStore) func(http.ResponseWriter, *http.Reques
 				Timestamp: time.Now(),
 			})
 			w.WriteHeader(http.StatusAccepted)
-		},
+		}),
 	)
 
 	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 		mtx.Lock()
 		ps = params
-		instrumentedHandlerFunc(w, r)
+		instrumentedHandler.ServeHTTP(w, r)
 	}
 }

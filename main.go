@@ -27,6 +27,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -81,10 +82,9 @@ func main() {
 	}
 
 	r := httprouter.New()
-	r.Handler("GET", *routePrefix+"/-/healthy", prometheus.InstrumentHandlerFunc("healthy", handler.Healthy(ms)))
-	r.Handler("GET", *routePrefix+"/-/ready", prometheus.InstrumentHandlerFunc("ready", handler.Ready(ms)))
-
-	r.Handler("GET", path.Join(*routePrefix, *metricsPath), prometheus.Handler())
+	r.Handler("GET", *routePrefix+"/-/healthy", handler.Healthy(ms))
+	r.Handler("GET", *routePrefix+"/-/ready", handler.Ready(ms))
+	r.Handler("GET", path.Join(*routePrefix, *metricsPath), promhttp.Handler())
 
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"
@@ -103,10 +103,9 @@ func main() {
 	r.POST(pushAPIPath+"/jobs/:job", handler.LegacyPush(ms, false))
 	r.DELETE(pushAPIPath+"/jobs/:job", handler.LegacyDelete(ms))
 
-	r.Handler("GET", *routePrefix+"/static/*filepath", prometheus.InstrumentHandler(
-		"static",
-		http.FileServer(asset.Assets)))
-	statusHandler := prometheus.InstrumentHandlerFunc("status", handler.Status(ms, asset.Assets, flags))
+	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets))
+
+	statusHandler := handler.Status(ms, asset.Assets, flags)
 	r.Handler("GET", *routePrefix+"/status", statusHandler)
 	r.Handler("GET", *routePrefix+"/", statusHandler)
 

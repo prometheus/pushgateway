@@ -66,12 +66,12 @@ func TestHealthyReady(t *testing.T) {
 	readyHandler := Ready(&mms)
 
 	w := httptest.NewRecorder()
-	healthyHandler(w, req)
+	healthyHandler.ServeHTTP(w, req)
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 
-	readyHandler(w, req)
+	readyHandler.ServeHTTP(w, req)
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
