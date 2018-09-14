@@ -17,7 +17,7 @@ The Pushgateway is explicitly not an _aggregator or distributed counter_ but
 rather a metrics cache. It does not have
 [statsd](https://github.com/etsy/statsd)-like semantics. The metrics pushed are
 exactly the same as you would present for scraping in a permanently running
-program.
+program. If you need distributed counting, you could either use the actual statsd in combination with the [Prometheus statsd exporter](https://github.com/prometheus/statsd_exporter), or have a look at [Weavework's aggregation gateway](https://github.com/weaveworks/prom-aggregation-gateway). With more experience gathered, the Prometheus project might one day be able to provide a native solution, separate from or possibly even as part of the Pushgateway.
 
 For machine-level metrics, the
 [textfile](https://github.com/prometheus/node_exporter/blob/master/README.md#textfile-collector)
@@ -28,7 +28,6 @@ The Pushgateway is not an _event store_. While you can use Prometheus as a data
 source for
 [Grafana annotations](http://docs.grafana.org/reference/annotations/), tracking
 something like release events has to happen with some event-logging framework.
-
 
 ## Run it
 
