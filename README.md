@@ -306,6 +306,46 @@ Newer versions will treat this path in the same way as
 Note that no implicit addition of an instance label is happening here (in
 contrast to how the deprecated form of the path is treated during pushing).
 
+## Exposed metrics
+
+The Pushgateway exposes the following metrics via the configured
+`--web.telemetry-path` (default: `/metrics`):
+- The pushed metrics.
+- For earch pushed group, a metric `push_time_seconds` as explained above.
+- The usual metrics provided by the [Prometheus Go client library](https://github.com/prometheus/client_golang), i.e.:
+  - `process_...`
+  - `go_...`
+  - `promhttp_metric_handler_requests_...`
+- A number of metrics specific to the Pushgateway, as documented by the example scrape below.
+
+```
+# HELP pushgateway_build_info A metric with a constant '1' value labeled by version, revision, branch, and goversion from which pushgateway was built.
+# TYPE pushgateway_build_info gauge
+pushgateway_build_info{branch="master",goversion="go1.10.2",revision="8f88ccb0343fc3382f6b93a9d258797dcb15f770",version="0.5.2"} 1
+# HELP pushgateway_http_push_duration_seconds HTTP request duration for pushes to the Pushgateway.
+# TYPE pushgateway_http_push_duration_seconds summary
+pushgateway_http_push_duration_seconds{method="post",quantile="0.1"} 0.000116755
+pushgateway_http_push_duration_seconds{method="post",quantile="0.5"} 0.000192608
+pushgateway_http_push_duration_seconds{method="post",quantile="0.9"} 0.000327593
+pushgateway_http_push_duration_seconds_sum{method="post"} 0.001622878
+pushgateway_http_push_duration_seconds_count{method="post"} 8
+# HELP pushgateway_http_push_size_bytes HTTP request size for pushes to the Pushgateway.
+# TYPE pushgateway_http_push_size_bytes summary
+pushgateway_http_push_size_bytes{method="post",quantile="0.1"} 166
+pushgateway_http_push_size_bytes{method="post",quantile="0.5"} 182
+pushgateway_http_push_size_bytes{method="post",quantile="0.9"} 196
+pushgateway_http_push_size_bytes_sum{method="post"} 1450
+pushgateway_http_push_size_bytes_count{method="post"} 8
+# HELP pushgateway_http_requests_total Total HTTP requests processed by the Pushgateway, excluding scrapes.
+# TYPE pushgateway_http_requests_total counter
+pushgateway_http_requests_total{code="200",handler="static",method="get"} 5
+pushgateway_http_requests_total{code="200",handler="status",method="get"} 8
+pushgateway_http_requests_total{code="202",handler="delete",method="delete"} 1
+pushgateway_http_requests_total{code="202",handler="push",method="post"} 6
+pushgateway_http_requests_total{code="400",handler="push",method="post"} 2
+
+```
+  
 ## Development
 
 The normal binary embeds the web files in the `resources` directory.
