@@ -297,20 +297,6 @@ func (dms *DiskMetricStore) restore() error {
 	if err := d.Decode(&dms.metricGroups); err != nil {
 		return err
 	}
-
-	// If we have decoded nothing into GobbableMetricFamily, we have
-	// probably hit the legacy disk format, where a MetricFamily was encoded
-	// (with subtle bugs) into the MetricFamily field. Move it over in that
-	// case. Next time we persist the data, it will be in the new format.
-	for _, mg := range dms.metricGroups {
-		for mn, tmf := range mg.Metrics {
-			if tmf.GobbableMetricFamily == nil {
-				tmf.GobbableMetricFamily = (*GobbableMetricFamily)(tmf.MetricFamily)
-				tmf.MetricFamily = nil
-				mg.Metrics[mn] = tmf
-			}
-		}
-	}
 	return nil
 }
 
