@@ -29,6 +29,11 @@ source for
 [Grafana annotations](http://docs.grafana.org/reference/annotations/), tracking
 something like release events has to happen with some event-logging framework.
 
+A while ago, we
+[decided to not implement a “timeout” or TTL for pushed metrics](https://github.com/prometheus/pushgateway/issues/19)
+because almost all proposed use cases turned out to be anti-patterns we
+strongly discourage.
+
 ## Run it
 
 Download binary releases for your platform from the
