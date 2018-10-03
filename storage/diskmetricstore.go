@@ -41,6 +41,8 @@ type DiskMetricStore struct {
 	done            chan error
 	metricGroups    GroupingKeyToMetricGroup
 	persistenceFile string
+	metricsTTL      time.Duration
+	stripTimestamps bool
 }
 
 type mfStat struct {
@@ -59,6 +61,8 @@ type mfStat struct {
 func NewDiskMetricStore(
 	persistenceFile string,
 	persistenceInterval time.Duration,
+	metricsTTL time.Duration,
+	stripTimestamps bool,
 ) *DiskMetricStore {
 	// TODO: Do that outside of the constructor to allow the HTTP server to
 	//  serve /-/healthy and /-/ready earlier.
@@ -68,6 +72,8 @@ func NewDiskMetricStore(
 		done:            make(chan error),
 		metricGroups:    GroupingKeyToMetricGroup{},
 		persistenceFile: persistenceFile,
+		metricsTTL:      metricsTTL,
+		stripTimestamps: stripTimestamps,
 	}
 	if err := dms.restore(); err != nil {
 		log.Errorln("Could not load persisted metrics:", err)
@@ -82,6 +88,49 @@ func (dms *DiskMetricStore) SubmitWriteRequest(req WriteRequest) {
 	dms.writeQueue <- req
 }
 
+// Iterates over all metrics in a metricFamily and returns a new metricFamily with any metrics that are too old removed
+// returns a nil if there were no metrics left.
+func filterOutOldMetrics(mf *dto.MetricFamily, ttl time.Duration, stripTimestamps bool) *dto.MetricFamily {
+
+	// if the ttl is 0 then we return the original metricfamily
+	if ttl == 0 {
+		return mf
+	}
+
+	// We won't include any metrics with timestamp older than this.
+	threshold := (time.Now().UnixNano() / int64(time.Millisecond)) - int64(ttl.Seconds()*1000)
+	filteredMetrics := []*dto.Metric{}
+	for _, metric := range mf.Metric {
+		if metric.TimestampMs != nil && *metric.TimestampMs > threshold {
+			if stripTimestamps {
+				filteredMetrics = append(filteredMetrics, &dto.Metric{
+					Label:            metric.Label,
+					Gauge:            metric.Gauge,
+					Counter:          metric.Counter,
+					Summary:          metric.Summary,
+					Untyped:          metric.Untyped,
+					Histogram:        metric.Histogram,
+					XXX_unrecognized: mf.XXX_unrecognized,})
+			} else {
+				filteredMetrics = append(filteredMetrics, metric)
+			}
+		}
+	}
+	// if there were no metrics it makes no sense to make useless structs
+	if len(filteredMetrics) == 0 {
+		return nil
+	}
+	// We do have sensible metric(s) make a metricFamily to contain them.
+	filteredMetricFamily := &dto.MetricFamily{
+		Name:             mf.Name,
+		Help:             mf.Help,
+		Type:             mf.Type,
+		Metric:           filteredMetrics,
+		XXX_unrecognized: mf.XXX_unrecognized,
+	}
+	return filteredMetricFamily
+}
+
 // GetMetricFamilies implements the MetricStore interface.
 func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	result := []*dto.MetricFamily{}
@@ -92,9 +141,20 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 
 	for _, group := range dms.metricGroups {
 		for name, tmf := range group.Metrics {
-			mf := tmf.GetMetricFamily()
+			mf := filterOutOldMetrics(tmf.GetMetricFamily(), dms.metricsTTL, dms.stripTimestamps)
+			// if this metric family contained no valid metrics (they expired) exit this loop iteration early
+			if mf == nil {
+				continue
+			}
+			// We have metrics
 			stat, exists := mfStatByName[name]
-			if exists {
+			if !exists {
+				mfStatByName[name] = mfStat{
+					pos:    len(result),
+					copied: false,
+				}
+				result = append(result, mf)
+			} else {
 				existingMF := result[stat.pos]
 				if !stat.copied {
 					mfStatByName[name] = mfStat{
@@ -113,12 +173,6 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 				for _, metric := range mf.Metric {
 					existingMF.Metric = append(existingMF.Metric, metric)
 				}
-			} else {
-				mfStatByName[name] = mfStat{
-					pos:    len(result),
-					copied: false,
-				}
-				result = append(result, mf)
 			}
 		}
 	}
