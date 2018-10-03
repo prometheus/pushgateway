@@ -30,4 +30,4 @@ func importPathToDir(importPath string) string {
 }
 
 // Assets contains the project's assets.
-var Assets http.FileSystem = http.Dir(importPathToDir("github.com/prometheus/pushgateway/resources"))
+var Assets http.FileSystem = http.Dir(importPathToDir("github.com/dansimone/pushgateway/resources"))

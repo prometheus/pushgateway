@@ -24,7 +24,7 @@ import (
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/dansimone/pushgateway/storage"
 )
 
 type MockMetricStore struct {
@@ -183,9 +183,18 @@ func TestPush(t *testing.T) {
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
+
+	threadUnsafeTimestampStrip := func(mf *dto.MetricFamily) {
+		for _, metric := range mf.Metric {
+			metric.TimestampMs = nil
+		}
+	}
+
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["some_metric"])
 	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["another_metric"])
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
@@ -221,35 +230,13 @@ func TestPush(t *testing.T) {
 	if expected, got := "", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["some_metric"])
 	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["another_metric"])
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
-
-	// With job name and instance name and timestamp specified.
-	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err = http.NewRequest(
-		"POST", "http://example.org/",
-		bytes.NewBufferString("a 1\nb 1 1000\n"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w = httptest.NewRecorder()
-	handler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
-		},
-	)
-	if expected, got := http.StatusBadRequest, w.Code; expected != got {
-		t.Errorf("Wanted status code %v, got %v.", expected, got)
-	}
-	if !mms.lastWriteRequest.Timestamp.IsZero() {
-		t.Errorf("Write request timestamp unexpectedly set: %#v", mms.lastWriteRequest)
 	}
 
 	// With job name and instance name and text content, legacy handler.
@@ -281,38 +268,16 @@ func TestPush(t *testing.T) {
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["some_metric"])
 	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["another_metric"])
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 	if _, ok := mms.lastWriteRequest.MetricFamilies["push_time_seconds"]; !ok {
 		t.Errorf("Wanted metric family push_time_seconds missing.")
-	}
-
-	// With job name and instance name and timestamp, legacy handler.
-	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err = http.NewRequest(
-		"POST", "http://example.org/",
-		bytes.NewBufferString("a 1\nb 1 1000\n"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w = httptest.NewRecorder()
-	legacyHandler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "instance", Value: "testinstance"},
-		},
-	)
-	if expected, got := http.StatusBadRequest, w.Code; expected != got {
-		t.Errorf("Wanted status code %v, got %v.", expected, got)
-	}
-	if !mms.lastWriteRequest.Timestamp.IsZero() {
-		t.Errorf("Write request timestamp unexpectedly set: %#v", mms.lastWriteRequest)
 	}
 
 	// With job name and instance name and text content and job and instance labels.
@@ -347,9 +312,11 @@ another_metric{instance="baz"} 42
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["some_metric"])
 	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["another_metric"])
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
@@ -414,9 +381,11 @@ another_metric{instance="baz"} 42
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["some_metric"])
 	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:1.234 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
+	threadUnsafeTimestampStrip(mms.lastWriteRequest.MetricFamilies["another_metric"])
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}

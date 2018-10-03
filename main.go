@@ -34,9 +34,9 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/prometheus/pushgateway/asset"
-	"github.com/prometheus/pushgateway/handler"
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/dansimone/pushgateway/asset"
+	"github.com/dansimone/pushgateway/handler"
+	"github.com/dansimone/pushgateway/storage"
 )
 
 func init() {
@@ -52,6 +52,8 @@ func main() {
 		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints.").Default("").String()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
+		metricsTTL          = app.Flag("metrics.ttl", "Metric TTLs - any metric with timestamp older than now - TTL will be expired").Default("0s").Duration()
+		stripTimestamps     = app.Flag("strip-timestamps", "Strip any timestamps from pushgrateway results?").Default("true").Bool()
 	)
 	log.AddFlags(app)
 	app.Version(version.Print("pushgateway"))
@@ -73,7 +75,8 @@ func main() {
 	for _, f := range app.Model().Flags {
 		flags[f.Name] = f.Value.String()
 	}
-	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
+
+	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, *metricsTTL, *stripTimestamps)
 
 	// Inject the metric families returned by ms.GetMetricFamilies into the default Gatherer:
 	prometheus.DefaultGatherer = prometheus.Gatherers{

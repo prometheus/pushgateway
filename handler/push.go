@@ -35,7 +35,7 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/dansimone/pushgateway/storage"
 )
 
 const (
@@ -107,12 +107,19 @@ func Push(
 			log.Debugf("Failed to parse text, %v", err.Error())
 			return
 		}
-		if timestampsPresent(metricFamilies) {
-			http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
-			log.Debug("pushed metrics must not have timestamps")
-			return
-		}
 		now := time.Now()
+
+		// Add timestamps of now to any metrics that do not have timestamps
+		// This functionality is not desired back in the mainline pushgateway
+		if !timestampsPresent(metricFamilies) {
+			metricTimestamp := now.UnixNano() / int64(time.Millisecond)
+			for _, mf := range metricFamilies {
+				for _, m := range mf.GetMetric() {
+					m.TimestampMs = &metricTimestamp
+				}
+			}
+		}
+
 		addPushTimestamp(metricFamilies, now)
 		sanitizeLabels(metricFamilies, labels)
 		ms.SubmitWriteRequest(storage.WriteRequest{
@@ -204,12 +211,18 @@ func LegacyPush(
 			log.Debugf("Error parsing request body, %v", err.Error())
 			return
 		}
-		if timestampsPresent(metricFamilies) {
-			http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
-			log.Debug("pushed metrics must not have timestamps")
-			return
-		}
 		now := time.Now()
+
+		// We are going to add timestamps to things anyway. Lets not force no timestamps
+		if !timestampsPresent(metricFamilies) {
+			metricTimestamp := now.UnixNano() / int64(time.Millisecond)
+			for _, mf := range metricFamilies {
+				for _, m := range mf.GetMetric() {
+					m.TimestampMs = &metricTimestamp
+				}
+			}
+		}
+
 		addPushTimestamp(metricFamilies, now)
 		sanitizeLabels(metricFamilies, labels)
 		ms.SubmitWriteRequest(storage.WriteRequest{
