@@ -390,7 +390,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 	fileName := path.Join(tempDir, "persistence")
-	dms := NewDiskMetricStore(fileName, 100*time.Millisecond)
+	dms := NewDiskMetricStore(fileName, 100*time.Millisecond, 0, true)
 
 	// Submit a single simple metric family.
 	ts1 := time.Now()
@@ -458,7 +458,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 
 	// Load it again.
-	dms = NewDiskMetricStore(fileName, 100*time.Millisecond)
+	dms = NewDiskMetricStore(fileName, 100*time.Millisecond,0, true)
 	if err := checkMetricFamilies(dms, mf1a, mf2, mf3, mf5); err != nil {
 		t.Error(err)
 	}
@@ -555,7 +555,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 }
 
 func TestNoPersistence(t *testing.T) {
-	dms := NewDiskMetricStore("", 100*time.Millisecond)
+	dms := NewDiskMetricStore("", 100*time.Millisecond,0, true)
 
 	ts1 := time.Now()
 	dms.SubmitWriteRequest(WriteRequest{
@@ -575,7 +575,7 @@ func TestNoPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dms = NewDiskMetricStore("", 100*time.Millisecond)
+	dms = NewDiskMetricStore("", 100*time.Millisecond,0, true)
 	if err := checkMetricFamilies(dms); err != nil {
 		t.Error(err)
 	}
