@@ -28,7 +28,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/dansimone/pushgateway/storage"
 )
 
 type data struct {

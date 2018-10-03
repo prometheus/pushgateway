@@ -34,9 +34,9 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/prometheus/pushgateway/asset"
-	"github.com/prometheus/pushgateway/handler"
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/dansimone/pushgateway/asset"
+	"github.com/dansimone/pushgateway/handler"
+	"github.com/dansimone/pushgateway/storage"
 )
 
 func init() {

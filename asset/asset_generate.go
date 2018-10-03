@@ -18,7 +18,7 @@ package main
 import (
 	"log"
 
-	"github.com/prometheus/pushgateway/asset"
+	"github.com/dansimone/pushgateway/asset"
 	"github.com/shurcooL/vfsgen"
 )
 

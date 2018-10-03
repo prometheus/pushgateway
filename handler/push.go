@@ -35,7 +35,7 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/dansimone/pushgateway/storage"
 )
 
 const (

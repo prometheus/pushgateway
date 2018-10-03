@@ -20,7 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/prometheus/pushgateway/storage"
+	"github.com/dansimone/pushgateway/storage"
 )
 
 // Healthy is used to report the health of the Pushgateway. It currently only
