@@ -1,9 +1,14 @@
 # Prometheus Pushgateway
 
-[![Build Status](https://travis-ci.org/prometheus/pushgateway.svg)][travis]
-[![CircleCI](https://circleci.com/gh/prometheus/pushgateway/tree/master.svg?style=shield)][circleci]
-[![Docker Repository on Quay](https://quay.io/repository/prometheus/pushgateway/status)][quay]
-[![Docker Pulls](https://img.shields.io/docker/pulls/prom/pushgateway.svg?maxAge=604800)][hub]
+This fork of prometheus/pushgateway adds the features from [monzo/pushgateway](https://github.com/monzo/pushgateway) to
+Prometheus Pushgateway 0.5.2.
+
+Monzo/pushgateway adds a TTL on metrics.  Metrics are still retained internally by the Push Gateway until jobs are deleted
+via the Pushgateway API, but what gets exposed to a Prometheus scrape via /metrics is only the set of metrics that have been
+updated more recently than the specified TTL.  The additional `--metrics.ttl` (defaulting to 0s) command line parameter
+controls this TTL value globally for the Push Gateway.
+
+## Original Readme
 
 The Prometheus Pushgateway exists to allow ephemeral and batch jobs to
 expose their metrics to Prometheus. Since these kinds of jobs may not
