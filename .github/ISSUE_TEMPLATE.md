@@ -1,9 +1,9 @@
 <!--
 
 	Note that we use GitHub issues for bugs and (uncontroversial) feature
-    requests (see below for details).
+	requests (see below for details).
 
-    Please do *NOT* ask usage questions in GitHub issues.  Usage questions make
+	Please do *NOT* ask usage questions in GitHub issues.  Usage questions make
 	most sense on the users mailing list, where more people are available to
 	potentially respond to your question, and the whole community can benefit
 	from the answers provided (perhaps your question has already been answered,
@@ -20,7 +20,7 @@
 	tracked by the wider developer community and thus inadequate):
 	https://groups.google.com/forum/#!forum/prometheus-developers
 	
-    You can find more information at: https://prometheus.io/community/
+	You can find more information at: https://prometheus.io/community/
 
 -->
 
