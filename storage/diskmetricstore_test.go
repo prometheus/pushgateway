@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 
 	dto "github.com/prometheus/client_model/go"
@@ -283,6 +284,138 @@ var (
 			},
 		},
 	}
+	mfh1 = &dto.MetricFamily{
+		Name: proto.String("mf_help"),
+		Help: proto.String("Help string for mfh1."),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job1"),
+					},
+				},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(3948.838),
+				},
+			},
+		},
+	}
+	mfh2 = &dto.MetricFamily{
+		Name: proto.String("mf_help"),
+		Help: proto.String("Help string for mfh2."),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job2"),
+					},
+				},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(83),
+				},
+			},
+		},
+	}
+	// Both mfh metrics with mfh1's help string.
+	mfh12 = &dto.MetricFamily{
+		Name: proto.String("mf_help"),
+		Help: proto.String("Help string for mfh1."),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job1"),
+					},
+				},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(3948.838),
+				},
+			},
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job2"),
+					},
+				},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(83),
+				},
+			},
+		},
+	}
+	// Both mfh metrics with mfh2's help string.
+	mfh21 = &dto.MetricFamily{
+		Name: proto.String("mf_help"),
+		Help: proto.String("Help string for mfh2."),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job1"),
+					},
+				},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(3948.838),
+				},
+			},
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job2"),
+					},
+				},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(83),
+				},
+			},
+		},
+	}
+	mfgg = &dto.MetricFamily{
+		Name: proto.String("go_goroutines"),
+		Help: proto.String("Inconsistent doc string, fixed version in mfggFixed."),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job1"),
+					},
+				},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(5),
+				},
+			},
+		},
+	}
+	mfggFixed = &dto.MetricFamily{
+		Name: proto.String("go_goroutines"),
+		Help: proto.String("Number of goroutines that currently exist."),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job1"),
+					},
+				},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(5),
+				},
+			},
+		},
+	}
 )
 
 func addGroup(
@@ -390,7 +523,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 	fileName := path.Join(tempDir, "persistence")
-	dms := NewDiskMetricStore(fileName, 100*time.Millisecond)
+	dms := NewDiskMetricStore(fileName, 100*time.Millisecond, nil)
 
 	// Submit a single simple metric family.
 	ts1 := time.Now()
@@ -458,7 +591,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 
 	// Load it again.
-	dms = NewDiskMetricStore(fileName, 100*time.Millisecond)
+	dms = NewDiskMetricStore(fileName, 100*time.Millisecond, nil)
 	if err := checkMetricFamilies(dms, mf1a, mf2, mf3, mf5); err != nil {
 		t.Error(err)
 	}
@@ -555,7 +688,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 }
 
 func TestNoPersistence(t *testing.T) {
-	dms := NewDiskMetricStore("", 100*time.Millisecond)
+	dms := NewDiskMetricStore("", 100*time.Millisecond, nil)
 
 	ts1 := time.Now()
 	dms.SubmitWriteRequest(WriteRequest{
@@ -575,7 +708,7 @@ func TestNoPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dms = NewDiskMetricStore("", 100*time.Millisecond)
+	dms = NewDiskMetricStore("", 100*time.Millisecond, nil)
 	if err := checkMetricFamilies(dms); err != nil {
 		t.Error(err)
 	}
@@ -587,6 +720,44 @@ func TestNoPersistence(t *testing.T) {
 	if err := dms.Healthy(); err != nil {
 		t.Error(err)
 	}
+}
+
+func TestHelpStringFix(t *testing.T) {
+	dms := NewDiskMetricStore("", 100*time.Millisecond, prometheus.DefaultGatherer)
+
+	ts1 := time.Now()
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels: map[string]string{
+			"job": "job1",
+		},
+		Timestamp: ts1,
+		MetricFamilies: map[string]*dto.MetricFamily{
+			"go_goroutines": mfgg,
+			"mf_help":       mfh1,
+		},
+	})
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels: map[string]string{
+			"job": "job2",
+		},
+		Timestamp: ts1,
+		MetricFamilies: map[string]*dto.MetricFamily{
+			"mf_help": mfh2,
+		},
+	})
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
+
+	// Either we have settle on the mfh1 help string or the mfh2 help string.
+	err1 := checkMetricFamilies(dms, mfggFixed, mfh21)
+	err2 := checkMetricFamilies(dms, mfggFixed, mfh12)
+	if err1 != nil && err2 != nil {
+		t.Error("help strings weren't properly adjusted:", err1, err2)
+	}
+
+	if err := dms.Shutdown(); err != nil {
+		t.Fatal(err)
+	}
+
 }
 
 func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily) error {
