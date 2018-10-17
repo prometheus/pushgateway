@@ -1,3 +1,11 @@
+## 0.6.0 / 2018-10-17
+
+* [CHANGE] Enforce consistency of help strings by changing them during
+  exposition. (An INFO-level log message describes the change.) #194
+* [CHANGE] Drop support of legacy storage format.
+* [CHANGE] Use prometheus/client_golang v0.9, which changes the `http_...`
+  metrics. (See README.md for full documentation of exposed metrics.)
+
 ## 0.5.2 / 2018-06-15
 
 * [BUGFIX] Update client_golang/prometheus vendoring to allow inconsistent
