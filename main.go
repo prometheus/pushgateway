@@ -73,7 +73,8 @@ func main() {
 	for _, f := range app.Model().Flags {
 		flags[f.Name] = f.Value.String()
 	}
-	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval)
+
+	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer)
 
 	// Inject the metric families returned by ms.GetMetricFamilies into the default Gatherer:
 	prometheus.DefaultGatherer = prometheus.Gatherers{
