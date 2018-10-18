@@ -748,10 +748,33 @@ func TestHelpStringFix(t *testing.T) {
 	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 
 	// Either we have settle on the mfh1 help string or the mfh2 help string.
-	err1 := checkMetricFamilies(dms, mfggFixed, mfh21)
-	err2 := checkMetricFamilies(dms, mfggFixed, mfh12)
-	if err1 != nil && err2 != nil {
-		t.Error("help strings weren't properly adjusted:", err1, err2)
+	gotMFs := dms.GetMetricFamilies()
+	if len(gotMFs) != 2 {
+		t.Fatalf("expected 2 metric families, got %d", len(gotMFs))
+	}
+	gotMFsAsStrings := make([]string, len(gotMFs))
+	for i, mf := range gotMFs {
+		sort.Sort(metricSorter(mf.GetMetric()))
+		gotMFsAsStrings[i] = mf.String()
+	}
+	sort.Strings(gotMFsAsStrings)
+	gotGG := gotMFsAsStrings[0]
+	got12 := gotMFsAsStrings[1]
+	expectedGG := mfggFixed.String()
+	expected12 := mfh12.String()
+	expected21 := mfh21.String()
+
+	if gotGG != expectedGG {
+		t.Errorf(
+			"help strings weren't properly adjusted, got '%s', expected '%s'",
+			gotGG, expectedGG,
+		)
+	}
+	if got12 != expected12 && got12 != expected21 {
+		t.Errorf(
+			"help strings weren't properly adjusted, got '%s' which is neither '%s' nor '%s'",
+			got12, expected12, expected21,
+		)
 	}
 
 	if err := dms.Shutdown(); err != nil {
@@ -783,7 +806,7 @@ func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily)
 	for i, got := range gotMFsAsStrings {
 		expected := expectedMFsAsStrings[i]
 		if expected != got {
-			return fmt.Errorf("expected metric family %#v, got %#v", expected, got)
+			return fmt.Errorf("expected metric family '%s', got '%s'", expected, got)
 		}
 	}
 	return nil
