@@ -32,7 +32,8 @@ something like release events has to happen with some event-logging framework.
 A while ago, we
 [decided to not implement a “timeout” or TTL for pushed metrics](https://github.com/prometheus/pushgateway/issues/19)
 because almost all proposed use cases turned out to be anti-patterns we
-strongly discourage.
+strongly discourage. You can follow a more recent discussion on the
+[prometheus-developers mailing list](https://groups.google.com/forum/#!topic/prometheus-developers/9IyUxRvhY7w).
 
 ## Run it
 
