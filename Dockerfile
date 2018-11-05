@@ -1,9 +1,18 @@
-FROM        quay.io/prometheus/busybox:latest
-LABEL maintainer "The Prometheus Authors <prometheus-developers@googlegroups.com>"
+FROM golang:latest as base
 
-COPY pushgateway /bin/pushgateway
+RUN mkdir -p /go/src/github.com/prometheus/pushgateway
+WORKDIR /go/src/github.com/prometheus/pushgateway
 
-EXPOSE     9091
-RUN mkdir -p /pushgateway
-WORKDIR    /pushgateway
-ENTRYPOINT [ "/bin/pushgateway" ]
+COPY . .
+
+RUN make
+
+FROM scratch
+LABEL maintainer="The Prometheus Authors <prometheus-developers@googlegroups.com>"
+
+EXPOSE 9091
+
+COPY --from=base /go/src/github.com/prometheus/pushgateway/pushgateway /
+
+ENTRYPOINT ["/pushgateway"]
+
