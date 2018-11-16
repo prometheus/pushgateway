@@ -1,0 +1,46 @@
+# github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
+github.com/alecthomas/template
+github.com/alecthomas/template/parse
+# github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf
+github.com/alecthomas/units
+# github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
+github.com/beorn7/perks/quantile
+# github.com/golang/protobuf v1.2.0
+github.com/golang/protobuf/proto
+# github.com/julienschmidt/httprouter v0.0.0-20171027133709-e1b9828bc9e5
+github.com/julienschmidt/httprouter
+# github.com/matttproud/golang_protobuf_extensions v1.0.1
+github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/prometheus/client_golang v0.9.0
+github.com/prometheus/client_golang/prometheus
+github.com/prometheus/client_golang/prometheus/promhttp
+github.com/prometheus/client_golang/prometheus/promauto
+github.com/prometheus/client_golang/prometheus/internal
+# github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910
+github.com/prometheus/client_model/go
+# github.com/prometheus/common v0.0.0-20181015124227-bcb74de08d37
+github.com/prometheus/common/log
+github.com/prometheus/common/version
+github.com/prometheus/common/expfmt
+github.com/prometheus/common/model
+github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
+# github.com/prometheus/procfs v0.0.0-20180725123919-05ee40e3a273
+github.com/prometheus/procfs
+github.com/prometheus/procfs/nfs
+github.com/prometheus/procfs/xfs
+github.com/prometheus/procfs/internal/util
+# github.com/shurcooL/httpfs v0.0.0-20171119174359-809beceb2371
+github.com/shurcooL/httpfs/vfsutil
+# github.com/shurcooL/vfsgen v0.0.0-20180825020608-02ddb050ef6b
+github.com/shurcooL/vfsgen
+# github.com/sirupsen/logrus v0.0.0-20180515154058-0dad3b6953e7
+github.com/sirupsen/logrus
+# golang.org/x/crypto v0.0.0-20180515001509-1a580b3eff78
+golang.org/x/crypto/ssh/terminal
+# golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e
+golang.org/x/sys/windows/svc/eventlog
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+golang.org/x/sys/windows/registry
+# gopkg.in/alecthomas/kingpin.v2 v2.2.6
+gopkg.in/alecthomas/kingpin.v2
