@@ -215,36 +215,6 @@ even if escaped as `%2F`. (The decoding happens before the path
 routing kicks in, cf. the Go documentation of
 [`URL.Path`](http://golang.org/pkg/net/url/#URL).)
 
-### Deprecated URL
-
-There is a _deprecated_ version of the URL path, using `jobs` instead
-of `job`:
-
-    /metrics/jobs/<JOBNAME>[/instances/<INSTANCENAME>]
-
-If this version of the URL path is used _with_ the `instances` part,
-it is equivalent to the URL path above with an `instance` label, i.e.
-
-    /metrics/jobs/foo/instances/bar
-
-is equivalent to
-
-    /metrics/job/foo/instance/bar
-
-(Note the missing pluralizations.)
-
-However, if the `instances` part is missing, the Pushgateway will
-automatically use the IP number of the pushing host as the 'instance'
-label, and grouping happens by 'job' and 'instance' labels.
-
-Example: Pushing metrics from host 1.2.3.4 using the deprecated URL path
-
-    /metrics/jobs/foo
-
-is equivalent to pushing using the URL path
-
-    /metrics/job/foo/instance/1.2.3.4
-
 ### `PUT` method
 
 `PUT` is used to push a group of metrics. All metrics with the
@@ -306,19 +276,6 @@ guaranteed that the `DELETE` will be processed first (and vice versa).
 
 Deleting a grouping key without metrics is a no-op and will not result
 in an error.
-
-**Caution:** Up to version 0.1.1 of the Pushgateway, a `DELETE` request using
-the following path (the deprecated form, see above) in the URL would delete
-_all_ metrics with the job label 'foo':
-
-    /metrics/jobs/foo
-
-Newer versions will treat this path in the same way as
-
-    /metrics/job/foo
-
-Note that no implicit addition of an instance label is happening here (in
-contrast to how the deprecated form of the path is treated during pushing).
 
 ## Exposed metrics
 
