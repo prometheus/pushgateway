@@ -96,14 +96,6 @@ func main() {
 	r.POST(pushAPIPath+"/job/:job", handler.Push(ms, false))
 	r.DELETE(pushAPIPath+"/job/:job", handler.Delete(ms))
 
-	// Handlers for the deprecated API.
-	r.PUT(pushAPIPath+"/jobs/:job/instances/:instance", handler.LegacyPush(ms, true))
-	r.POST(pushAPIPath+"/jobs/:job/instances/:instance", handler.LegacyPush(ms, false))
-	r.DELETE(pushAPIPath+"/jobs/:job/instances/:instance", handler.LegacyDelete(ms))
-	r.PUT(pushAPIPath+"/jobs/:job", handler.LegacyPush(ms, true))
-	r.POST(pushAPIPath+"/jobs/:job", handler.LegacyPush(ms, false))
-	r.DELETE(pushAPIPath+"/jobs/:job", handler.LegacyDelete(ms))
-
 	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets))
 
 	statusHandler := handler.Status(ms, asset.Assets, flags)
