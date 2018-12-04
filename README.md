@@ -92,6 +92,10 @@ line-feed character (aka 'LF' or '\n'). Ending a line in other ways,
 e.g. with 'CR' aka '\r', 'CRLF' aka '\r\n', or just the end of the
 packet, will result in a protocol error.*
 
+Pushed metrics are managed in groups, identified by a grouping key of any
+number of labels, of which one must be the `job` label. The groups are easy to
+inspect via the web interface.
+
 Examples:
 
 * Push a single sample into the group identified by `{job="some_job"}`:
@@ -113,11 +117,15 @@ Examples:
   Note how type information and help strings are provided. Those lines
   are optional, but strongly encouraged for anything more complex.
 
-* Delete all metrics grouped by job and instance:
+* Delete all metrics in the group identified by
+  `{job="some_job",instance="some_instance"}`:
 
         curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job/instance/some_instance
 
-* Delete all metrics grouped by job only:
+* Delete all metrics in the group identified by `{job="some_job"}` (note that
+  this does not include metrics in the
+  `{job="some_job",instance="some_instance"}` group from the previous example,
+  even if those metrics have the same job label):
 
         curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job
 
