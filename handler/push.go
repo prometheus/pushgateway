@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"io"
 	"mime"
-	"net"
 	"net/http"
 	"sort"
 	"strings"
@@ -127,103 +126,6 @@ func Push(
 		httpPushSize, promhttp.InstrumentHandlerDuration(
 			httpPushDuration, promhttp.InstrumentHandlerCounter(
 				httpCnt.MustCurryWith(prometheus.Labels{"handler": "push"}),
-				handler,
-			)))
-
-	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-		mtx.Lock()
-		ps = params
-		instrumentedHandler.ServeHTTP(w, r)
-	}
-}
-
-// LegacyPush returns an http.Handler which accepts samples over HTTP and stores
-// them in the MetricStore. It uses the deprecated API (expecting a 'job'
-// parameter and an optional 'instance' parameter). If replace is true, all
-// metrics for the job and instance given by the request are deleted before new
-// ones are stored.
-//
-// The returned handler is already instrumented for Prometheus.
-func LegacyPush(
-	ms storage.MetricStore, replace bool,
-) func(http.ResponseWriter, *http.Request, httprouter.Params) {
-	var ps httprouter.Params
-	var mtx sync.Mutex // Protects ps.
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		job := ps.ByName("job")
-		instance := ps.ByName("instance")
-		mtx.Unlock()
-
-		var err error
-		if job == "" {
-			http.Error(w, "job name is required", http.StatusBadRequest)
-			log.Debug("job name is required")
-			return
-		}
-		if instance == "" {
-			// Remote IP number (without port).
-			instance, _, err = net.SplitHostPort(r.RemoteAddr)
-			if err != nil || instance == "" {
-				instance = "localhost"
-			}
-		}
-		labels := map[string]string{"job": job, "instance": instance}
-		if replace {
-			ms.SubmitWriteRequest(storage.WriteRequest{
-				Labels:    labels,
-				Timestamp: time.Now(),
-			})
-		}
-
-		var metricFamilies map[string]*dto.MetricFamily
-		ctMediatype, ctParams, ctErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		if ctErr == nil && ctMediatype == "application/vnd.google.protobuf" &&
-			ctParams["encoding"] == "delimited" &&
-			ctParams["proto"] == "io.prometheus.client.MetricFamily" {
-			metricFamilies = map[string]*dto.MetricFamily{}
-			for {
-				mf := &dto.MetricFamily{}
-				if _, err = pbutil.ReadDelimited(r.Body, mf); err != nil {
-					if err == io.EOF {
-						err = nil
-					}
-					break
-				}
-				metricFamilies[mf.GetName()] = mf
-			}
-		} else {
-			// We could do further content-type checks here, but the
-			// fallback for now will anyway be the text format
-			// version 0.0.4, so just go for it and see if it works.
-			var parser expfmt.TextParser
-			metricFamilies, err = parser.TextToMetricFamilies(r.Body)
-		}
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			log.Debugf("Error parsing request body, %v", err.Error())
-			return
-		}
-		if timestampsPresent(metricFamilies) {
-			http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
-			log.Debug("pushed metrics must not have timestamps")
-			return
-		}
-		now := time.Now()
-		addPushTimestamp(metricFamilies, now)
-		sanitizeLabels(metricFamilies, labels)
-		ms.SubmitWriteRequest(storage.WriteRequest{
-			Labels:         labels,
-			Timestamp:      now,
-			MetricFamilies: metricFamilies,
-		})
-		w.WriteHeader(http.StatusAccepted)
-	})
-
-	instrumentedHandler := promhttp.InstrumentHandlerRequestSize(
-		httpPushSize, promhttp.InstrumentHandlerDuration(
-			httpPushDuration, promhttp.InstrumentHandlerCounter(
-				httpCnt.MustCurryWith(prometheus.Labels{"handler": "legacy_push"}),
 				handler,
 			)))
 

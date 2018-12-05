@@ -80,7 +80,6 @@ func TestHealthyReady(t *testing.T) {
 func TestPush(t *testing.T) {
 	mms := MockMetricStore{}
 	handler := Push(&mms, false)
-	legacyHandler := LegacyPush(&mms, false)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
@@ -110,23 +109,6 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted job %v, got %v.", expected, got)
 	}
 	if expected, got := "", mms.lastWriteRequest.Labels["instance"]; expected != got {
-		t.Errorf("Wanted instance %v, got %v.", expected, got)
-	}
-
-	// With job name, but no instance name and no content, legacy handler.
-	mms.lastWriteRequest = storage.WriteRequest{}
-	w = httptest.NewRecorder()
-	legacyHandler(w, req, httprouter.Params{httprouter.Param{Key: "job", Value: "testjob"}})
-	if expected, got := http.StatusAccepted, w.Code; expected != got {
-		t.Errorf("Wanted status code %v, got %v.", expected, got)
-	}
-	if mms.lastWriteRequest.Timestamp.IsZero() {
-		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
-	}
-	if expected, got := "testjob", mms.lastWriteRequest.Labels["job"]; expected != got {
-		t.Errorf("Wanted job %v, got %v.", expected, got)
-	}
-	if expected, got := "localhost", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 
@@ -243,69 +225,6 @@ func TestPush(t *testing.T) {
 		httprouter.Params{
 			httprouter.Param{Key: "job", Value: "testjob"},
 			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
-		},
-	)
-	if expected, got := http.StatusBadRequest, w.Code; expected != got {
-		t.Errorf("Wanted status code %v, got %v.", expected, got)
-	}
-	if !mms.lastWriteRequest.Timestamp.IsZero() {
-		t.Errorf("Write request timestamp unexpectedly set: %#v", mms.lastWriteRequest)
-	}
-
-	// With job name and instance name and text content, legacy handler.
-	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err = http.NewRequest(
-		"POST", "http://example.org/",
-		bytes.NewBufferString("some_metric 3.14\nanother_metric 42\n"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w = httptest.NewRecorder()
-	legacyHandler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "instance", Value: "testinstance"},
-		},
-	)
-	if expected, got := http.StatusAccepted, w.Code; expected != got {
-		t.Errorf("Wanted status code %v, got %v.", expected, got)
-	}
-	if mms.lastWriteRequest.Timestamp.IsZero() {
-		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
-	}
-	if expected, got := "testjob", mms.lastWriteRequest.Labels["job"]; expected != got {
-		t.Errorf("Wanted job %v, got %v.", expected, got)
-	}
-	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
-		t.Errorf("Wanted instance %v, got %v.", expected, got)
-	}
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
-	if _, ok := mms.lastWriteRequest.MetricFamilies["push_time_seconds"]; !ok {
-		t.Errorf("Wanted metric family push_time_seconds missing.")
-	}
-
-	// With job name and instance name and timestamp, legacy handler.
-	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err = http.NewRequest(
-		"POST", "http://example.org/",
-		bytes.NewBufferString("a 1\nb 1 1000\n"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w = httptest.NewRecorder()
-	legacyHandler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "instance", Value: "testinstance"},
 		},
 	)
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
