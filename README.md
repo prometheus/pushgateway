@@ -92,6 +92,10 @@ line-feed character (aka 'LF' or '\n'). Ending a line in other ways,
 e.g. with 'CR' aka '\r', 'CRLF' aka '\r\n', or just the end of the
 packet, will result in a protocol error.*
 
+Pushed metrics are managed in groups, identified by a grouping key of any
+number of labels, of which one must be the `job` label. The groups are easy to
+inspect via the web interface.
+
 Examples:
 
 * Push a single sample into the group identified by `{job="some_job"}`:
@@ -113,11 +117,15 @@ Examples:
   Note how type information and help strings are provided. Those lines
   are optional, but strongly encouraged for anything more complex.
 
-* Delete all metrics grouped by job and instance:
+* Delete all metrics in the group identified by
+  `{job="some_job",instance="some_instance"}`:
 
         curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job/instance/some_instance
 
-* Delete all metrics grouped by job only:
+* Delete all metrics in the group identified by `{job="some_job"}` (note that
+  this does not include metrics in the
+  `{job="some_job",instance="some_instance"}` group from the previous example,
+  even if those metrics have the same job label):
 
         curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job
 
@@ -207,36 +215,6 @@ even if escaped as `%2F`. (The decoding happens before the path
 routing kicks in, cf. the Go documentation of
 [`URL.Path`](http://golang.org/pkg/net/url/#URL).)
 
-### Deprecated URL
-
-There is a _deprecated_ version of the URL path, using `jobs` instead
-of `job`:
-
-    /metrics/jobs/<JOBNAME>[/instances/<INSTANCENAME>]
-
-If this version of the URL path is used _with_ the `instances` part,
-it is equivalent to the URL path above with an `instance` label, i.e.
-
-    /metrics/jobs/foo/instances/bar
-
-is equivalent to
-
-    /metrics/job/foo/instance/bar
-
-(Note the missing pluralizations.)
-
-However, if the `instances` part is missing, the Pushgateway will
-automatically use the IP number of the pushing host as the 'instance'
-label, and grouping happens by 'job' and 'instance' labels.
-
-Example: Pushing metrics from host 1.2.3.4 using the deprecated URL path
-
-    /metrics/jobs/foo
-
-is equivalent to pushing using the URL path
-
-    /metrics/job/foo/instance/1.2.3.4
-
 ### `PUT` method
 
 `PUT` is used to push a group of metrics. All metrics with the
@@ -298,19 +276,6 @@ guaranteed that the `DELETE` will be processed first (and vice versa).
 
 Deleting a grouping key without metrics is a no-op and will not result
 in an error.
-
-**Caution:** Up to version 0.1.1 of the Pushgateway, a `DELETE` request using
-the following path (the deprecated form, see above) in the URL would delete
-_all_ metrics with the job label 'foo':
-
-    /metrics/jobs/foo
-
-Newer versions will treat this path in the same way as
-
-    /metrics/job/foo
-
-Note that no implicit addition of an instance label is happening here (in
-contrast to how the deprecated form of the path is treated during pushing).
 
 ## Exposed metrics
 
