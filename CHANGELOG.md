@@ -1,3 +1,13 @@
+## 0.7.0 / 2018-12-07
+
+_As preparation for the 1.0.0 release, this release removes the long deprecated
+legacy HTTP push endpoint (which uses `/jobs/` rather than `/job/` in the URL)._
+
+* [CHANGE] Remove legacy push API. #227
+* [ENHANCEMENT] Update dependencies. #230
+* [ENHANCEMENT] Support Go modules. #221
+* [BUGFIX] Avoid crash when started with v0.4 storage. #223
+
 ## 0.6.0 / 2018-10-17
 
 _Persistence storage prior to 0.5.0 is unsupported. Upgrade to 0.5.2 first for
