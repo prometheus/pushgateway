@@ -107,6 +107,10 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	for _, group := range dms.metricGroups {
 		for name, tmf := range group.Metrics {
 			mf := tmf.GetMetricFamily()
+			if mf == nil {
+				log.Warn("Storage corruption detected, consider wiping the persistence file.")
+				continue
+			}
 			stat, exists := mfStatByName[name]
 			if exists {
 				existingMF := result[stat.pos]
