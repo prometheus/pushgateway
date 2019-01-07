@@ -130,9 +130,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 				}
 				// Type inconsistency cannot be fixed here. We will detect it during
 				// gathering anyway, so no reason to log anything here.
-				for _, metric := range mf.Metric {
-					existingMF.Metric = append(existingMF.Metric, metric)
-				}
+				existingMF.Metric = append(existingMF.Metric, mf.Metric...)
 			} else {
 				copied := false
 				if help, ok := dms.predefinedHelp[name]; ok && mf.GetHelp() != help {
