@@ -722,6 +722,67 @@ func TestNoPersistence(t *testing.T) {
 	}
 }
 
+func TestGetMetricFamiliesMap(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "diskmetricstore.TestGetMetricFamiliesMap.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+	fileName := path.Join(tempDir, "persistence")
+
+	dms := NewDiskMetricStore(fileName, 100*time.Millisecond, nil)
+
+	labels1 := map[string]string{
+		"job":      "job1",
+		"instance": "instance1",
+	}
+
+	labels2 := map[string]string{
+		"job":      "job2",
+		"instance": "instance2",
+	}
+
+	ls1 := model.LabelsToSignature(labels1)
+	ls2 := model.LabelsToSignature(labels2)
+
+	// Submit a single simple metric family.
+	ts1 := time.Now()
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels:         labels1,
+		Timestamp:      ts1,
+		MetricFamilies: map[string]*dto.MetricFamily{"mf3": mf3},
+	})
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
+	if err := checkMetricFamilies(dms, mf3); err != nil {
+		t.Error(err)
+	}
+
+	// Submit two metric families for a different instance.
+	ts2 := ts1.Add(time.Second)
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels:         labels2,
+		Timestamp:      ts2,
+		MetricFamilies: map[string]*dto.MetricFamily{"mf1": mf1b, "mf2": mf2},
+	})
+	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
+
+	// expectedMFMap is a multi-layered map that maps the labelset fingerprints to the corresponding metric family string representations.
+	// This is for test assertion purposes.
+	expectedMFMap := map[uint64]map[string]string{
+		ls1: {
+			"mf3": mf3.String(),
+		},
+		ls2: {
+			"mf1": mf1b.String(),
+			"mf2": mf2.String(),
+		},
+	}
+
+	if err := checkMetricFamilyGroups(dms, expectedMFMap); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestHelpStringFix(t *testing.T) {
 	dms := NewDiskMetricStore("", 100*time.Millisecond, prometheus.DefaultGatherer)
 
@@ -807,6 +868,31 @@ func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily)
 		expected := expectedMFsAsStrings[i]
 		if expected != got {
 			return fmt.Errorf("expected metric family '%s', got '%s'", expected, got)
+		}
+	}
+	return nil
+}
+
+func checkMetricFamilyGroups(dms *DiskMetricStore, expectedMFMap map[uint64]map[string]string) error {
+	mfMap := dms.GetMetricFamiliesMap()
+
+	if expected, got := len(expectedMFMap), len(mfMap); expected != got {
+		return fmt.Errorf("expected %d metric families in map, but got %d", expected, got)
+	}
+
+	for k, v := range mfMap {
+		if innerMap, ok := expectedMFMap[k]; ok {
+			if len(innerMap) != len(v.Metrics) {
+				return fmt.Errorf("expected %d metric entries for labelSet fingerprint %d  in map, but got %d",
+					len(innerMap), k, len(v.Metrics))
+			}
+			for metricName, metricString := range innerMap {
+				if v.Metrics[metricName].GetMetricFamily().String() != metricString {
+					return fmt.Errorf("expected metric %s to be present for key %s", metricString, metricName)
+				}
+			}
+		} else {
+			return fmt.Errorf("expected key value %d to be present in metric families in map", k)
 		}
 	}
 	return nil
