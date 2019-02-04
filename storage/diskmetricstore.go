@@ -319,10 +319,7 @@ func (dms *DiskMetricStore) restore() error {
 	}
 	defer f.Close()
 	d := gob.NewDecoder(f)
-	if err := d.Decode(&dms.metricGroups); err != nil {
-		return err
-	}
-	return nil
+	return d.Decode(&dms.metricGroups)
 }
 
 func copyMetricFamily(mf *dto.MetricFamily) *dto.MetricFamily {
