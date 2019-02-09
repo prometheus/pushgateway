@@ -176,6 +176,13 @@ func (dms *DiskMetricStore) Ready() error {
 	return dms.Healthy()
 }
 
+func (dms *DiskMetricStore) Clear() {
+	dms.lock.Lock()
+	defer dms.lock.Unlock()
+
+	dms.metricGroups = GroupingKeyToMetricGroup{}
+}
+
 func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 	lastPersist := time.Now()
 	persistScheduled := false

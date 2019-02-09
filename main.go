@@ -50,6 +50,7 @@ func main() {
 		listenAddress       = app.Flag("web.listen-address", "Address to listen on for the web interface, API, and telemetry.").Default(":9091").String()
 		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints.").Default("").String()
+		deleteAfterScrape   = app.Flag("web.delete-after-scrape", "").Bool()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 	)
@@ -85,7 +86,13 @@ func main() {
 	r := httprouter.New()
 	r.Handler("GET", *routePrefix+"/-/healthy", handler.Healthy(ms))
 	r.Handler("GET", *routePrefix+"/-/ready", handler.Ready(ms))
-	r.Handler("GET", path.Join(*routePrefix, *metricsPath), promhttp.Handler())
+	r.Handler("GET", path.Join(*routePrefix, *metricsPath), http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			promhttp.Handler().ServeHTTP(w, r)
+			if *deleteAfterScrape {
+				ms.Clear()
+			}
+		}))
 
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"
