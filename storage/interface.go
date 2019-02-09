@@ -38,7 +38,7 @@ type MetricStore interface {
 	// Metrics. Inconsistent help strings or types are logged, and one of
 	// the versions will "win". Inconsistent and duplicate label sets will
 	// go undetected.
-	GetMetricFamilies() []*dto.MetricFamily
+	GetMetricFamilies(querier string) []*dto.MetricFamily
 	// GetMetricFamiliesMap returns a map grouping-key -> MetricGroup. The
 	// MetricFamily pointed to by the Metrics map in each MetricGroup is
 	// guaranteed to not be modified by the MetricStore anymore. However,
@@ -116,6 +116,7 @@ type NameToTimestampedMetricFamilyMap map[string]TimestampedMetricFamily
 type TimestampedMetricFamily struct {
 	Timestamp            time.Time
 	GobbableMetricFamily *GobbableMetricFamily
+	Queriers             map[string]struct{}
 }
 
 // GetMetricFamily returns the normal GetMetricFamily DTO (without the gob additions).

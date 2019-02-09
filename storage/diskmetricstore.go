@@ -97,7 +97,7 @@ func (dms *DiskMetricStore) SubmitWriteRequest(req WriteRequest) {
 }
 
 // GetMetricFamilies implements the MetricStore interface.
-func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
+func (dms *DiskMetricStore) GetMetricFamilies(querier string) []*dto.MetricFamily {
 	result := []*dto.MetricFamily{}
 	mfStatByName := map[string]mfStat{}
 
@@ -106,6 +106,12 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 
 	for _, group := range dms.metricGroups {
 		for name, tmf := range group.Metrics {
+			if querier != "" && tmf.Queriers != nil {
+				if _, queried := tmf.Queriers[querier]; queried {
+					continue
+				}
+				tmf.Queriers[querier] = struct{}{}
+			}
 			mf := tmf.GetMetricFamily()
 			if mf == nil {
 				log.Warn("Storage corruption detected, consider wiping the persistence file.")
@@ -256,6 +262,7 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 		group.Metrics[name] = TimestampedMetricFamily{
 			Timestamp:            wr.Timestamp,
 			GobbableMetricFamily: (*GobbableMetricFamily)(mf),
+			Queriers:             map[string]struct{}{},
 		}
 	}
 }

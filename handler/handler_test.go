@@ -35,7 +35,7 @@ func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
 	m.lastWriteRequest = req
 }
 
-func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
+func (m *MockMetricStore) GetMetricFamilies(querier string) []*dto.MetricFamily {
 	panic("not implemented")
 }
 

@@ -50,6 +50,7 @@ func main() {
 		listenAddress       = app.Flag("web.listen-address", "Address to listen on for the web interface, API, and telemetry.").Default(":9091").String()
 		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints.").Default("").String()
+		scrapeOnce          = app.Flag("web.scrape-once", "Allow each metric to be scraped only once by every scraper until the metric is pushed again.").Bool()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 	)
@@ -76,16 +77,32 @@ func main() {
 
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer)
 
-	// Inject the metric families returned by ms.GetMetricFamilies into the default Gatherer:
-	prometheus.DefaultGatherer = prometheus.Gatherers{
-		prometheus.DefaultGatherer,
-		prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) { return ms.GetMetricFamilies(), nil }),
-	}
+	defaultGatherer := prometheus.DefaultGatherer
 
 	r := httprouter.New()
 	r.Handler("GET", *routePrefix+"/-/healthy", handler.Healthy(ms))
 	r.Handler("GET", *routePrefix+"/-/ready", handler.Ready(ms))
-	r.Handler("GET", path.Join(*routePrefix, *metricsPath), promhttp.Handler())
+	r.Handler("GET", path.Join(*routePrefix, *metricsPath), http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			// Get the requester's IP address if scraping
+			// metrics once until pushed again is enabled.
+			requester := ""
+			if *scrapeOnce {
+				requester = strings.Split(r.RemoteAddr, ":")[0]
+			}
+
+			// Inject the metric families returned by
+			// ms.GetMetricFamilies into the default Gatherer.
+			metricFamilies := ms.GetMetricFamilies(requester)
+			prometheus.DefaultGatherer = prometheus.Gatherers{
+				defaultGatherer,
+				prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+					return metricFamilies, nil
+				}),
+			}
+
+			promhttp.Handler().ServeHTTP(w, r)
+		}))
 
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"

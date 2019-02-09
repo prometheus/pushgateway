@@ -809,7 +809,7 @@ func TestHelpStringFix(t *testing.T) {
 	time.Sleep(20 * time.Millisecond) // Give loop() time to process.
 
 	// Either we have settle on the mfh1 help string or the mfh2 help string.
-	gotMFs := dms.GetMetricFamilies()
+	gotMFs := dms.GetMetricFamilies("")
 	if len(gotMFs) != 2 {
 		t.Fatalf("expected 2 metric families, got %d", len(gotMFs))
 	}
@@ -845,7 +845,7 @@ func TestHelpStringFix(t *testing.T) {
 }
 
 func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily) error {
-	gotMFs := dms.GetMetricFamilies()
+	gotMFs := dms.GetMetricFamilies("")
 	if expected, got := len(expectedMFs), len(gotMFs); expected != got {
 		return fmt.Errorf("expected %d metric families, got %d", expected, got)
 	}
