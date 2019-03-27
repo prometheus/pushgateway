@@ -96,7 +96,7 @@ func main() {
 	r.POST(pushAPIPath+"/job/:job", handler.Push(ms, false))
 	r.DELETE(pushAPIPath+"/job/:job", handler.Delete(ms))
 
-	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets))
+	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets, *routePrefix))
 
 	statusHandler := handler.Status(ms, asset.Assets, flags)
 	r.Handler("GET", *routePrefix+"/status", statusHandler)
