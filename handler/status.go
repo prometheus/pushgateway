@@ -19,6 +19,8 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"path"
 	"strconv"
 	"time"
 
@@ -64,6 +66,14 @@ func Status(
 			t.Funcs(template.FuncMap{
 				"value": func(f float64) string {
 					return strconv.FormatFloat(f, 'f', -1, 64)
+				},
+				"join": func(base string, paths ...string) string {
+					if u, err := url.Parse(base); err == nil {
+						ps := append([]string{u.Path}, paths...)
+						u.Path = path.Join(ps...)
+						return u.String()
+					}
+					return path.Join(paths...)
 				},
 			})
 			f, err := root.Open("template.html")
