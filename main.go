@@ -50,8 +50,8 @@ func main() {
 
 		listenAddress       = app.Flag("web.listen-address", "Address to listen on for the web interface, API, and telemetry.").Default(":9091").String()
 		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
-		externalURL         = app.Flag("web.external-url", "The URL under which Prometheus is externally reachable.").Default("").URL()
-		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints.").Default("").String()
+		externalURL         = app.Flag("web.external-url", "The URL under which the Pushgateway is externally reachable.").Default("").URL()
+		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints. Defaults to the path of --web.external-url.").Default("").String()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 	)
@@ -135,18 +135,20 @@ func handlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	}
 }
 
+// computeRoutePrefix returns the effective route prefix based on the
+// provided flag values for --web.route-prefix and
+// --web.external-url. With prefix empty, the path of externalURL is
+// used instead. A prefix "/" results in an empty returned prefix. Any
+// non-empty prefix is normalized to start, but not to end, with "/".
 func computeRoutePrefix(prefix string, externalURL *url.URL) string {
-	// Default to the External URL's path, if route prefix isn't set.
 	if prefix == "" {
 		prefix = externalURL.Path
 	}
 
-	// If Route Prefix *is* set, but it's just "/", ignore it.
 	if prefix == "/" {
 		prefix = ""
 	}
 
-	// If our prefix has a length, ensure it starts, but doesn't end, with "/"
 	if prefix != "" {
 		prefix = "/" + strings.Trim(prefix, "/")
 	}
