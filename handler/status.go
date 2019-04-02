@@ -19,6 +19,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"path"
 	"strconv"
 	"time"
 
@@ -36,6 +37,7 @@ type data struct {
 	Flags        map[string]string
 	BuildInfo    map[string]string
 	Birth        time.Time
+	BaseURL      string
 	counter      int
 }
 
@@ -66,6 +68,11 @@ func Status(
 					return strconv.FormatFloat(f, 'f', -1, 64)
 				},
 			})
+
+			externalURL := flags["web.external-url"]
+			routePrefix := flags["web.route-prefix"]
+			baseURL := path.Join(externalURL, routePrefix)
+
 			f, err := root.Open("template.html")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -99,6 +106,7 @@ func Status(
 				MetricGroups: ms.GetMetricFamiliesMap(),
 				BuildInfo:    buildInfo,
 				Birth:        birth,
+				BaseURL:      baseURL,
 			}
 			d.Flags = map[string]string{}
 			// Exclude kingpin default flags to expose only Prometheus ones.

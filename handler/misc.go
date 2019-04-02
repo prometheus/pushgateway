@@ -63,9 +63,17 @@ func Ready(ms storage.MetricStore) http.Handler {
 // Static serves the static files from the provided http.FileSystem.
 //
 // The returned handler is already instrumented for Prometheus.
-func Static(root http.FileSystem) http.Handler {
+func Static(root http.FileSystem, prefix string) http.Handler {
+	if prefix == "/" {
+		prefix = ""
+	}
+
+	handler := http.FileServer(root)
 	return promhttp.InstrumentHandlerCounter(
 		httpCnt.MustCurryWith(prometheus.Labels{"handler": "static"}),
-		http.FileServer(root),
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.URL.Path = r.URL.Path[len(prefix):]
+			handler.ServeHTTP(w, r)
+		}),
 	)
 }

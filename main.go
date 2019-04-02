@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -49,7 +50,8 @@ func main() {
 
 		listenAddress       = app.Flag("web.listen-address", "Address to listen on for the web interface, API, and telemetry.").Default(":9091").String()
 		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
-		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints.").Default("").String()
+		externalURL         = app.Flag("web.external-url", "The URL under which the Pushgateway is externally reachable.").Default("").URL()
+		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints. Defaults to the path of --web.external-url.").Default("").String()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 	)
@@ -58,16 +60,14 @@ func main() {
 	app.HelpFlag.Short('h')
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	if *routePrefix == "/" {
-		*routePrefix = ""
-	}
-	if *routePrefix != "" {
-		*routePrefix = "/" + strings.Trim(*routePrefix, "/")
-	}
+	*routePrefix = computeRoutePrefix(*routePrefix, *externalURL)
 
 	log.Infoln("Starting pushgateway", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 	log.Debugf("Prefix path is '%s'", *routePrefix)
+	log.Debugf("External URL is '%s'", *externalURL)
+
+	(*externalURL).Path = ""
 
 	flags := map[string]string{}
 	for _, f := range app.Model().Flags {
@@ -96,7 +96,7 @@ func main() {
 	r.POST(pushAPIPath+"/job/:job", handler.Push(ms, false))
 	r.DELETE(pushAPIPath+"/job/:job", handler.Delete(ms))
 
-	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets))
+	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets, *routePrefix))
 
 	statusHandler := handler.Status(ms, asset.Assets, flags)
 	r.Handler("GET", *routePrefix+"/status", statusHandler)
@@ -133,6 +133,27 @@ func handlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	default:
 		pprof.Index(w, r)
 	}
+}
+
+// computeRoutePrefix returns the effective route prefix based on the
+// provided flag values for --web.route-prefix and
+// --web.external-url. With prefix empty, the path of externalURL is
+// used instead. A prefix "/" results in an empty returned prefix. Any
+// non-empty prefix is normalized to start, but not to end, with "/".
+func computeRoutePrefix(prefix string, externalURL *url.URL) string {
+	if prefix == "" {
+		prefix = externalURL.Path
+	}
+
+	if prefix == "/" {
+		prefix = ""
+	}
+
+	if prefix != "" {
+		prefix = "/" + strings.Trim(prefix, "/")
+	}
+
+	return prefix
 }
 
 func interruptHandler(l net.Listener) {
