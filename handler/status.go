@@ -19,7 +19,6 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
-	"path"
 	"strconv"
 	"time"
 
@@ -71,7 +70,10 @@ func Status(
 
 			externalURL := flags["web.external-url"]
 			routePrefix := flags["web.route-prefix"]
-			baseURL := path.Join(externalURL, routePrefix)
+			// At this point, externalURL has no path and
+			// routePrefix is either empty or starts, but does not
+			// end, with a '/'.
+			baseURL := externalURL + routePrefix
 
 			f, err := root.Open("template.html")
 			if err != nil {
