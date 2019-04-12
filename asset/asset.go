@@ -16,18 +16,8 @@
 package asset
 
 import (
-	"go/build"
-	"log"
 	"net/http"
 )
 
-func importPathToDir(importPath string) string {
-	p, err := build.Import(importPath, "", build.FindOnly)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	return p.Dir
-}
-
 // Assets contains the project's assets.
-var Assets http.FileSystem = http.Dir(importPathToDir("github.com/prometheus/pushgateway/resources"))
+var Assets http.FileSystem = http.Dir("../resources")
