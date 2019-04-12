@@ -1,3 +1,14 @@
+## 0.8.0 / 2019-04-13
+
+_If you use the prebuilt Docker container or you build your own one based on
+the provided Dockerfile, note that this release changes the user to
+`nobody`. Should you use a persistence file, make sure it is readable and
+writable by user `nobody`._
+
+* [CHANGE] Run as user `nobody` in Docker. #242
+* [CHANGE] Adjust `--web.route-prefix` to work the same as in Prometheus. #190
+* [FEATURE] Add `--web.external-url` flag (like in Prometheus). #190
+
 ## 0.7.0 / 2018-12-07
 
 _As preparation for the 1.0.0 release, this release removes the long deprecated
