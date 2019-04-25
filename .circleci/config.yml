@@ -15,7 +15,7 @@ jobs:
     steps:
     - checkout
     - run: make promu
-    - run: make check_license style unused staticcheck build test
+    - run: make
     - store_artifacts:
         path: pushgateway
         destination: /build/pushgateway
