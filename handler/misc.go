@@ -19,6 +19,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/server"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -68,7 +69,7 @@ func Static(root http.FileSystem, prefix string) http.Handler {
 		prefix = ""
 	}
 
-	handler := http.FileServer(root)
+	handler := server.StaticFileServer(root)
 	return promhttp.InstrumentHandlerCounter(
 		httpCnt.MustCurryWith(prometheus.Labels{"handler": "static"}),
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
