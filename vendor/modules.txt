@@ -25,6 +25,7 @@ github.com/prometheus/common/log
 github.com/prometheus/common/version
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
+github.com/prometheus/common/server
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 # github.com/prometheus/procfs v0.0.0-20190507164030-5867b95ac084
 github.com/prometheus/procfs
