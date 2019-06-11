@@ -13,11 +13,6 @@
 
 include Makefile.common
 
-STATICCHECK_IGNORE = \
-  github.com/prometheus/pushgateway/handler/delete.go:SA1019 \
-  github.com/prometheus/pushgateway/handler/push.go:SA1019 \
-  github.com/prometheus/pushgateway/main.go:SA1019
-
 DOCKER_IMAGE_NAME ?= pushgateway
 
 assets:
