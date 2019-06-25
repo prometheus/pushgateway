@@ -66,6 +66,9 @@ func Status(
 				"value": func(f float64) string {
 					return strconv.FormatFloat(f, 'f', -1, 64)
 				},
+				"timeFormat": func(t time.Time) string {
+					return t.Format(time.RFC3339)
+				},
 			})
 
 			externalURL := flags["web.external-url"]

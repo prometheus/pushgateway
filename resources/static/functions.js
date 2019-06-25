@@ -5,15 +5,15 @@ pushgateway.labels = {};
 pushgateway.panel = null;
 
 pushgateway.switchToMetrics = function(){
-    $('#metrics-div').removeClass('hidden');
-    $('#status-div').addClass('hidden');
+    $('#metrics-div').show();
+    $('#status-div').hide();
     $('#metrics-li').addClass('active');
     $('#status-li').removeClass('active');
 }
 
 pushgateway.switchToStatus = function(){
-    $('#metrics-div').addClass('hidden');
-    $('#status-div').removeClass('hidden');
+    $('#metrics-div').hide();
+    $('#status-div').show();
     $('#metrics-li').removeClass('active');
     $('#status-li').addClass('active');
 }
@@ -59,3 +59,18 @@ pushgateway.deleteGroup = function(){
 	}
     });
 }
+
+$(function () {
+    $('div.collapse').on('show.bs.collapse', function (event) {
+	$(this).prev().find('span.toggle-icon')
+	    .removeClass('glyphicon-collapse-down')
+	    .addClass('glyphicon-collapse-up');
+	event.stopPropagation();
+    })
+    $('div.collapse').on('hide.bs.collapse', function (event) {
+	$(this).prev().find('span.toggle-icon')
+	    .removeClass('glyphicon-collapse-up')
+	    .addClass('glyphicon-collapse-down');
+	event.stopPropagation();
+    })
+})
