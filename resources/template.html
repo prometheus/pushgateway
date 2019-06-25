@@ -96,7 +96,6 @@ limitations under the License.
 			<tr>
 			  <th>Labels</th>
 			  <th>Value</th>
-			  <th>Timestamp</th>
 			</tr>
 		      </thead>
 		      <tbody>
@@ -156,11 +155,6 @@ limitations under the License.
     			    {{end}}
 			    {{end}}
 			    {{end}}
-			    {{end}}
-			  </td>
-			  <td>
-			    {{if .TimestampMs}}
-			    {{$t := .TimestampMs | $data.FormatTimestamp}}{{$t}} {{/* Indirection via $t needed. Bug in template/html? */}}
 			    {{end}}
 			  </td>
 			</tr>
