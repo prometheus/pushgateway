@@ -19,6 +19,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-kit/kit/log"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
@@ -26,6 +28,8 @@ import (
 
 	"github.com/prometheus/pushgateway/storage"
 )
+
+var logger = log.NewNopLogger()
 
 type MockMetricStore struct {
 	lastWriteRequest storage.WriteRequest
@@ -79,7 +83,7 @@ func TestHealthyReady(t *testing.T) {
 
 func TestPush(t *testing.T) {
 	mms := MockMetricStore{}
-	handler := Push(&mms, false)
+	handler := Push(&mms, false, logger)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
@@ -343,7 +347,7 @@ another_metric{instance="baz"} 42
 
 func TestDelete(t *testing.T) {
 	mms := MockMetricStore{}
-	handler := Delete(&mms)
+	handler := Delete(&mms, logger)
 
 	// No job name.
 	mms.lastWriteRequest = storage.WriteRequest{}

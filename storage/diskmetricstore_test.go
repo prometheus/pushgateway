@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/kit/log"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
@@ -31,6 +33,7 @@ import (
 )
 
 var (
+	logger = log.NewNopLogger()
 	// Example metric families.
 	mf1a = &dto.MetricFamily{
 		Name: proto.String("mf1"),
@@ -523,7 +526,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 	fileName := path.Join(tempDir, "persistence")
-	dms := NewDiskMetricStore(fileName, 100*time.Millisecond, nil)
+	dms := NewDiskMetricStore(fileName, 100*time.Millisecond, nil, logger)
 
 	// Submit a single simple metric family.
 	ts1 := time.Now()
@@ -591,7 +594,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 
 	// Load it again.
-	dms = NewDiskMetricStore(fileName, 100*time.Millisecond, nil)
+	dms = NewDiskMetricStore(fileName, 100*time.Millisecond, nil, logger)
 	if err := checkMetricFamilies(dms, mf1a, mf2, mf3, mf5); err != nil {
 		t.Error(err)
 	}
@@ -688,7 +691,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 }
 
 func TestNoPersistence(t *testing.T) {
-	dms := NewDiskMetricStore("", 100*time.Millisecond, nil)
+	dms := NewDiskMetricStore("", 100*time.Millisecond, nil, logger)
 
 	ts1 := time.Now()
 	dms.SubmitWriteRequest(WriteRequest{
@@ -708,7 +711,7 @@ func TestNoPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dms = NewDiskMetricStore("", 100*time.Millisecond, nil)
+	dms = NewDiskMetricStore("", 100*time.Millisecond, nil, logger)
 	if err := checkMetricFamilies(dms); err != nil {
 		t.Error(err)
 	}
@@ -730,7 +733,7 @@ func TestGetMetricFamiliesMap(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 	fileName := path.Join(tempDir, "persistence")
 
-	dms := NewDiskMetricStore(fileName, 100*time.Millisecond, nil)
+	dms := NewDiskMetricStore(fileName, 100*time.Millisecond, nil, logger)
 
 	labels1 := map[string]string{
 		"job":      "job1",
@@ -784,7 +787,7 @@ func TestGetMetricFamiliesMap(t *testing.T) {
 }
 
 func TestHelpStringFix(t *testing.T) {
-	dms := NewDiskMetricStore("", 100*time.Millisecond, prometheus.DefaultGatherer)
+	dms := NewDiskMetricStore("", 100*time.Millisecond, prometheus.DefaultGatherer, logger)
 
 	ts1 := time.Now()
 	dms.SubmitWriteRequest(WriteRequest{

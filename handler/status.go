@@ -22,11 +22,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -56,6 +58,7 @@ func Status(
 	ms storage.MetricStore,
 	root http.FileSystem,
 	flags map[string]string,
+	logger log.Logger,
 ) http.Handler {
 	birth := time.Now()
 	return promhttp.InstrumentHandlerCounter(
@@ -81,20 +84,20 @@ func Status(
 			f, err := root.Open("template.html")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-				log.Errorf("Error loading template.html, %v", err.Error())
+				level.Error(logger).Log("msg", "error loading template.html", "err", err.Error())
 				return
 			}
 			defer f.Close()
 			tpl, err := ioutil.ReadAll(f)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-				log.Errorf("Error reading template.html, %v", err.Error())
+				level.Error(logger).Log("msg", "error reading template.html", "err", err.Error())
 				return
 			}
 			_, err = t.Parse(string(tpl))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-				log.Errorf("Error parsing template, %v", err.Error())
+				level.Error(logger).Log("msg", "error parsing template", "err", err.Error())
 				return
 			}
 

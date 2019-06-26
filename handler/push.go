@@ -23,13 +23,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
-	"github.com/prometheus/common/log"
+
 	"github.com/prometheus/common/model"
 
 	dto "github.com/prometheus/client_model/go"
@@ -48,7 +51,7 @@ const (
 //
 // The returned handler is already instrumented for Prometheus.
 func Push(
-	ms storage.MetricStore, replace bool,
+	ms storage.MetricStore, replace bool, logger log.Logger,
 ) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
@@ -61,12 +64,12 @@ func Push(
 		labels, err := splitLabels(labelsString)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			log.Debugf("Failed to parse URL: %v, %v", labelsString, err.Error())
+			level.Debug(logger).Log("msg", "failed to parse URL", "url", labelsString, "err", err.Error())
 			return
 		}
 		if job == "" {
 			http.Error(w, "job name is required", http.StatusBadRequest)
-			log.Debug("job name is required")
+			level.Debug(logger).Log("msg", "job name is required")
 			return
 		}
 		labels["job"] = job
@@ -103,12 +106,12 @@ func Push(
 		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			log.Debugf("Failed to parse text, %v", err.Error())
+			level.Debug(logger).Log("msg", "failed to parse text", "err", err.Error())
 			return
 		}
 		if timestampsPresent(metricFamilies) {
 			http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
-			log.Debug("pushed metrics must not have timestamps")
+			level.Debug(logger).Log("msg", "pushed metrics must not have timestamps")
 			return
 		}
 		now := time.Now()
