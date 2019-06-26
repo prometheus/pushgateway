@@ -15,89 +15,87 @@ limitations under the License.
 */}}
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="robots" content="noindex,nofollow">
     <title>Prometheus Pushgateway</title>
 
-    <script src="{{.BaseURL}}/static/jquery-2.1.4.min.js"></script>
-    <link rel="stylesheet" href="{{.BaseURL}}/static/bootstrap-3.3.4-dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{.BaseURL}}/static/bootstrap-3.3.4-dist/css/bootstrap-theme.min.css">
-    <script src="{{.BaseURL}}/static/bootstrap-3.3.4-dist/js/bootstrap.min.js"></script>
-    <script src="{{.BaseURL}}/static/functions.js"></script>
+    <link rel="shortcut icon" href="{{.BaseURL}}/static/favicon.ico?v={{.BuildInfo.revision}}">
 
-    <style type="text/css">
-      .cursor-pointer {
-        cursor: pointer;
-      }
-    </style>
+    <script src="{{.BaseURL}}/static/jquery-3.4.1.min.js?v={{.BuildInfo.revision}}"></script>
+    <script src="{{.BaseURL}}/static/bootstrap-4.3.1-dist/js/bootstrap.min.js?v={{.BuildInfo.revision}}"></script>
+    <script src="{{.BaseURL}}/static/functions.js?v={{.BuildInfo.revision}}"></script>
+
+    <link type="text/css" rel="stylesheet" href="{{.BaseURL}}/static/bootstrap-4.3.1-dist/css/bootstrap.min.css?v={{.BuildInfo.revision}}">
+    <link type="text/css" rel="stylesheet" href="{{.BaseURL}}/static/prometheus.css?v={{.BuildInfo.revision}}">
+    <link type="text/css" rel="stylesheet" href="{{.BaseURL}}/static/bootstrap4-glyphicons/css/bootstrap-glyphicons.min.css?v={{.BuildInfo.revision}}">
   </head>
+
   <body>
-  <nav class="navbar navbar-inverse" role="navigation">
+  <nav class="navbar fixed-top navbar-expand-sm navbar-dark bg-dark">
     <div class="container-fluid">
-      <!-- Brand and toggle get grouped for better mobile display -->
-      <div class="navbar-header">
-	<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse-1">
-          <span class="sr-only">Toggle navigation</span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-	</button>
-	<a class="navbar-brand" href="#">Pushgateway</a>
-      </div>
+      <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#nav-content" aria-expanded="false" aria-controls="nav-content" aria-label="Toggle navigation">
+	<span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand" href="#">Pushgateway</a>
       <!-- Collect the nav links, forms, and other content for toggling -->
-      <div class="collapse navbar-collapse" id="navbar-collapse-1">
-	<ul class="nav navbar-nav">
-          <li onclick="pushgateway.switchToMetrics()"
-	      id="metrics-li" class="active">
-	    <a href="#">Metrics</a>
+      <div id="nav-content" class="navbar-collapse collapse">
+	<ul class="navbar-nav">
+          <li class="nav-item active" onclick="pushgateway.switchToMetrics()" id="metrics-li">
+	    <a class="nav-link" href="#">Metrics</a>
 	  </li>
-          <li onclick="pushgateway.switchToStatus()"
-	      id="status-li">
-	    <a href="#">Status</a>
+          <li class="nav-item" onclick="pushgateway.switchToStatus()" id="status-li">
+	    <a class="nav-link" href="#">Status</a>
 	  </li>
+          <li class="nav-item" >
+            <a class ="nav-link" href="https://github.com/prometheus/pushgateway/blob/master/README.md" target="_blank">Help</a>
+          </li>
 	</ul>
       </div>
     </div>
   </nav>
+  
   <div class="container-fluid" id="metrics-div">
     {{$data := .}}
-    <div class="panel-group" id="job-accordion">
+    <div class="accordion" id="job-accordion">
       {{range .MetricGroups}}
       {{$gCount := $data.Count}}
-      <div class="panel panel-default" id="group-panel-{{$gCount}}">
-	<div class="panel-heading cursor-pointer" data-toggle="collapse" data-parent="#job-accordion" data-target="#j-{{$gCount}}">
-	  <h4 class="panel-title">
-	    <span class="caret"></span>
+      <div class="card">
+	<div class="card-header" id="group-panel-{{$gCount}}">
+	  <h2 class="mb-0">
+	    <button class="btn btn-secondary collapsed" type="button" data-toggle="collapse" data-target="#j-{{$gCount}}" aria-expanded="false" aria-controls="j-{{$gCount}}">
+	    <span class="toggle-icon glyphicon glyphicon-collapse-down"></span>
 	    {{$metricGroup := .}}
 	    {{range $i, $ln := .SortedLabels}}
-	    <span class="label {{if eq $ln "job"}}label-warning{{else if eq $ln "instance"}}label-primary{{else}}label-info{{end}}">{{$ln}}="{{index $metricGroup.Labels $ln}}"</span>
+	      <span class="badge {{if eq $ln "job"}}badge-warning{{else if eq $ln "instance"}}badge-primary{{else}}badge-info{{end}}">{{$ln}}="{{index $metricGroup.Labels $ln}}"</span>
 	    {{end}}
-	    <button class="btn btn-xs btn-danger pull-right" onclick="pushgateway.showDelModal({ {{range $i, $ln := .SortedLabels}}{{if $i}}, {{end}}'{{$ln}}': '{{index $metricGroup.Labels $ln}}'{{end}} }, 'group-panel-{{$gCount}}', event)">Delete Group</button>
-	  </h4>
+	    </button>	     
+	    <button class="btn btn-xs btn-danger float-right" onclick="pushgateway.showDelModal({ {{range $i, $ln := .SortedLabels}}{{if $i}}, {{end}}'{{$ln}}': '{{index $metricGroup.Labels $ln}}'{{end}} }, 'group-panel-{{$gCount}}', event)">Delete Group</button>
+	  </h2>
 	</div>
-	<div id="j-{{$gCount}}" class="panel-collapse collapse">
-	  <div class="panel-body">
-	    <div class="panel-group" id="metric-accordion-{{$gCount}}">
+	<div id="j-{{$gCount}}" class="collapse" aria-labelledby="group-panel-{{$gCount}}" data-parent="#job-accordion">
+	  <div class="card-body">
+	    <div class="accordion" id="metric-accordion-{{$gCount}}">
 	      {{range $name, $tmf := .Metrics }}
 	      {{$mCount := $data.Count}}
-	      <div class="panel panel-default">
-		<div class="panel-heading cursor-pointer" data-toggle="collapse" data-parent="#metric-accordion-{{$gCount}}" data-target="#m-{{$mCount}}">
-		  <h4 class="panel-title">
-		    <span class="caret"></span>
-		    {{$name}}
-		    <span class="badge">{{$tmf.GetMetricFamily.GetHelp}}</span>
-		    <span class="label label-success">{{$tmf.GetMetricFamily.GetType}}</span>
-		    last pushed: {{$tmf.Timestamp}}
+	      <div class="card">
+		<div class="card-header" id="metric-panel-{{$mCount}}">
+		  <h2 class="mb-0">
+		    <button class="btn btn-secondary collapsed" type="button" data-toggle="collapse" data-target="#m-{{$mCount}}" aria-expanded="false" aria-controls="#m-{{$mCount}}">
+		      <span class="toggle-icon glyphicon glyphicon-collapse-down"></span>
+		      {{$name}}
+		      <span class="badge badge-light">{{$tmf.GetMetricFamily.GetHelp}}</span>
+		      <span class="badge badge-success">{{$tmf.GetMetricFamily.GetType}}</span>
+		      last pushed: {{$tmf.Timestamp | timeFormat }}
+		    </button>
 		  </h4>
 		</div>
-		<div id="m-{{$mCount}}" class="panel-collapse collapse">
-		  <div class="panel-body">
-		    <table class="table table-striped table-bordered table-hover">
+		<div id="m-{{$mCount}}" class="collapse" aria-labelledby="metric-panel-{{$mCount}}" data-parent="#metric-accordion-{{$gCount}}" >
+		  <div class="card-body">
+		    <table class="table table-striped table-bordered">
 		      <thead>
 			<tr>
 			  <th>Labels</th>
 			  <th>Value</th>
-			  <th>Timestamp</th>
 			</tr>
 		      </thead>
 		      <tbody>
@@ -105,7 +103,7 @@ limitations under the License.
 			<tr>
 			  <td>
 			    {{range .Label}}
-			    <span class="label {{if eq .GetName "job"}}label-warning{{else if eq .GetName "instance"}}label-primary{{else}}label-info{{end}}">{{.Name}}="{{.GetValue}}"</span>
+			    <span class="badge {{if eq .GetName "job"}}badge-warning{{else if eq .GetName "instance"}}badge-primary{{else}}badge-info{{end}}">{{.Name}}="{{.GetValue}}"</span>
 			    {{end}}
 			  </td>
 			  <td>
@@ -119,7 +117,7 @@ limitations under the License.
 			    {{value .GetValue}}
 			    {{else}}
 			    {{with .Summary}}
-			    <table class="table table-striped table-bordered table-hover">
+			    <table class="table table-striped table-bordered">
 			      {{range .Quantile}}
 			      <tr>
 				<th scope="row">Quantile {{.GetQuantile}}</th>
@@ -137,7 +135,7 @@ limitations under the License.
 			    </table>
 			    {{else}}
 			    {{with .Histogram}}
-			    <table class="table table-striped table-bordered table-hover">
+			    <table class="table table-striped table-bordered">
 			      {{range .Bucket}}
 			      <tr>
 				<th scope="row">Sample values &le; {{value .GetUpperBound}}</th>
@@ -159,11 +157,6 @@ limitations under the License.
 			    {{end}}
 			    {{end}}
 			  </td>
-			  <td>
-			    {{if .TimestampMs}}
-			    {{$t := .TimestampMs | $data.FormatTimestamp}}{{$t}} {{/* Indirection via $t needed. Bug in template/html? */}}
-			    {{end}}
-			  </td>
 			</tr>
 			{{end}}
 		      </tbody>
@@ -179,9 +172,9 @@ limitations under the License.
       {{end}}
     </div>
   </div>
-  <div class="container-fluid hidden" id="status-div">
+  <div class="container-fluid" id="status-div" style="display: none;">
     <h2>Runtime Information</h2>
-    <table class="table table-condensed table-bordered table-striped table-hover">
+    <table class="table table-condensed table-bordered table-striped">
       <tbody>
         <tr>
           <th>Started</th>
@@ -191,7 +184,7 @@ limitations under the License.
     </table>
 
     <h2>Build Information</h2>
-    <table class="table table-condensed table-bordered table-striped table-hover">
+    <table class="table table-condensed table-bordered table-striped">
       <tbody>
         {{range $key, $value := .BuildInfo}}
         <tr>
@@ -203,7 +196,7 @@ limitations under the License.
     </table>
 
     <h2>Startup Flags</h2>
-    <table class="table table-condensed table-bordered table-striped table-hover">
+    <table class="table table-condensed table-bordered table-striped">
       <tbody>
         {{range $key, $value := .Flags}}
         <tr>
@@ -214,30 +207,22 @@ limitations under the License.
       </tbody>
     </table>
   </div>
-  <div class="container-fluid">
-    <hr class="clear-top">
-    <footer>
-      <p>
-        <a href="https://github.com/prometheus/pushgateway">Code</a>
-        <a href="https://prometheus.io/community/">Community</a>
-        © Prometheus Authors 2014
-      </p>
-    </footer>
-  </div>
 
   <!-- del modal -->
   <div id="del-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="del-header" aria-hidden="true">
     <div class="modal-dialog modal-sm">
       <div class="modal-content">
 	<div class="modal-header">
-	  <button type="button" class="close" data-dismiss="modal">&times;</button>
-	  <h3 id="del-header">Deletion Confirmation</h3>
+	  <h5 class="modal-title">Deletion Confirmation</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
 	</div>
 	<div class="modal-body">
 	  <p id="del-modal-msg"><!-- To be filled dynamically. --></p>
 	</div>
 	<div class="modal-footer">
-	  <button class="btn" data-dismiss="modal">Cancel</button>
+	  <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
 	  <button class="btn btn-primary btn-danger" onclick="pushgateway.deleteGroup()">Delete</button>
 	</div>
       </div>
