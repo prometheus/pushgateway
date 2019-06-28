@@ -114,6 +114,7 @@ func main() {
 	l, err := net.Listen("tcp", *listenAddress)
 	if err != nil {
 		level.Error(logger).Log("err", err)
+		os.Exit(1)
 	}
 	go interruptHandler(l, logger)
 	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
