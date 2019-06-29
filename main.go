@@ -32,11 +32,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
-	promlogflag "github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	dto "github.com/prometheus/client_model/go"
+	promlogflag "github.com/prometheus/common/promlog/flag"
 
 	"github.com/prometheus/pushgateway/asset"
 	"github.com/prometheus/pushgateway/handler"
@@ -67,10 +67,10 @@ func main() {
 	logger := promlog.New(&promlogConfig)
 	*routePrefix = computeRoutePrefix(*routePrefix, *externalURL)
 
-	level.Info(logger).Log("msg", "Starting pushgateway", "version", version.Info())
+	level.Info(logger).Log("msg", "starting pushgateway", "version", version.Info())
 	level.Info(logger).Log("build_context", version.BuildContext())
-	level.Debug(logger).Log("msg", "Prefix path", "path", *routePrefix)
-	level.Debug(logger).Log("msg", "External URL", "url", *externalURL)
+	level.Debug(logger).Log("msg", "prefix path", "path", *routePrefix)
+	level.Debug(logger).Log("msg", "external URL", "url", *externalURL)
 
 	(*externalURL).Path = ""
 
@@ -124,7 +124,7 @@ func main() {
 	// are done) to not delay the shutdown.
 	time.Sleep(time.Second)
 	if err := ms.Shutdown(); err != nil {
-		level.Error(logger).Log("msg", "Problem shutting down metric storage", "err", err)
+		level.Error(logger).Log("msg", "problem shutting down metric storage", "err", err)
 	}
 }
 
@@ -166,6 +166,6 @@ func interruptHandler(l net.Listener, logger log.Logger) {
 	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 	<-notifier
-	level.Info(logger).Log("msg", "Received SIGINT/SIGTERM; exiting gracefully...")
+	level.Info(logger).Log("msg", "received SIGINT/SIGTERM; exiting gracefully...")
 	l.Close()
 }

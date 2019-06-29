@@ -24,7 +24,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
@@ -136,7 +135,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 			} else {
 				copied := false
 				if help, ok := dms.predefinedHelp[name]; ok && mf.GetHelp() != help {
-					level.Info(dms.logger).Log("msg", "metric family has the same name as a metric family used by the Pushgateway itself but it has a different help string. Changing it to the standard help string. This is bad. Fix your pushed metrics!", "metric", mf, "help", help)
+					level.Info(dms.logger).Log("msg", "Metric family has the same name as a metric family used by the Pushgateway itself but it has a different help string. Changing it to the standard help string. This is bad. Fix your pushed metrics!", "metric_family", mf, "standard_help", help)
 					mf = copyMetricFamily(mf)
 					copied = true
 					mf.Help = proto.String(help)
@@ -194,7 +193,7 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 					if err := dms.persist(); err != nil {
 						level.Error(dms.logger).Log("msg", "error persisting metrics", "err", err)
 					} else {
-						level.Info(dms.logger).Log("msg", "Metrics persisted", "file", dms.persistenceFile)
+						level.Info(dms.logger).Log("msg", "metrics persisted", "file", dms.persistenceFile)
 					}
 					persistDone <- persistStarted
 				},

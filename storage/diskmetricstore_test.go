@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"

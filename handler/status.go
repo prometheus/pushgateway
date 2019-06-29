@@ -24,10 +24,9 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/pushgateway/storage"
