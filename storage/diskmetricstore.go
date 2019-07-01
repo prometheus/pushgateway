@@ -127,7 +127,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 					result[stat.pos] = existingMF
 				}
 				if mf.GetHelp() != existingMF.GetHelp() {
-					level.Info(dms.logger).Log("msg", "metric famlies have inconsistent help strings", "new", mf, "old", existingMF)
+					level.Info(dms.logger).Log("msg", "metric families inconsistent help strings", "err", "Metric families have inconsistent help strings. The latter will have priority. This is bad. Fix your pushed metrics!", "new", mf, "old", existingMF)
 				}
 				// Type inconsistency cannot be fixed here. We will detect it during
 				// gathering anyway, so no reason to log anything here.
@@ -135,7 +135,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 			} else {
 				copied := false
 				if help, ok := dms.predefinedHelp[name]; ok && mf.GetHelp() != help {
-					level.Info(dms.logger).Log("msg", "Metric family has the same name as a metric family used by the Pushgateway itself but it has a different help string. Changing it to the standard help string. This is bad. Fix your pushed metrics!", "metric_family", mf, "standard_help", help)
+					level.Info(dms.logger).Log("msg", "metric families overlap", "err", "Metric family has the same name as a metric family used by the Pushgateway itself but it has a different help string. Changing it to the standard help string. This is bad. Fix your pushed metrics!", "metric_family", mf, "standard_help", help)
 					mf = copyMetricFamily(mf)
 					copied = true
 					mf.Help = proto.String(help)
