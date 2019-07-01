@@ -31,8 +31,8 @@ func TestExternalURLPresenceInPage(t *testing.T) {
 		"web.external-url":   "http://web-external-url.com",
 	}
 
-	ms := storage.NewDiskMetricStore("", time.Minute, nil)
-	status := Status(ms, asset.Assets, flags)
+	ms := storage.NewDiskMetricStore("", time.Minute, nil, logger)
+	status := Status(ms, asset.Assets, flags, logger)
 	defer ms.Shutdown()
 
 	w := httptest.NewRecorder()

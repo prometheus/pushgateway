@@ -18,10 +18,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -29,7 +30,7 @@ import (
 // Delete returns a handler that accepts delete requests.
 //
 // The returned handler is already instrumented for Prometheus.
-func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, httprouter.Params) {
+func Delete(ms storage.MetricStore, logger log.Logger) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
 
@@ -43,12 +44,12 @@ func Delete(ms storage.MetricStore) func(http.ResponseWriter, *http.Request, htt
 			labels, err := splitLabels(labelsString)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
-				log.Debugf("Failed to parse URL: %v, %v", labelsString, err.Error())
+				level.Debug(logger).Log("msg", "failed to parse URL", "url", labelsString, "err", err.Error())
 				return
 			}
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
-				log.Debug("job name is required")
+				level.Debug(logger).Log("msg", "job name is required")
 				return
 			}
 			labels["job"] = job

@@ -26,14 +26,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	dto "github.com/prometheus/client_model/go"
+	promlogflag "github.com/prometheus/common/promlog/flag"
 
 	"github.com/prometheus/pushgateway/asset"
 	"github.com/prometheus/pushgateway/handler"
@@ -54,18 +57,20 @@ func main() {
 		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints. Defaults to the path of --web.external-url.").Default("").String()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
+		promlogConfig       = promlog.Config{}
 	)
-	log.AddFlags(app)
+	promlogflag.AddFlags(app, &promlogConfig)
 	app.Version(version.Print("pushgateway"))
 	app.HelpFlag.Short('h')
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
+	logger := promlog.New(&promlogConfig)
 	*routePrefix = computeRoutePrefix(*routePrefix, *externalURL)
 
-	log.Infoln("Starting pushgateway", version.Info())
-	log.Infoln("Build context", version.BuildContext())
-	log.Debugf("Prefix path is '%s'", *routePrefix)
-	log.Debugf("External URL is '%s'", *externalURL)
+	level.Info(logger).Log("msg", "starting pushgateway", "version", version.Info())
+	level.Info(logger).Log("build_context", version.BuildContext())
+	level.Debug(logger).Log("msg", "prefix path", "path", *routePrefix)
+	level.Debug(logger).Log("msg", "external URL", "url", *externalURL)
 
 	(*externalURL).Path = ""
 
@@ -74,7 +79,7 @@ func main() {
 		flags[f.Name] = f.Value.String()
 	}
 
-	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer)
+	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer, logger)
 
 	// Inject the metric families returned by ms.GetMetricFamilies into the default Gatherer:
 	prometheus.DefaultGatherer = prometheus.Gatherers{
@@ -89,36 +94,37 @@ func main() {
 
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"
-	r.PUT(pushAPIPath+"/job/:job/*labels", handler.Push(ms, true))
-	r.POST(pushAPIPath+"/job/:job/*labels", handler.Push(ms, false))
-	r.DELETE(pushAPIPath+"/job/:job/*labels", handler.Delete(ms))
-	r.PUT(pushAPIPath+"/job/:job", handler.Push(ms, true))
-	r.POST(pushAPIPath+"/job/:job", handler.Push(ms, false))
-	r.DELETE(pushAPIPath+"/job/:job", handler.Delete(ms))
+	r.PUT(pushAPIPath+"/job/:job/*labels", handler.Push(ms, true, logger))
+	r.POST(pushAPIPath+"/job/:job/*labels", handler.Push(ms, false, logger))
+	r.DELETE(pushAPIPath+"/job/:job/*labels", handler.Delete(ms, logger))
+	r.PUT(pushAPIPath+"/job/:job", handler.Push(ms, true, logger))
+	r.POST(pushAPIPath+"/job/:job", handler.Push(ms, false, logger))
+	r.DELETE(pushAPIPath+"/job/:job", handler.Delete(ms, logger))
 
 	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets, *routePrefix))
 
-	statusHandler := handler.Status(ms, asset.Assets, flags)
+	statusHandler := handler.Status(ms, asset.Assets, flags, logger)
 	r.Handler("GET", *routePrefix+"/status", statusHandler)
 	r.Handler("GET", *routePrefix+"/", statusHandler)
 
 	// Re-enable pprof.
 	r.GET(*routePrefix+"/debug/pprof/*pprof", handlePprof)
 
-	log.Infof("Listening on %s.", *listenAddress)
+	level.Info(logger).Log("listen_address", *listenAddress)
 	l, err := net.Listen("tcp", *listenAddress)
 	if err != nil {
-		log.Fatal(err)
+		level.Error(logger).Log("err", err)
+		os.Exit(1)
 	}
-	go interruptHandler(l)
+	go interruptHandler(l, logger)
 	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
-	log.Errorln("HTTP server stopped:", err)
+	level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections
 	// are done) to not delay the shutdown.
 	time.Sleep(time.Second)
 	if err := ms.Shutdown(); err != nil {
-		log.Errorln("Problem shutting down metric storage:", err)
+		level.Error(logger).Log("msg", "problem shutting down metric storage", "err", err)
 	}
 }
 
@@ -156,10 +162,10 @@ func computeRoutePrefix(prefix string, externalURL *url.URL) string {
 	return prefix
 }
 
-func interruptHandler(l net.Listener) {
+func interruptHandler(l net.Listener, logger log.Logger) {
 	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 	<-notifier
-	log.Info("Received SIGINT/SIGTERM; exiting gracefully...")
+	level.Info(logger).Log("msg", "received SIGINT/SIGTERM; exiting gracefully...")
 	l.Close()
 }

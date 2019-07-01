@@ -22,9 +22,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 
 	dto "github.com/prometheus/client_model/go"
@@ -44,6 +45,7 @@ type DiskMetricStore struct {
 	metricGroups    GroupingKeyToMetricGroup
 	persistenceFile string
 	predefinedHelp  map[string]string
+	logger          log.Logger
 }
 
 type mfStat struct {
@@ -68,6 +70,7 @@ func NewDiskMetricStore(
 	persistenceFile string,
 	persistenceInterval time.Duration,
 	gaptherPredefinedHelpFrom prometheus.Gatherer,
+	logger log.Logger,
 ) *DiskMetricStore {
 	// TODO: Do that outside of the constructor to allow the HTTP server to
 	//  serve /-/healthy and /-/ready earlier.
@@ -77,14 +80,15 @@ func NewDiskMetricStore(
 		done:            make(chan error),
 		metricGroups:    GroupingKeyToMetricGroup{},
 		persistenceFile: persistenceFile,
+		logger:          logger,
 	}
 	if err := dms.restore(); err != nil {
-		log.Errorln("Could not load persisted metrics:", err)
+		level.Error(logger).Log("msg", "could not load persisted metrics", "err", err)
 	}
 	if helpStrings, err := extractPredefinedHelpStrings(gaptherPredefinedHelpFrom); err == nil {
 		dms.predefinedHelp = helpStrings
 	} else {
-		log.Errorln("Could not gather metrics for predefined help strings:", err)
+		level.Error(logger).Log("msg", "could not gather metrics for predefined help strings", "err", err)
 	}
 
 	go dms.loop(persistenceInterval)
@@ -108,7 +112,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 		for name, tmf := range group.Metrics {
 			mf := tmf.GetMetricFamily()
 			if mf == nil {
-				log.Warn("Storage corruption detected, consider wiping the persistence file.")
+				level.Warn(dms.logger).Log("msg", "storage corruption detected, consider wiping the persistence file")
 				continue
 			}
 			stat, exists := mfStatByName[name]
@@ -123,10 +127,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 					result[stat.pos] = existingMF
 				}
 				if mf.GetHelp() != existingMF.GetHelp() {
-					log.Infof(
-						"Metric families '%s' and '%s' have inconsistent help strings. The latter will have priority. This is bad. Fix your pushed metrics!",
-						mf, existingMF,
-					)
+					level.Info(dms.logger).Log("msg", "metric families inconsistent help strings", "err", "Metric families have inconsistent help strings. The latter will have priority. This is bad. Fix your pushed metrics!", "new", mf, "old", existingMF)
 				}
 				// Type inconsistency cannot be fixed here. We will detect it during
 				// gathering anyway, so no reason to log anything here.
@@ -134,7 +135,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 			} else {
 				copied := false
 				if help, ok := dms.predefinedHelp[name]; ok && mf.GetHelp() != help {
-					log.Infof("Metric family '%s' has the same name as a metric family used by the Pushgateway itself but it has a different help string. Changing it to the standard help string %q. This is bad. Fix your pushed metrics!", mf, help)
+					level.Info(dms.logger).Log("msg", "metric families overlap", "err", "Metric family has the same name as a metric family used by the Pushgateway itself but it has a different help string. Changing it to the standard help string. This is bad. Fix your pushed metrics!", "metric_family", mf, "standard_help", help)
 					mf = copyMetricFamily(mf)
 					copied = true
 					mf.Help = proto.String(help)
@@ -190,12 +191,9 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 				func() {
 					persistStarted := time.Now()
 					if err := dms.persist(); err != nil {
-						log.Errorln("Error persisting metrics:", err)
+						level.Error(dms.logger).Log("msg", "error persisting metrics", "err", err)
 					} else {
-						log.Infof(
-							"Metrics persisted to '%s'.",
-							dms.persistenceFile,
-						)
+						level.Info(dms.logger).Log("msg", "metrics persisted", "file", dms.persistenceFile)
 					}
 					persistDone <- persistStarted
 				},
