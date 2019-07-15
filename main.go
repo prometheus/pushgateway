@@ -14,6 +14,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -45,6 +46,13 @@ import (
 
 func init() {
 	prometheus.MustRegister(version.NewCollector("pushgateway"))
+}
+
+// logFunc in an adaptor to plug gokit logging into promhttp.HandlerOpts.
+type logFunc func(...interface{}) error
+
+func (lf logFunc) Println(v ...interface{}) {
+	lf("msg", fmt.Sprintln(v...))
 }
 
 func main() {
@@ -90,7 +98,12 @@ func main() {
 	r := httprouter.New()
 	r.Handler("GET", *routePrefix+"/-/healthy", handler.Healthy(ms))
 	r.Handler("GET", *routePrefix+"/-/ready", handler.Ready(ms))
-	r.Handler("GET", path.Join(*routePrefix, *metricsPath), promhttp.Handler())
+	r.Handler(
+		"GET", path.Join(*routePrefix, *metricsPath),
+		promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{
+			ErrorLog: logFunc(level.Error(logger).Log),
+		}),
+	)
 
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"
