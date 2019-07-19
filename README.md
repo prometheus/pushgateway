@@ -17,7 +17,13 @@ The Pushgateway is explicitly not an _aggregator or distributed counter_ but
 rather a metrics cache. It does not have
 [statsd](https://github.com/etsy/statsd)-like semantics. The metrics pushed are
 exactly the same as you would present for scraping in a permanently running
-program. If you need distributed counting, you could either use the actual statsd in combination with the [Prometheus statsd exporter](https://github.com/prometheus/statsd_exporter), or have a look at [Weavework's aggregation gateway](https://github.com/weaveworks/prom-aggregation-gateway). With more experience gathered, the Prometheus project might one day be able to provide a native solution, separate from or possibly even as part of the Pushgateway.
+program. If you need distributed counting, you could either use the actual
+statsd in combination with the [Prometheus statsd
+exporter](https://github.com/prometheus/statsd_exporter), or have a look at
+[Weavework's aggregation
+gateway](https://github.com/weaveworks/prom-aggregation-gateway). With more
+experience gathered, the Prometheus project might one day be able to provide a
+native solution, separate from or possibly even as part of the Pushgateway.
 
 For machine-level metrics, the
 [textfile](https://github.com/prometheus/node_exporter/blob/master/README.md#textfile-collector)
@@ -87,14 +93,17 @@ separate CLI is provided. Simply use a command-line HTTP tool like
 `curl`. Your favorite scripting language has most likely some built-in
 HTTP capabilities you can leverage here as well.
 
-*Caveat: Note that in the text protocol, each line has to end with a
-line-feed character (aka 'LF' or '\n'). Ending a line in other ways,
-e.g. with 'CR' aka '\r', 'CRLF' aka '\r\n', or just the end of the
-packet, will result in a protocol error.*
+*Note that in the text protocol, each line has to end with a line-feed
+character (aka 'LF' or '\n'). Ending a line in other ways, e.g. with 'CR' aka
+'\r', 'CRLF' aka '\r\n', or just the end of the packet, will result in a
+protocol error.*
 
 Pushed metrics are managed in groups, identified by a grouping key of any
-number of labels, of which one must be the `job` label. The groups are easy to
-inspect via the web interface.
+number of labels, of which the first must be the `job` label. The groups are
+easy to inspect via the web interface.
+
+*For implications of special characters in label values see the [URL
+section](#url) below.*
 
 Examples:
 
@@ -181,9 +190,10 @@ be scraped at all anymore. (Prometheus knows only one timestamp per
 sample, there is no way to distinguish a 'time of pushing' and a 'time
 of scraping'.)
 
-As there are essentially no use cases where it would make sense to to attach a
+As there aren't any use cases where it would make sense to to attach a
 different timestamp, and many users attempting to incorrectly do so (despite no
-client library supporting this) any pushes with timestamps will be rejected.
+client library supporting this), the Pushgateway rejects any pushes with
+timestamps.
 
 If you think you need to push a timestamp, please see [When To Use The
 Pushgateway](https://prometheus.io/docs/practices/pushing/).
