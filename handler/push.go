@@ -14,6 +14,7 @@
 package handler
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime"
@@ -55,7 +56,12 @@ func Push(
 	var mtx sync.Mutex // Protects ps.
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		job := ps.ByName("job")
+		job, err := maybeDecodeBase64(ps.ByName("job"))
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", ps.ByName("job"), err), http.StatusBadRequest)
+			level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", ps.ByName("job"), "err", err.Error())
+			return
+		}
 		labelsString := ps.ByName("labels")
 		mtx.Unlock()
 
@@ -192,6 +198,18 @@ func sanitizeLabels(
 	}
 }
 
+// maybeDecodeBase64 returns s unchanged if it is empty or doesn't start with
+// '='. Otherwise, the leading '=' is trimmed and the remaining string is
+// decoded using the “Base 64 Encoding with URL and Filename Safe Alphabet” (RFC
+// 4648). Padding characters (i.e. trailing '=') are ignored.
+func maybeDecodeBase64(s string) (string, error) {
+	if len(s) == 0 || s[0] != '=' {
+		return s, nil
+	}
+	b, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(s[1:], "="))
+	return string(b), err
+}
+
 // splitLabels splits a labels string into a label map mapping names to values.
 func splitLabels(labels string) (map[string]string, error) {
 	result := map[string]string{}
@@ -204,11 +222,16 @@ func splitLabels(labels string) (map[string]string, error) {
 	}
 
 	for i := 0; i < len(components)-1; i += 2 {
-		if !model.LabelNameRE.MatchString(components[i]) ||
-			strings.HasPrefix(components[i], model.ReservedLabelPrefix) {
-			return nil, fmt.Errorf("improper label name %q", components[i])
+		name, value := components[i], components[i+1]
+		if !model.LabelNameRE.MatchString(name) ||
+			strings.HasPrefix(name, model.ReservedLabelPrefix) {
+			return nil, fmt.Errorf("improper label name %q", name)
 		}
-		result[components[i]] = components[i+1]
+		decodedValue, err := maybeDecodeBase64(value)
+		if err != nil {
+			return nil, fmt.Errorf("invalid base64 encoding for label %s=%q: %v", name, value, err)
+		}
+		result[name] = decodedValue
 	}
 	return result, nil
 }

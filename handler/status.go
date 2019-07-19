@@ -14,6 +14,7 @@
 package handler
 
 import (
+	"encoding/base64"
 	"fmt"
 	"html"
 	"html/template"
@@ -70,6 +71,9 @@ func Status(
 				},
 				"timeFormat": func(t time.Time) string {
 					return t.Format(time.RFC3339)
+				},
+				"base64": func(s string) string {
+					return base64.RawURLEncoding.EncodeToString([]byte(s))
 				},
 			})
 

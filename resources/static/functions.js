@@ -18,9 +18,9 @@ pushgateway.switchToStatus = function(){
     $('#status-li').addClass('active');
 }
 
-pushgateway.showDelModal = function(labels, panelID, event){
+pushgateway.showDelModal = function(labels, labelsEncoded, panelID, event){
     event.stopPropagation(); // Don't trigger accordion collapse.
-    pushgateway.labels = labels;
+    pushgateway.labels = labelsEncoded;
     pushgateway.panel = $('#' + panelID);
 
     var components = [];

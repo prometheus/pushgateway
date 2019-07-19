@@ -14,6 +14,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -37,7 +38,12 @@ func Delete(ms storage.MetricStore, logger log.Logger) func(http.ResponseWriter,
 	instrumentedHandler := promhttp.InstrumentHandlerCounter(
 		httpCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			job := ps.ByName("job")
+			job, err := maybeDecodeBase64(ps.ByName("job"))
+			if err != nil {
+				http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", ps.ByName("job"), err), http.StatusBadRequest)
+				level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", ps.ByName("job"), "err", err.Error())
+				return
+			}
 			labelsString := ps.ByName("labels")
 			mtx.Unlock()
 

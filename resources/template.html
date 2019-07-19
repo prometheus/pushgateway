@@ -69,7 +69,7 @@ limitations under the License.
 	      <span class="badge {{if eq $ln "job"}}badge-warning{{else if eq $ln "instance"}}badge-primary{{else}}badge-info{{end}}">{{$ln}}="{{index $metricGroup.Labels $ln}}"</span>
 	    {{end}}
 	    </button>	     
-	    <button class="btn btn-xs btn-danger float-right" onclick="pushgateway.showDelModal({ {{range $i, $ln := .SortedLabels}}{{if $i}}, {{end}}'{{$ln}}': '{{index $metricGroup.Labels $ln}}'{{end}} }, 'group-panel-{{$gCount}}', event)">Delete Group</button>
+	    <button class="btn btn-xs btn-danger float-right" onclick="pushgateway.showDelModal({ {{range $i, $ln := .SortedLabels}}{{if $i}}, {{end}}'{{$ln}}': '{{index $metricGroup.Labels $ln}}'{{end}} }, { {{range $i, $ln := .SortedLabels}}{{if $i}}, {{end}}'{{$ln}}': '={{index $metricGroup.Labels $ln | base64}}'{{end}} }, 'group-panel-{{$gCount}}', event)">Delete Group</button>
 	  </h2>
 	</div>
 	<div id="j-{{$gCount}}" class="collapse" aria-labelledby="group-panel-{{$gCount}}" data-parent="#job-accordion">
