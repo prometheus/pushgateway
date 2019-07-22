@@ -211,24 +211,24 @@ All pushes are done via HTTP. The interface is vaguely REST-like.
 
 The default port the push gateway is listening to is 9091. The path looks like
 
-    /metrics/job/<JOBNAME>{/<LABEL_NAME>/<LABEL_VALUE>}
+    /metrics/job/<JOB_NAME>{/<LABEL_NAME>/<LABEL_VALUE>}
 
-`<JOBNAME>` is used as the value of the `job` label, followed by any
+`<JOB_NAME>` is used as the value of the `job` label, followed by any
 number of other label pairs (which might or might not include an
 `instance` label). The label set defined by the URL path is used as a
 grouping key. Any of those labels already set in the body of the
 request (as regular labels, e.g. `name{job="foo"} 42`)
 _will be overwritten to match the labels defined by the URL path!_
 
-If the job name or any label value starts with a `=`, the remaining part is
-interpreted as a base64 encoded string according to [RFC 4648, using the URL
-and filename safe
+If `job` or any label name is suffixed with `@base64`, the following job name
+or label value is interpreted as a base64 encoded string according to [RFC
+4648, using the URL and filename safe
 alphabet](https://tools.ietf.org/html/rfc4648#section-5). (Padding is
 optional.) This is the only way of using job names or label values that contain
-a `/` or start with a `=`. For other special characters, the usual URI
-component encoding works, too, but the base64 might be more convenient.
+a `/`. For other special characters, the usual URI component encoding works,
+too, but the base64 might be more convenient.
 
-Ideally, client libraries take care of this encoding.
+Ideally, client libraries take care of the suffixing and encoding.
 
 Examples:
 
@@ -237,18 +237,17 @@ Examples:
 
 	  /metrics/job/directory_cleaner/path//var/tmp
 	  
-  Instead, use the base64 URL-safe encoding with a leading `=`:
+  Instead, use the base64 URL-safe encoding for the label value and mark it by
+  suffixing the label name with `@base64`:
   
-  	  /metrics/job/directory_cleaner/path/=L3Zhci90bXA
+  	  /metrics/job/directory_cleaner/path@base64/L3Zhci90bXA
 	  
   If you are not using a client library that handles the encoding for you, you
   can use encoding tools. For example, there is a command line tool `base64url`
   (Debian package `basez`), which you could combine with `curl` to push from
   the command line in the following way:
   
-      echo 'some_metric{foo="bar"} 3.14' | curl --data-binary @- http://pushgateway.example.org:9091/metrics/job/directory_cleaner/path/=$(echo -n '/var/tmp' | base64url)
- 
-  Note the leading `=`.
+      echo 'some_metric{foo="bar"} 3.14' | curl --data-binary @- http://pushgateway.example.org:9091/metrics/job/directory_cleaner/path@base64/$(echo -n '/var/tmp' | base64url)
   
 * The grouping key `job="titan",name="Προμηθεύς"` can be represented
   “traditionally” with URI encoding:
@@ -257,7 +256,7 @@ Examples:
 	  
   Or you can use the more compact base64 encoding:
   
-      /metrics/job/titan/name/=zqDPgc6_zrzOt864zrXPjc-C
+      /metrics/job/titan/name@base64/zqDPgc6_zrzOt864zrXPjc-C
 
 ### `PUT` method
 

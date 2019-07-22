@@ -107,13 +107,15 @@ func main() {
 
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"
-	r.PUT(pushAPIPath+"/job/:job/*labels", handler.Push(ms, true, logger))
-	r.POST(pushAPIPath+"/job/:job/*labels", handler.Push(ms, false, logger))
-	r.DELETE(pushAPIPath+"/job/:job/*labels", handler.Delete(ms, logger))
-	r.PUT(pushAPIPath+"/job/:job", handler.Push(ms, true, logger))
-	r.POST(pushAPIPath+"/job/:job", handler.Push(ms, false, logger))
-	r.DELETE(pushAPIPath+"/job/:job", handler.Delete(ms, logger))
-
+	for _, suffix := range []string{"", handler.Base64Suffix} {
+		jobBase64Encoded := suffix == handler.Base64Suffix
+		r.PUT(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, true, jobBase64Encoded, logger))
+		r.POST(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, false, jobBase64Encoded, logger))
+		r.DELETE(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Delete(ms, jobBase64Encoded, logger))
+		r.PUT(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, true, jobBase64Encoded, logger))
+		r.POST(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, false, jobBase64Encoded, logger))
+		r.DELETE(pushAPIPath+"/job"+suffix+"/:job", handler.Delete(ms, jobBase64Encoded, logger))
+	}
 	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets, *routePrefix))
 
 	statusHandler := handler.Status(ms, asset.Assets, flags, logger)
