@@ -14,6 +14,7 @@
 package handler
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime"
@@ -41,6 +42,9 @@ import (
 const (
 	pushMetricName = "push_time_seconds"
 	pushMetricHelp = "Last Unix time when this group was changed in the Pushgateway."
+	// Base64Suffix is appended to a label name in the request URL path to
+	// mark the following label value as base64 encoded.
+	Base64Suffix = "@base64"
 )
 
 // Push returns an http.Handler which accepts samples over HTTP and stores them
@@ -49,13 +53,21 @@ const (
 //
 // The returned handler is already instrumented for Prometheus.
 func Push(
-	ms storage.MetricStore, replace bool, logger log.Logger,
+	ms storage.MetricStore, replace bool, jobBase64Encoded bool, logger log.Logger,
 ) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		job := ps.ByName("job")
+		if jobBase64Encoded {
+			var err error
+			if job, err = decodeBase64(job); err != nil {
+				http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", ps.ByName("job"), err), http.StatusBadRequest)
+				level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", ps.ByName("job"), "err", err.Error())
+				return
+			}
+		}
 		labelsString := ps.ByName("labels")
 		mtx.Unlock()
 
@@ -192,6 +204,14 @@ func sanitizeLabels(
 	}
 }
 
+// decodeBase64 decodes the provided string using the “Base 64 Encoding with URL
+// and Filename Safe Alphabet” (RFC 4648). Padding characters (i.e. trailing
+// '=') are ignored.
+func decodeBase64(s string) (string, error) {
+	b, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(s, "="))
+	return string(b), err
+}
+
 // splitLabels splits a labels string into a label map mapping names to values.
 func splitLabels(labels string) (map[string]string, error) {
 	result := map[string]string{}
@@ -204,11 +224,21 @@ func splitLabels(labels string) (map[string]string, error) {
 	}
 
 	for i := 0; i < len(components)-1; i += 2 {
-		if !model.LabelNameRE.MatchString(components[i]) ||
-			strings.HasPrefix(components[i], model.ReservedLabelPrefix) {
-			return nil, fmt.Errorf("improper label name %q", components[i])
+		name, value := components[i], components[i+1]
+		trimmedName := strings.TrimSuffix(name, Base64Suffix)
+		if !model.LabelNameRE.MatchString(trimmedName) ||
+			strings.HasPrefix(trimmedName, model.ReservedLabelPrefix) {
+			return nil, fmt.Errorf("improper label name %q", trimmedName)
 		}
-		result[components[i]] = components[i+1]
+		if name == trimmedName {
+			result[name] = value
+			continue
+		}
+		decodedValue, err := decodeBase64(value)
+		if err != nil {
+			return nil, fmt.Errorf("invalid base64 encoding for label %s=%q: %v", trimmedName, value, err)
+		}
+		result[trimmedName] = decodedValue
 	}
 	return result, nil
 }

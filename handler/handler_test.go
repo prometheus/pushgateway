@@ -83,7 +83,8 @@ func TestHealthyReady(t *testing.T) {
 
 func TestPush(t *testing.T) {
 	mms := MockMetricStore{}
-	handler := Push(&mms, false, logger)
+	handler := Push(&mms, false, false, logger)
+	handlerBase64 := Push(&mms, false, true, logger)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
@@ -173,6 +174,45 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
+		t.Errorf("Wanted metric family %v, got %v.", expected, got)
+	}
+	if _, ok := mms.lastWriteRequest.MetricFamilies["push_time_seconds"]; !ok {
+		t.Errorf("Wanted metric family push_time_seconds missing.")
+	}
+
+	// With base64-encoded job name and instance name and text content.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	req, err = http.NewRequest(
+		"POST", "http://example.org/",
+		bytes.NewBufferString("some_metric 3.14\nanother_metric 42\n"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+	handlerBase64(
+		w, req,
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "dGVzdC9qb2I="},                         // job="test/job"
+			httprouter.Param{Key: "labels", Value: "/instance@base64/dGVzdGluc3RhbmNl"}, // instance="testinstance"
+		},
+	)
+	if expected, got := http.StatusAccepted, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if mms.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
+	}
+	if expected, got := "test/job", mms.lastWriteRequest.Labels["job"]; expected != got {
+		t.Errorf("Wanted job %v, got %v.", expected, got)
+	}
+	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"test/job" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
+		t.Errorf("Wanted metric family %v, got %v.", expected, got)
+	}
+	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"test/job" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 	if _, ok := mms.lastWriteRequest.MetricFamilies["push_time_seconds"]; !ok {
@@ -347,7 +387,8 @@ another_metric{instance="baz"} 42
 
 func TestDelete(t *testing.T) {
 	mms := MockMetricStore{}
-	handler := Delete(&mms, logger)
+	handler := Delete(&mms, false, logger)
+	handlerBase64 := Delete(&mms, true, logger)
 
 	// No job name.
 	mms.lastWriteRequest = storage.WriteRequest{}
@@ -407,37 +448,106 @@ func TestDelete(t *testing.T) {
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
+
+	// With base64-encoded job name and instance name.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	w = httptest.NewRecorder()
+	handlerBase64(
+		w, &http.Request{},
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "dGVzdC9qb2I="},                         // job="test/job"
+			httprouter.Param{Key: "labels", Value: "/instance@base64/dGVzdGluc3RhbmNl"}, // instance="testinstance"
+		},
+	)
+	if expected, got := http.StatusAccepted, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if mms.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
+	}
+	if expected, got := "test/job", mms.lastWriteRequest.Labels["job"]; expected != got {
+		t.Errorf("Wanted job %v, got %v.", expected, got)
+	}
+	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+
 }
 
 func TestSplitLabels(t *testing.T) {
-	properLabels := "/label_name1/label_value1/label_name2/label_value2"
-	expectedParsed := map[string]string{
-		"label_name1": "label_value1",
-		"label_name2": "label_value2",
-	}
-	parsed, err := splitLabels(properLabels)
-	if err != nil {
-		t.Errorf("Got unexpected error: %s.", err)
-	}
-	for k, v := range expectedParsed {
-		got, ok := parsed[k]
-		if !ok {
-			t.Errorf("Expected to find key %s.", k)
-		}
-		if got != v {
-			t.Errorf("Expected %s but got %s.", v, got)
-		}
+	scenarios := map[string]struct {
+		input          string
+		expectError    bool
+		expectedOutput map[string]string
+	}{
+		"regular labels": {
+			input: "/label_name1/label_value1/label_name2/label_value2",
+			expectedOutput: map[string]string{
+				"label_name1": "label_value1",
+				"label_name2": "label_value2",
+			},
+		},
+		"invalid label name": {
+			input:       "/label_name1/label_value1/a=b/label_value2",
+			expectError: true,
+		},
+		"reserved label name": {
+			input:       "/label_name1/label_value1/__label_name2/label_value2",
+			expectError: true,
+		},
+		"unencoded slash in label value": {
+			input:       "/label_name1/label_value1/label_name2/label/value2",
+			expectError: true,
+		},
+		"encoded slash in first label value ": {
+			input: "/label_name1@base64/bGFiZWwvdmFsdWUx/label_name2/label_value2",
+			expectedOutput: map[string]string{
+				"label_name1": "label/value1",
+				"label_name2": "label_value2",
+			},
+		},
+		"encoded slash in last label value": {
+			input: "/label_name1/label_value1/label_name2@base64/bGFiZWwvdmFsdWUy",
+			expectedOutput: map[string]string{
+				"label_name1": "label_value1",
+				"label_name2": "label/value2",
+			},
+		},
+		"encoded slash in last label value with padding": {
+			input: "/label_name1/label_value1/label_name2@base64/bGFiZWwvdmFsdWUy==",
+			expectedOutput: map[string]string{
+				"label_name1": "label_value1",
+				"label_name2": "label/value2",
+			},
+		},
+		"invalid base64 encoding": {
+			input:       "/label_name1@base64/foo.bar/label_name2/label_value2",
+			expectError: true,
+		},
 	}
 
-	improperLabels := "/label_name1/label_value1/a=b/label_value2"
-	_, err = splitLabels(improperLabels)
-	if err == nil {
-		t.Error("Expected splitLabels to return an error when given improper labels.")
-	}
-
-	reservedLabels := "/label_name1/label_value1/__label_name2/label_value2"
-	_, err = splitLabels(reservedLabels)
-	if err == nil {
-		t.Error("Expected splitLabels to return an error when given a reserved label.")
+	for name, scenario := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			parsed, err := splitLabels(scenario.input)
+			if err != nil {
+				if scenario.expectError {
+					return // All good.
+				}
+				t.Fatalf("Got unexpected error: %s.", err)
+			}
+			for k, v := range scenario.expectedOutput {
+				got, ok := parsed[k]
+				if !ok {
+					t.Errorf("Expected to find %s=%q.", k, v)
+				}
+				if got != v {
+					t.Errorf("Expected %s=%q but got %s=%q.", k, v, k, got)
+				}
+				delete(parsed, k)
+			}
+			for k, v := range parsed {
+				t.Errorf("Found unexpected label %s=%q.", k, v)
+			}
+		})
 	}
 }

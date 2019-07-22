@@ -18,9 +18,9 @@ pushgateway.switchToStatus = function(){
     $('#status-li').addClass('active');
 }
 
-pushgateway.showDelModal = function(labels, panelID, event){
+pushgateway.showDelModal = function(labels, labelsEncoded, panelID, event){
     event.stopPropagation(); // Don't trigger accordion collapse.
-    pushgateway.labels = labels;
+    pushgateway.labels = labelsEncoded;
     pushgateway.panel = $('#' + panelID);
 
     var components = [];
@@ -38,7 +38,7 @@ pushgateway.deleteGroup = function(){
     var pathElements = [];
     for (var ln in pushgateway.labels) {
 	if (ln != 'job') {
-	    pathElements.push(encodeURIComponent(ln));
+	    pathElements.push(encodeURIComponent(ln+'@base64'));
 	    pathElements.push(encodeURIComponent(pushgateway.labels[ln]));
 	}
     }
@@ -49,7 +49,7 @@ pushgateway.deleteGroup = function(){
     
     $.ajax({
 	type: 'DELETE',
-	url: 'metrics/job/' + encodeURIComponent(pushgateway.labels['job']) + groupPath,
+	url: 'metrics/job@base64/' + encodeURIComponent(pushgateway.labels['job']) + groupPath,
 	success: function(data, textStatus, jqXHR) {
 	    pushgateway.panel.remove();
 	    $('#del-modal').modal('hide');

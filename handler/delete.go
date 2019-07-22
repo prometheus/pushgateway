@@ -14,6 +14,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -30,7 +31,7 @@ import (
 // Delete returns a handler that accepts delete requests.
 //
 // The returned handler is already instrumented for Prometheus.
-func Delete(ms storage.MetricStore, logger log.Logger) func(http.ResponseWriter, *http.Request, httprouter.Params) {
+func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
 
@@ -38,6 +39,14 @@ func Delete(ms storage.MetricStore, logger log.Logger) func(http.ResponseWriter,
 		httpCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			job := ps.ByName("job")
+			if jobBase64Encoded {
+				var err error
+				if job, err = decodeBase64(job); err != nil {
+					http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", ps.ByName("job"), err), http.StatusBadRequest)
+					level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", ps.ByName("job"), "err", err.Error())
+					return
+				}
+			}
 			labelsString := ps.ByName("labels")
 			mtx.Unlock()
 
