@@ -21,7 +21,7 @@ pushgateway.switchToStatus = function(){
 pushgateway.showDelModal = function(labels, labelsEncoded, panelID, event){
     event.stopPropagation(); // Don't trigger accordion collapse.
     pushgateway.labels = labelsEncoded;
-    pushgateway.panel = $('#' + panelID);
+    pushgateway.panel = $('#' + panelID).parent();
 
     var components = [];
     for (var ln in labels) {
