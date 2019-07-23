@@ -1,3 +1,12 @@
+## 0.9.0 / 2019-07-23
+
+[CHANGE] Web: Update to Bootstrap 4.3.1 and jquery 3.4.1, changing appearance of the web UI to be more in line with the Prometheus server. Also add favicon and remove timestamp column. #261
+[CHANGE] Update logging to be in line with other Prometheus projects, using gokit and promlog. #263
+[FEATURE] Add optional base64 encoding for label values in the grouping key. #268
+[FEATURE] Add ARM container images. #265
+[FEATURE] Log errors during scrapes. #267
+[BUGFIX] Web: Fixed Content-Type for js and css instead of using /etc/mime.types. #252
+
 ## 0.8.0 / 2019-04-13
 
 _If you use the prebuilt Docker container or you build your own one based on
