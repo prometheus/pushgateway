@@ -71,20 +71,25 @@ func main() {
 	app.Version(version.Print("pushgateway"))
 	app.HelpFlag.Short('h')
 	kingpin.MustParse(app.Parse(os.Args[1:]))
-
 	logger := promlog.New(&promlogConfig)
+
 	*routePrefix = computeRoutePrefix(*routePrefix, *externalURL)
+	externalPathPrefix := computeRoutePrefix("", *externalURL)
 
 	level.Info(logger).Log("msg", "starting pushgateway", "version", version.Info())
 	level.Info(logger).Log("build_context", version.BuildContext())
-	level.Debug(logger).Log("msg", "prefix path", "path", *routePrefix)
 	level.Debug(logger).Log("msg", "external URL", "url", *externalURL)
+	level.Debug(logger).Log("msg", "path prefix used externally", "path", externalPathPrefix)
+	level.Debug(logger).Log("msg", "path prefix for internal routing", "path", *routePrefix)
 
-	(*externalURL).Path = ""
-
+	// flags is used to show command line flags on the status page.
+	// Kingpin default flags are excluded as they would be confusing.
 	flags := map[string]string{}
+	boilerplateFlags := kingpin.New("", "").Version("")
 	for _, f := range app.Model().Flags {
-		flags[f.Name] = f.Value.String()
+		if boilerplateFlags.GetFlag(f.Name) == nil {
+			flags[f.Name] = f.Value.String()
+		}
 	}
 
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer, logger)
@@ -118,7 +123,7 @@ func main() {
 	}
 	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets, *routePrefix))
 
-	statusHandler := handler.Status(ms, asset.Assets, flags, logger)
+	statusHandler := handler.Status(ms, asset.Assets, flags, externalPathPrefix, logger)
 	r.Handler("GET", *routePrefix+"/status", statusHandler)
 	r.Handler("GET", *routePrefix+"/", statusHandler)
 
