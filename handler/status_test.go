@@ -14,6 +14,7 @@
 package handler
 
 import (
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -24,15 +25,16 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
-func TestExternalURLPresenceInPage(t *testing.T) {
+func TestPathPrefixPresenceInPage(t *testing.T) {
 	flags := map[string]string{
 		"web.listen-address": ":9091",
 		"web.telemetry-path": "/metrics",
 		"web.external-url":   "http://web-external-url.com",
 	}
+	pathPrefix := "/foobar"
 
 	ms := storage.NewDiskMetricStore("", time.Minute, nil, logger)
-	status := Status(ms, asset.Assets, flags, logger)
+	status := Status(ms, asset.Assets, flags, pathPrefix, logger)
 	defer ms.Shutdown()
 
 	w := httptest.NewRecorder()
@@ -42,11 +44,14 @@ func TestExternalURLPresenceInPage(t *testing.T) {
 		t.Fatalf("Wanted status %d, got %d", http.StatusOK, w.Code)
 	}
 
-	var rawBody []byte
-	w.Result().Body.Read(rawBody)
+	rawBody, err := ioutil.ReadAll(w.Result().Body)
+	if err != nil {
+		t.Fatal(err)
+	}
 	body := string(rawBody)
 
-	if index := strings.Index(body, flags["web.external-url"]); index > 0 {
-		t.Errorf("Wanted index of %q > 0 , got %d", flags["web.external-url"], index)
+	if !strings.Contains(body, pathPrefix+"/static") {
+		t.Errorf("Body does not contain %q.", pathPrefix+"/static")
+		t.Log(body)
 	}
 }

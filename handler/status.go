@@ -27,7 +27,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/pushgateway/storage"
@@ -38,7 +37,7 @@ type data struct {
 	Flags        map[string]string
 	BuildInfo    map[string]string
 	Birth        time.Time
-	BaseURL      string
+	PathPrefix   string
 	counter      int
 }
 
@@ -58,6 +57,7 @@ func Status(
 	ms storage.MetricStore,
 	root http.FileSystem,
 	flags map[string]string,
+	pathPrefix string,
 	logger log.Logger,
 ) http.Handler {
 	birth := time.Now()
@@ -76,13 +76,6 @@ func Status(
 					return base64.RawURLEncoding.EncodeToString([]byte(s))
 				},
 			})
-
-			externalURL := flags["web.external-url"]
-			routePrefix := flags["web.route-prefix"]
-			// At this point, externalURL has no path and
-			// routePrefix is either empty or starts, but does not
-			// end, with a '/'.
-			baseURL := externalURL + routePrefix
 
 			f, err := root.Open("template.html")
 			if err != nil {
@@ -117,16 +110,8 @@ func Status(
 				MetricGroups: ms.GetMetricFamiliesMap(),
 				BuildInfo:    buildInfo,
 				Birth:        birth,
-				BaseURL:      baseURL,
-			}
-			d.Flags = map[string]string{}
-			// Exclude kingpin default flags to expose only Prometheus ones.
-			boilerplateFlags := kingpin.New("", "").Version("")
-			for name, value := range flags {
-				if boilerplateFlags.GetFlag(name) != nil {
-					continue
-				}
-				d.Flags[name] = value
+				PathPrefix:   pathPrefix,
+				Flags:        flags,
 			}
 
 			err = t.Execute(w, d)
