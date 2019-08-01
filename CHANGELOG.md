@@ -1,3 +1,7 @@
+## 0.9.1 / 2019-08-01
+
+[BUGFIX] Make `--web.external-url` and `--web.route-prefix` work as documented. #274
+
 ## 0.9.0 / 2019-07-23
 
 [CHANGE] Web: Update to Bootstrap 4.3.1 and jquery 3.4.1, changing appearance of the web UI to be more in line with the Prometheus server. Also add favicon and remove timestamp column. #261
