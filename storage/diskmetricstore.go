@@ -100,6 +100,11 @@ func (dms *DiskMetricStore) SubmitWriteRequest(req WriteRequest) {
 	dms.writeQueue <- req
 }
 
+// GetPersistenceFile returns the persistenceFile path
+func (dms *DiskMetricStore) GetPersistenceFile() string {
+	return dms.persistenceFile
+}
+
 // GetMetricFamilies implements the MetricStore interface.
 func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	result := []*dto.MetricFamily{}
