@@ -111,6 +111,10 @@ func main() {
 		}),
 	)
 
+	if *enableAdminAPI {
+		r.Handler("PUT", *routePrefix+"/-/wipe", handler.WipePersistentFile())
+	}
+
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"
 	for _, suffix := range []string{"", handler.Base64Suffix} {
