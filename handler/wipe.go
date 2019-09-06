@@ -18,7 +18,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -35,17 +34,8 @@ func WipeMetricStore(
 	return promhttp.InstrumentHandlerCounter(
 		httpCnt.MustCurryWith(prometheus.Labels{"handler": "wipe"}),
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-
-			level.Debug(logger).Log("msg", "start wiping metric store")
-			if err := ms.Wipe(); err != nil {
-				errorMsg := "wiping metric store"
-				level.Debug(logger).Log("msg", errorMsg, "err", err)
-				http.Error(w, errors.Wrap(err, errorMsg).Error(), http.StatusInternalServerError)
-				w.Write([]byte("500 - " + err.Error()))
-				return
-			}
-			// TODO: Is it ok to return Content-Type: text/plain ? look to prometheus for admin
 			w.WriteHeader(http.StatusAccepted)
-			w.Write([]byte("202 - Accepted"))
+			level.Debug(logger).Log("msg", "start wiping metric store")
+			ms.Wipe()
 		}))
 }

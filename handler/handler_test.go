@@ -47,8 +47,7 @@ func (m *MockMetricStore) GetMetricFamiliesMap() storage.GroupingKeyToMetricGrou
 	panic("not implemented")
 }
 
-func (m *MockMetricStore) Wipe() error {
-	return nil
+func (m *MockMetricStore) Wipe() {
 }
 
 func (m *MockMetricStore) Shutdown() error {

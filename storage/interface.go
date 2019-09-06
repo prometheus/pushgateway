@@ -47,8 +47,13 @@ type MetricStore interface {
 	// the internal state of the MetricStore and completely owned by the
 	// caller.
 	GetMetricFamiliesMap() GroupingKeyToMetricGroup
-	// Wipe safely deletes all the metrics from the MetricStore
-	Wipe() error
+	// Wipe safely deletes all the metrics from the MetricStore, it leverages
+	// GetMetricFamiliesMap() to walk through all the exiting metrics to then
+	// delete them one by one by SubmitWriteRequest(WriteRequest) with
+	// MetricFamilies set to nil, after calling Wipe() the store should be
+	// empty, except for metrics that were sent to pushgateway after Wipe()
+	// call GetFamiliesMap()
+	Wipe()
 	// Shutdown must only be called after the caller has made sure that
 	// SubmitWriteRequests is not called anymore. (If it is called later,
 	// the request might get submitted, but not processed anymore.) The
