@@ -102,7 +102,7 @@ func (dms *DiskMetricStore) SubmitWriteRequest(req WriteRequest) {
 	dms.writeQueue <- req
 }
 
-// Wipe deletes all metrics from the store
+// Wipe implements the MetricStore interface.
 func (dms *DiskMetricStore) Wipe() error {
 	//TODO: Do we need to shutdown before wiping out?
 	if err := dms.Shutdown(); err != nil {

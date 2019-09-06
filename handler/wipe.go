@@ -19,23 +19,30 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/prometheus/pushgateway/storage"
 )
 
+// WipeMetricStore deletes all the metrics in MetricStore
+//
+// The returned handler is already instrumented for Prometheus.
 func WipeMetricStore(
 	ms storage.MetricStore,
 	logger log.Logger) http.Handler {
 
-	// TODO: Should we return promhttp.InstrumentHandlerCounter and count calls to this endpoint?
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		level.Debug(logger).Log("msg", "start wiping metric store")
-		if err := ms.Wipe(); err != nil {
-			errorMsg := "wiping metric store"
-			level.Debug(logger).Log("msg", errorMsg, "err", err)
-			http.Error(w, errors.Wrap(err, errorMsg).Error(), http.StatusInternalServerError)
-			w.Write([]byte("500 - " + err.Error()))
-		}
-		return
-	})
+	return promhttp.InstrumentHandlerCounter(
+		httpCnt.MustCurryWith(prometheus.Labels{"handler": "wipe"}),
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+
+			level.Debug(logger).Log("msg", "start wiping metric store")
+			if err := ms.Wipe(); err != nil {
+				errorMsg := "wiping metric store"
+				level.Debug(logger).Log("msg", errorMsg, "err", err)
+				http.Error(w, errors.Wrap(err, errorMsg).Error(), http.StatusInternalServerError)
+				w.Write([]byte("500 - " + err.Error()))
+			}
+			return
+		}))
 }
