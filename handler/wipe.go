@@ -23,15 +23,15 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
-func WipeDiskMetricStore(
-	dms *storage.DiskMetricStore,
+func WipeMetricStore(
+	ms storage.MetricStore,
 	logger log.Logger) http.Handler {
 
 	// TODO: Should we return promhttp.InstrumentHandlerCounter and count calls to this endpoint?
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		level.Debug(logger).Log("msg", "start wiping disk metric store")
-		if err := dms.Wipe(); err != nil {
-			errorMsg := "wiping disk metric store"
+		level.Debug(logger).Log("msg", "start wiping metric store")
+		if err := ms.Wipe(); err != nil {
+			errorMsg := "wiping metric store"
 			level.Debug(logger).Log("msg", errorMsg, "err", err)
 			http.Error(w, errors.Wrap(err, errorMsg).Error(), http.StatusInternalServerError)
 			w.Write([]byte("500 - " + err.Error()))
