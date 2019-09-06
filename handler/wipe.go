@@ -42,7 +42,10 @@ func WipeMetricStore(
 				level.Debug(logger).Log("msg", errorMsg, "err", err)
 				http.Error(w, errors.Wrap(err, errorMsg).Error(), http.StatusInternalServerError)
 				w.Write([]byte("500 - " + err.Error()))
+				return
 			}
-			return
+			// TODO: Is it ok to return Content-Type: text/plain ? look to prometheus for admin
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte("202 - Accepted"))
 		}))
 }
