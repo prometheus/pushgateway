@@ -93,10 +93,7 @@ func main() {
 		}
 	}
 
-	newStorage := func() *storage.DiskMetricStore {
-		return storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer, logger)
-	}
-	ms := newStorage()
+	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer, logger)
 
 	// Inject the metric families returned by ms.GetMetricFamilies into the default Gatherer:
 	prometheus.DefaultGatherer = prometheus.Gatherers{
@@ -115,7 +112,7 @@ func main() {
 	)
 
 	if *enableAdminAPI {
-		r.Handler("PUT", *routePrefix+"/-/wipe", handler.WipePersistentFile(ms, newStorage, logger))
+		r.Handler("PUT", *routePrefix+"/-/wipe", handler.WipeDiskMetricStore(ms, logger))
 	}
 
 	// Handlers for pushing and deleting metrics.

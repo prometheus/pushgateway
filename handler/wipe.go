@@ -15,37 +15,27 @@ package handler
 
 import (
 	"net/http"
-	"os"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/pkg/errors"
 
 	"github.com/prometheus/pushgateway/storage"
 )
 
-func WipePersistentFile(
+func WipeDiskMetricStore(
 	dms *storage.DiskMetricStore,
-	newStorage func() *storage.DiskMetricStore,
 	logger log.Logger) http.Handler {
 
 	// TODO: Should we return promhttp.InstrumentHandlerCounter and count calls to this endpoint?
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		level.Debug(logger).Log("msg", "wiping persistence file")
-		// Since we plan to wipe out the entire storage we actually don't care too much
-		// if there was an error persisting the last metrics, still I can see some value in logging
-		// potential errors for troubleshoting
-		if err := dms.Shutdown(); err != nil {
-			level.Error(logger).Log("msg", "problem shutting down metric storage", "err", err)
+		level.Debug(logger).Log("msg", "start wiping disk metric store")
+		if err := dms.Wipe(); err != nil {
+			errorMsg := "wiping disk metric store"
+			level.Debug(logger).Log("msg", errorMsg, "err", err)
+			http.Error(w, errors.Wrap(err, errorMsg).Error(), http.StatusInternalServerError)
+			w.Write([]byte("500 - " + err.Error()))
 		}
-
-		n := newStorage()
-		// Delete persitence file
-		// TODO: should we handle the error from os.Remove? What exactly should we be doing?
-		os.Remove(n.GetPersistenceFile())
-
-		// Set the value of the external disk metric store to the dereferenced value of a new disk metric storage
-		// effectivly having a brand new storage running and ready to expose and persist pushed metrics
-		*dms = *n
 		return
 	})
 }

@@ -38,14 +38,15 @@ const (
 // DiskMetricStore is an implementation of MetricStore that persists metrics to
 // disk.
 type DiskMetricStore struct {
-	lock            sync.RWMutex // Protects metricFamilies.
-	writeQueue      chan WriteRequest
-	drain           chan struct{}
-	done            chan error
-	metricGroups    GroupingKeyToMetricGroup
-	persistenceFile string
-	predefinedHelp  map[string]string
-	logger          log.Logger
+	lock                sync.RWMutex // Protects metricFamilies.
+	writeQueue          chan WriteRequest
+	drain               chan struct{}
+	done                chan error
+	metricGroups        GroupingKeyToMetricGroup
+	persistenceFile     string
+	persistenceInterval time.Duration
+	predefinedHelp      map[string]string
+	logger              log.Logger
 }
 
 type mfStat struct {
@@ -75,12 +76,13 @@ func NewDiskMetricStore(
 	// TODO: Do that outside of the constructor to allow the HTTP server to
 	//  serve /-/healthy and /-/ready earlier.
 	dms := &DiskMetricStore{
-		writeQueue:      make(chan WriteRequest, writeQueueCapacity),
-		drain:           make(chan struct{}),
-		done:            make(chan error),
-		metricGroups:    GroupingKeyToMetricGroup{},
-		persistenceFile: persistenceFile,
-		logger:          logger,
+		writeQueue:          make(chan WriteRequest, writeQueueCapacity),
+		drain:               make(chan struct{}),
+		done:                make(chan error),
+		metricGroups:        GroupingKeyToMetricGroup{},
+		persistenceFile:     persistenceFile,
+		persistenceInterval: persistenceInterval,
+		logger:              logger,
 	}
 	if err := dms.restore(); err != nil {
 		level.Error(logger).Log("msg", "could not load persisted metrics", "err", err)
@@ -91,7 +93,7 @@ func NewDiskMetricStore(
 		level.Error(logger).Log("msg", "could not gather metrics for predefined help strings", "err", err)
 	}
 
-	go dms.loop(persistenceInterval)
+	go dms.loop()
 	return dms
 }
 
@@ -100,9 +102,21 @@ func (dms *DiskMetricStore) SubmitWriteRequest(req WriteRequest) {
 	dms.writeQueue <- req
 }
 
-// GetPersistenceFile returns the persistenceFile path
-func (dms *DiskMetricStore) GetPersistenceFile() string {
-	return dms.persistenceFile
+// Wipe deletes all metrics from the store
+func (dms *DiskMetricStore) Wipe() error {
+	//TODO: Do we need to shutdown before wiping out?
+	if err := dms.Shutdown(); err != nil {
+		level.Error(dms.logger).Log("msg", "problem shutting down metric storage", "err", err)
+	}
+
+	//TODO: Implement wipe logic, we should iterate over the store and persist
+	// the deletes if any persistence backend is in use, effectively havign an empty store
+	// can return an error and should start the loop no matter what
+	var err error
+	err = nil
+
+	go dms.loop()
+	return err
 }
 
 // GetMetricFamilies implements the MetricStore interface.
@@ -156,7 +170,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	return result
 }
 
-// Shutdown implements the MetricStore interface.
+// Shutdown implements the MetricStore interface
 func (dms *DiskMetricStore) Shutdown() error {
 	close(dms.drain)
 	return <-dms.done
@@ -182,7 +196,7 @@ func (dms *DiskMetricStore) Ready() error {
 	return dms.Healthy()
 }
 
-func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
+func (dms *DiskMetricStore) loop() {
 	lastPersist := time.Now()
 	persistScheduled := false
 	lastWrite := time.Time{}
@@ -192,7 +206,7 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 	checkPersist := func() {
 		if dms.persistenceFile != "" && !persistScheduled && lastWrite.After(lastPersist) {
 			persistTimer = time.AfterFunc(
-				persistenceInterval-lastWrite.Sub(lastPersist),
+				dms.persistenceInterval-lastWrite.Sub(lastPersist),
 				func() {
 					persistStarted := time.Now()
 					if err := dms.persist(); err != nil {

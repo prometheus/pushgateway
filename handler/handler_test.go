@@ -39,10 +39,6 @@ func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
 	m.lastWriteRequest = req
 }
 
-func (m *MockMetricStore) GetPersistenceFile() string {
-	return ""
-}
-
 func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	panic("not implemented")
 }
