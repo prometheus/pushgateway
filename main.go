@@ -112,7 +112,9 @@ func main() {
 	)
 
 	if *enableAdminAPI {
-		r.Handler("PUT", *routePrefix+"/-/wipe", handler.WipeDiskMetricStore(ms, logger))
+		// TODO: I'm not fully clear whether this is the desired admin path,
+		//  from prometheus codebase I would say so, but I will double check.
+		r.Handler("PUT", *routePrefix+"/api/v1/admin/wipe", handler.WipeDiskMetricStore(ms, logger))
 	}
 
 	// Handlers for pushing and deleting metrics.
