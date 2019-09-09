@@ -15,6 +15,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -36,6 +37,13 @@ func WipeMetricStore(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusAccepted)
 			level.Debug(logger).Log("msg", "start wiping metric store")
-			ms.Wipe()
+			// Delete all metric groups by sending write requests with MetricFamilies equal to nil
+			for _, group := range ms.GetMetricFamiliesMap() {
+				ms.SubmitWriteRequest(storage.WriteRequest{
+					Labels:    group.Labels,
+					Timestamp: time.Now(),
+				})
+			}
+
 		}))
 }

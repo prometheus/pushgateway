@@ -100,17 +100,6 @@ func (dms *DiskMetricStore) SubmitWriteRequest(req WriteRequest) {
 	dms.writeQueue <- req
 }
 
-// Wipe implements the MetricStore interface.
-func (dms *DiskMetricStore) Wipe() {
-	// Delete all metric groups by sending write requests with MetricFamilies equal to nil
-	for _, group := range dms.GetMetricFamiliesMap() {
-		dms.SubmitWriteRequest(WriteRequest{
-			Labels:    group.Labels,
-			Timestamp: time.Now(),
-		})
-	}
-}
-
 // GetMetricFamilies implements the MetricStore interface.
 func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	result := []*dto.MetricFamily{}
