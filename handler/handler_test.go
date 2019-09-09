@@ -25,6 +25,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -33,10 +34,43 @@ var logger = log.NewNopLogger()
 
 type MockMetricStore struct {
 	lastWriteRequest storage.WriteRequest
+	metricGroups     storage.GroupingKeyToMetricGroup
 }
 
+func newMockMetricStore() MockMetricStore {
+	return MockMetricStore{
+		metricGroups: storage.GroupingKeyToMetricGroup{},
+	}
+}
+
+// This mock method just set lastWriteRequest and write metrics, but some fields
+// are set to its zero value
 func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
 	m.lastWriteRequest = req
+
+	key := model.LabelsToSignature(req.Labels)
+	// Delete when MetricFamilies == nil
+	if req.MetricFamilies == nil {
+		delete(m.metricGroups, key)
+		return
+	}
+
+	// Update metric contains similar logic as you find
+	// within diskmetricstore.processWriteRequest()
+	for name, _ := range req.MetricFamilies {
+		group, ok := m.metricGroups[key]
+		if !ok {
+			group = storage.MetricGroup{
+				Labels:  req.Labels,
+				Metrics: storage.NameToTimestampedMetricFamilyMap{},
+			}
+			m.metricGroups[key] = group
+		}
+		group.Metrics[name] = storage.TimestampedMetricFamily{
+			Timestamp: req.Timestamp,
+		}
+	}
+
 }
 
 func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
@@ -44,7 +78,8 @@ func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 }
 
 func (m *MockMetricStore) GetMetricFamiliesMap() storage.GroupingKeyToMetricGroup {
-	panic("not implemented")
+	// Simply return them without performing a copy
+	return m.metricGroups
 }
 
 func (m *MockMetricStore) Shutdown() error {
@@ -59,8 +94,52 @@ func (m *MockMetricStore) Ready() error {
 	return nil
 }
 
+func TestWipeMetricStore(t *testing.T) {
+	mms := newMockMetricStore()
+	pushHandler := Push(&mms, false, false, logger)
+
+	req, err := http.NewRequest(
+		"POST", "http://example.org/",
+		bytes.NewBufferString("some_metric 3.14\nanother_metric 42\n"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+
+	// Push a few metrics to the MetricStore
+	count := 10
+	for i := 0; i < count; i++ {
+		pushHandler(
+			w, req,
+			httprouter.Params{
+				httprouter.Param{Key: "job", Value: "testjob" + string(i)},
+				httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
+			},
+		)
+	}
+
+	// Just a basic checking to ensure MockMetricStore was filled up correctly
+	if len(mms.GetMetricFamiliesMap()) != count {
+		t.Errorf("Length should be %d, got %d instead", count, len(mms.GetMetricFamiliesMap()))
+	}
+
+	// Wipe handler should return 202 and delete all metrics
+	wipeHandler := WipeMetricStore(&mms, logger)
+	w = httptest.NewRecorder()
+	wipeHandler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Errorf("status code should be %d", http.StatusAccepted)
+	}
+
+	if len(mms.GetMetricFamiliesMap()) != 0 {
+		t.Errorf("Length should be %d, got %d instead", 0, len(mms.GetMetricFamiliesMap()))
+	}
+}
+
 func TestHealthyReady(t *testing.T) {
-	mms := MockMetricStore{}
+	mms := newMockMetricStore()
 	req, err := http.NewRequest("GET", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +161,7 @@ func TestHealthyReady(t *testing.T) {
 }
 
 func TestPush(t *testing.T) {
-	mms := MockMetricStore{}
+	mms := newMockMetricStore()
 	handler := Push(&mms, false, false, logger)
 	handlerBase64 := Push(&mms, false, true, logger)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
@@ -386,7 +465,7 @@ another_metric{instance="baz"} 42
 }
 
 func TestDelete(t *testing.T) {
-	mms := MockMetricStore{}
+	mms := newMockMetricStore()
 	handler := Delete(&mms, false, logger)
 	handlerBase64 := Delete(&mms, true, logger)
 
