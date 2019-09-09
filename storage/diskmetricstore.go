@@ -69,7 +69,7 @@ type mfStat struct {
 func NewDiskMetricStore(
 	persistenceFile string,
 	persistenceInterval time.Duration,
-	gaptherPredefinedHelpFrom prometheus.Gatherer,
+	gatherPredefinedHelpFrom prometheus.Gatherer,
 	logger log.Logger,
 ) *DiskMetricStore {
 	// TODO: Do that outside of the constructor to allow the HTTP server to
@@ -85,7 +85,7 @@ func NewDiskMetricStore(
 	if err := dms.restore(); err != nil {
 		level.Error(logger).Log("msg", "could not load persisted metrics", "err", err)
 	}
-	if helpStrings, err := extractPredefinedHelpStrings(gaptherPredefinedHelpFrom); err == nil {
+	if helpStrings, err := extractPredefinedHelpStrings(gatherPredefinedHelpFrom); err == nil {
 		dms.predefinedHelp = helpStrings
 	} else {
 		level.Error(logger).Log("msg", "could not gather metrics for predefined help strings", "err", err)
