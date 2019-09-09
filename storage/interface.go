@@ -35,17 +35,17 @@ type MetricStore interface {
 	// so the caller is not allowed to modify the returned MetricFamilies.
 	// If different groups have saved MetricFamilies of the same name, they
 	// are all merged into one MetricFamily by concatenating the contained
-	// Metrics. Inconsistent help strings or types are logged, and one of
-	// the versions will "win". Inconsistent and duplicate label sets will
-	// go undetected.
+	// Metrics. Inconsistent help strings are logged, and one of the
+	// versions will "win". Inconsistent types and inconsistent or duplicate
+	// label sets will go undetected.
 	GetMetricFamilies() []*dto.MetricFamily
 	// GetMetricFamiliesMap returns a map grouping-key -> MetricGroup. The
 	// MetricFamily pointed to by the Metrics map in each MetricGroup is
 	// guaranteed to not be modified by the MetricStore anymore. However,
 	// they may still be read somewhere else, so the caller is not allowed
-	// to modify it. Otherwise, the returned nested map is a deep copy of
-	// the internal state of the MetricStore and completely owned by the
-	// caller.
+	// to modify it. Otherwise, the returned nested map can be seen as a
+	// deep copy of the internal state of the MetricStore and completely
+	// owned by the caller.
 	GetMetricFamiliesMap() GroupingKeyToMetricGroup
 	// Shutdown must only be called after the caller has made sure that
 	// SubmitWriteRequests is not called anymore. (If it is called later,
@@ -68,18 +68,38 @@ type MetricStore interface {
 }
 
 // WriteRequest is a request to change the MetricStore, i.e. to process it, a
-// write lock has to be acquired. If MetricFamilies is nil, this is a request to
-// delete metrics that share the given Labels as a grouping key. Otherwise, this
-// is a request to update the MetricStore with the MetricFamilies. The key in
-// MetricFamilies is the name of the mapped metric family. All metrics in
-// MetricFamilies MUST have already set job and other labels that are consistent
-// with the Labels fields. The Timestamp field marks the time the request was
-// received from the network. It is not related to the timestamp_ms field in the
-// Metric proto message.
+// write lock has to be acquired.
+//
+// If MetricFamilies is nil, this is a request to delete metrics that share the
+// given Labels as a grouping key. Otherwise, this is a request to update the
+// MetricStore with the MetricFamilies.
+//
+// If Replace is true, the MetricFamilies will completely replace the metrics
+// with the same grouping key. Otherwise, only those MetricFamilies whith the
+// same name as new MetricFamilies will be replaced.
+//
+// The key in MetricFamilies is the name of the mapped metric family.
+//
+// When the WriteRequest is processed, the metrics in MetricFamilies will be
+// sanitized to have the same job and other labels as those in the Labels
+// fields. Also, if there is no instance label, an instance label with an empty
+// value will be set. This implies that the MetricFamilies in the WriteRequest
+// may be modified be the MetricStore during processing of the WriteRequest!
+//
+// The Timestamp field marks the time the request was received from the
+// network. It is not related to the TimestampMs field in the Metric proto
+// message. In fact, WriteRequests containing any Metrics with a TimestampMs set
+// are invalid and will be rejected.
+//
+// The Done channel may be nil. If it is not nil, it will be closed once the
+// write request is processed. Any errors occuring during processing are sent to
+// the channel before closing it.
 type WriteRequest struct {
 	Labels         map[string]string
 	Timestamp      time.Time
 	MetricFamilies map[string]*dto.MetricFamily
+	Replace        bool
+	Done           chan error
 }
 
 // GroupingKeyToMetricGroup is the first level of the metric store, keyed by
@@ -105,6 +125,23 @@ func (mg MetricGroup) SortedLabels() []string {
 	}
 	sort.Strings(lns[1:])
 	return lns
+}
+
+// LastPushSuccess returns false if the automatically added metric for the
+// timestamp of the last failed push has a value larger than the value of the
+// automatically added metric for the timestamp of the last successful push. In
+// all other cases, it returns true (including the case that one or both of
+// those metrics are missing for some reason.)
+func (mg MetricGroup) LastPushSuccess() bool {
+	fail := mg.Metrics[pushFailedMetricName].GobbableMetricFamily
+	if fail == nil {
+		return true
+	}
+	success := mg.Metrics[pushMetricName].GobbableMetricFamily
+	if success == nil {
+		return true
+	}
+	return (*dto.MetricFamily)(fail).GetMetric()[0].GetGauge().GetValue() <= (*dto.MetricFamily)(success).GetMetric()[0].GetGauge().GetValue()
 }
 
 // NameToTimestampedMetricFamilyMap is the second level of the metric store,

@@ -15,10 +15,12 @@ package storage
 
 import (
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"sort"
 	"sync"
 	"time"
 
@@ -32,8 +34,14 @@ import (
 )
 
 const (
-	writeQueueCapacity = 1000
+	pushMetricName       = "push_time_seconds"
+	pushMetricHelp       = "Last Unix time when changing this group in the Pushgateway succeeded."
+	pushFailedMetricName = "push_failure_time_seconds"
+	pushFailedMetricHelp = "Last Unix time when changing this group in the Pushgateway failed."
+	writeQueueCapacity   = 1000
 )
+
+var errTimestamp = errors.New("pushed metrics must not have timestamps")
 
 // DiskMetricStore is an implementation of MetricStore that persists metrics to
 // disk.
@@ -100,13 +108,39 @@ func (dms *DiskMetricStore) SubmitWriteRequest(req WriteRequest) {
 	dms.writeQueue <- req
 }
 
+// Shutdown implements the MetricStore interface.
+func (dms *DiskMetricStore) Shutdown() error {
+	close(dms.drain)
+	return <-dms.done
+}
+
+// Healthy implements the MetricStore interface.
+func (dms *DiskMetricStore) Healthy() error {
+	// By taking the lock we check that there is no deadlock.
+	dms.lock.Lock()
+	defer dms.lock.Unlock()
+
+	// A pushgateway that cannot be written to should not be
+	// considered as healthy.
+	if len(dms.writeQueue) == cap(dms.writeQueue) {
+		return fmt.Errorf("write queue is full")
+	}
+
+	return nil
+}
+
+// Ready implements the MetricStore interface.
+func (dms *DiskMetricStore) Ready() error {
+	return dms.Healthy()
+}
+
 // GetMetricFamilies implements the MetricStore interface.
 func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
-	result := []*dto.MetricFamily{}
-	mfStatByName := map[string]mfStat{}
-
 	dms.lock.RLock()
 	defer dms.lock.RUnlock()
+
+	result := []*dto.MetricFamily{}
+	mfStatByName := map[string]mfStat{}
 
 	for _, group := range dms.metricGroups {
 		for name, tmf := range group.Metrics {
@@ -151,30 +185,19 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 	return result
 }
 
-// Shutdown implements the MetricStore interface.
-func (dms *DiskMetricStore) Shutdown() error {
-	close(dms.drain)
-	return <-dms.done
-}
-
-// Healthy implements the MetricStore interface.
-func (dms *DiskMetricStore) Healthy() error {
-	// By taking the lock we check that there is no deadlock.
-	dms.lock.Lock()
-	defer dms.lock.Unlock()
-
-	// A pushgateway that cannot be written to should not be
-	// considered as healthy.
-	if len(dms.writeQueue) == cap(dms.writeQueue) {
-		return fmt.Errorf("write queue is full")
+// GetMetricFamiliesMap implements the MetricStore interface.
+func (dms *DiskMetricStore) GetMetricFamiliesMap() GroupingKeyToMetricGroup {
+	dms.lock.RLock()
+	defer dms.lock.RUnlock()
+	groupsCopy := make(GroupingKeyToMetricGroup, len(dms.metricGroups))
+	for k, g := range dms.metricGroups {
+		metricsCopy := make(NameToTimestampedMetricFamilyMap, len(g.Metrics))
+		groupsCopy[k] = MetricGroup{Labels: g.Labels, Metrics: metricsCopy}
+		for n, tmf := range g.Metrics {
+			metricsCopy[n] = tmf
+		}
 	}
-
-	return nil
-}
-
-// Ready implements the MetricStore interface.
-func (dms *DiskMetricStore) Ready() error {
-	return dms.Healthy()
+	return groupsCopy
 }
 
 func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
@@ -205,8 +228,15 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 	for {
 		select {
 		case wr := <-dms.writeQueue:
-			dms.processWriteRequest(wr)
 			lastWrite = time.Now()
+			if dms.checkWriteRequest(wr) {
+				dms.processWriteRequest(wr)
+			} else {
+				dms.setPushFailedTimestamp(wr)
+			}
+			if wr.Done != nil {
+				close(wr.Done)
+			}
 			checkPersist()
 		case lastPersist = <-persistDone:
 			persistScheduled = false
@@ -237,20 +267,35 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 	key := model.LabelsToSignature(wr.Labels)
 
 	if wr.MetricFamilies == nil {
-		// Delete.
+		// No MetricFamilies means delete request. Delete the whole
+		// metric group, and we are done here.
 		delete(dms.metricGroups, key)
 		return
 	}
-	// Update.
-	for name, mf := range wr.MetricFamilies {
-		group, ok := dms.metricGroups[key]
-		if !ok {
-			group = MetricGroup{
-				Labels:  wr.Labels,
-				Metrics: NameToTimestampedMetricFamilyMap{},
-			}
-			dms.metricGroups[key] = group
+	// Otherwise, it's an update.
+	group, ok := dms.metricGroups[key]
+	if !ok {
+		group = MetricGroup{
+			Labels:  wr.Labels,
+			Metrics: NameToTimestampedMetricFamilyMap{},
 		}
+		dms.metricGroups[key] = group
+	} else if wr.Replace {
+		// For replace, we have to delete all metric families in the
+		// group except pre-existing push timestamps.
+		for name := range group.Metrics {
+			if name != pushMetricName && name != pushFailedMetricName {
+				delete(group.Metrics, name)
+			}
+		}
+	}
+	wr.MetricFamilies[pushMetricName] = newPushTimestampGauge(wr.Labels, wr.Timestamp)
+	// Only add a zero push-failed metric if none is there yet, so that a
+	// previously added fail timestamp is retained.
+	if _, ok := group.Metrics[pushFailedMetricName]; !ok {
+		wr.MetricFamilies[pushFailedMetricName] = newPushFailedTimestampGauge(wr.Labels, time.Time{})
+	}
+	for name, mf := range wr.MetricFamilies {
 		group.Metrics[name] = TimestampedMetricFamily{
 			Timestamp:            wr.Timestamp,
 			GobbableMetricFamily: (*GobbableMetricFamily)(mf),
@@ -258,19 +303,82 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 	}
 }
 
-// GetMetricFamiliesMap implements the MetricStore interface.
-func (dms *DiskMetricStore) GetMetricFamiliesMap() GroupingKeyToMetricGroup {
-	dms.lock.RLock()
-	defer dms.lock.RUnlock()
-	groupsCopy := make(GroupingKeyToMetricGroup, len(dms.metricGroups))
-	for k, g := range dms.metricGroups {
-		metricsCopy := make(NameToTimestampedMetricFamilyMap, len(g.Metrics))
-		groupsCopy[k] = MetricGroup{Labels: g.Labels, Metrics: metricsCopy}
-		for n, tmf := range g.Metrics {
-			metricsCopy[n] = tmf
+func (dms *DiskMetricStore) setPushFailedTimestamp(wr WriteRequest) {
+	dms.lock.Lock()
+	defer dms.lock.Unlock()
+
+	key := model.LabelsToSignature(wr.Labels)
+
+	group, ok := dms.metricGroups[key]
+	if !ok {
+		group = MetricGroup{
+			Labels:  wr.Labels,
+			Metrics: NameToTimestampedMetricFamilyMap{},
+		}
+		dms.metricGroups[key] = group
+	}
+
+	group.Metrics[pushFailedMetricName] = TimestampedMetricFamily{
+		Timestamp:            wr.Timestamp,
+		GobbableMetricFamily: (*GobbableMetricFamily)(newPushFailedTimestampGauge(wr.Labels, wr.Timestamp)),
+	}
+	// Only add a zero push metric if none is there yet, so that a
+	// previously added push timestamp is retained.
+	if _, ok := group.Metrics[pushMetricName]; !ok {
+		group.Metrics[pushMetricName] = TimestampedMetricFamily{
+			Timestamp:            wr.Timestamp,
+			GobbableMetricFamily: (*GobbableMetricFamily)(newPushTimestampGauge(wr.Labels, time.Time{})),
 		}
 	}
-	return groupsCopy
+}
+
+// checkWriteRequest return if applying the provided WriteRequest will result in
+// a consistent state of metrics. The dms is not modified by the check. However,
+// the WriteRequest _will_ be sanitized: the MetricFamilies are ensured to
+// contain the grouping Labels after the check. If false is returned, the
+// causing error is written to the Done channel of the WriteRequest.
+func (dms *DiskMetricStore) checkWriteRequest(wr WriteRequest) bool {
+	if wr.MetricFamilies == nil {
+		// Delete request cannot create inconsistencies, and nothing has
+		// to be sanitized.
+		return true
+	}
+
+	var err error
+	defer func() {
+		if err != nil && wr.Done != nil {
+			wr.Done <- err
+		}
+	}()
+
+	if timestampsPresent(wr.MetricFamilies) {
+		err = errTimestamp
+		return false
+	}
+	for _, mf := range wr.MetricFamilies {
+		sanitizeLabels(mf, wr.Labels)
+	}
+
+	// Construct a test dms, acting on a copy of the metrics, to test the
+	// WriteRequest with.
+	tdms := &DiskMetricStore{
+		metricGroups:   dms.GetMetricFamiliesMap(),
+		predefinedHelp: dms.predefinedHelp,
+		logger:         log.NewNopLogger(),
+	}
+	tdms.processWriteRequest(wr)
+
+	// Construct a test Gatherer to check if consistent gathering is possible.
+	tg := prometheus.Gatherers{
+		prometheus.DefaultGatherer,
+		prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+			return tdms.GetMetricFamilies(), nil
+		}),
+	}
+	if _, err = tg.Gather(); err != nil {
+		return false
+	}
+	return true
 }
 
 func (dms *DiskMetricStore) persist() error {
@@ -344,4 +452,111 @@ func extractPredefinedHelpStrings(g prometheus.Gatherer) (map[string]string, err
 		result[mf.GetName()] = mf.GetHelp()
 	}
 	return result, nil
+}
+
+func newPushTimestampGauge(groupingLabels map[string]string, t time.Time) *dto.MetricFamily {
+	return newTimestampGauge(pushMetricName, pushMetricHelp, groupingLabels, t)
+}
+
+func newPushFailedTimestampGauge(groupingLabels map[string]string, t time.Time) *dto.MetricFamily {
+	return newTimestampGauge(pushFailedMetricName, pushFailedMetricHelp, groupingLabels, t)
+}
+
+func newTimestampGauge(name, help string, groupingLabels map[string]string, t time.Time) *dto.MetricFamily {
+	var ts float64
+	if !t.IsZero() {
+		ts = float64(t.UnixNano()) / 1e9
+	}
+	mf := &dto.MetricFamily{
+		Name: proto.String(name),
+		Help: proto.String(help),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(ts),
+				},
+			},
+		},
+	}
+	sanitizeLabels(mf, groupingLabels)
+	return mf
+}
+
+// sanitizeLabels ensures that all the labels in groupingLabels and the
+// `instance` label are present in the MetricFamily. The label values from
+// groupingLabels are set in each Metric, no matter what. After that, if the
+// 'instance' label is not present at all in a Metric, it will be created (with
+// an empty string as value).
+//
+// Finally, sanitizeLabels sorts the label pairs of all metrics.
+func sanitizeLabels(mf *dto.MetricFamily, groupingLabels map[string]string) {
+	gLabelsNotYetDone := make(map[string]string, len(groupingLabels))
+
+metric:
+	for _, m := range mf.GetMetric() {
+		for ln, lv := range groupingLabels {
+			gLabelsNotYetDone[ln] = lv
+		}
+		hasInstanceLabel := false
+		for _, lp := range m.GetLabel() {
+			ln := lp.GetName()
+			if lv, ok := gLabelsNotYetDone[ln]; ok {
+				lp.Value = proto.String(lv)
+				delete(gLabelsNotYetDone, ln)
+			}
+			if ln == string(model.InstanceLabel) {
+				hasInstanceLabel = true
+			}
+			if len(gLabelsNotYetDone) == 0 && hasInstanceLabel {
+				sort.Sort(labelPairs(m.Label))
+				continue metric
+			}
+		}
+		for ln, lv := range gLabelsNotYetDone {
+			m.Label = append(m.Label, &dto.LabelPair{
+				Name:  proto.String(ln),
+				Value: proto.String(lv),
+			})
+			if ln == string(model.InstanceLabel) {
+				hasInstanceLabel = true
+			}
+			delete(gLabelsNotYetDone, ln) // To prepare map for next metric.
+		}
+		if !hasInstanceLabel {
+			m.Label = append(m.Label, &dto.LabelPair{
+				Name:  proto.String(string(model.InstanceLabel)),
+				Value: proto.String(""),
+			})
+		}
+		sort.Sort(labelPairs(m.Label))
+	}
+}
+
+// Checks if any timestamps have been specified.
+func timestampsPresent(metricFamilies map[string]*dto.MetricFamily) bool {
+	for _, mf := range metricFamilies {
+		for _, m := range mf.GetMetric() {
+			if m.TimestampMs != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// labelPairs implements sort.Interface. It provides a sortable version of a
+// slice of dto.LabelPair pointers.
+type labelPairs []*dto.LabelPair
+
+func (s labelPairs) Len() int {
+	return len(s)
+}
+
+func (s labelPairs) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s labelPairs) Less(i, j int) bool {
+	return s[i].GetName() < s[j].GetName()
 }
