@@ -25,7 +25,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	dto "github.com/prometheus/client_model/go"
-	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -35,42 +34,12 @@ var logger = log.NewNopLogger()
 type MockMetricStore struct {
 	lastWriteRequest storage.WriteRequest
 	metricGroups     storage.GroupingKeyToMetricGroup
+	writeRequests    []storage.WriteRequest
 }
 
-func newMockMetricStore() MockMetricStore {
-	return MockMetricStore{
-		metricGroups: storage.GroupingKeyToMetricGroup{},
-	}
-}
-
-// This mock method just set lastWriteRequest and write metrics, but some fields
-// are set to its zero value.
 func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
+	m.writeRequests = append(m.writeRequests, req)
 	m.lastWriteRequest = req
-
-	key := model.LabelsToSignature(req.Labels)
-	// Delete when MetricFamilies == nil
-	if req.MetricFamilies == nil {
-		delete(m.metricGroups, key)
-		return
-	}
-
-	// Update metric contains similar logic as you find
-	// within diskmetricstore.processWriteRequest().
-	for name, _ := range req.MetricFamilies {
-		group, ok := m.metricGroups[key]
-		if !ok {
-			group = storage.MetricGroup{
-				Labels:  req.Labels,
-				Metrics: storage.NameToTimestampedMetricFamilyMap{},
-			}
-			m.metricGroups[key] = group
-		}
-		group.Metrics[name] = storage.TimestampedMetricFamily{
-			Timestamp: req.Timestamp,
-		}
-	}
-
 }
 
 func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
@@ -78,7 +47,6 @@ func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 }
 
 func (m *MockMetricStore) GetMetricFamiliesMap() storage.GroupingKeyToMetricGroup {
-	// Simply return them without performing a copy.
 	return m.metricGroups
 }
 
@@ -94,47 +62,9 @@ func (m *MockMetricStore) Ready() error {
 	return nil
 }
 
-func TestWipeMetricStore(t *testing.T) {
-	mms := newMockMetricStore()
-	pushHandler := Push(&mms, false, false, logger)
-
-	req, err := http.NewRequest(
-		"POST", "http://example.org/",
-		bytes.NewBufferString("some_metric 3.14\nanother_metric 42\n"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := httptest.NewRecorder()
-
-	// Push a few metrics to the MetricStore.
-	count := 10
-	for i := 0; i < count; i++ {
-		pushHandler(
-			w, req,
-			httprouter.Params{
-				httprouter.Param{Key: "job", Value: "testjob" + string(i)},
-				httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
-			},
-		)
-	}
-
-	// Just a basic checking to ensure MockMetricStore was filled up correctly.
-	if len(mms.GetMetricFamiliesMap()) != count {
-		t.Errorf("Length should be %d, got %d instead", count, len(mms.GetMetricFamiliesMap()))
-	}
-
-	// Wipe handler should return 202 and delete all metrics.
-	wipeHandler := WipeMetricStore(&mms, logger)
-	w = httptest.NewRecorder()
-	wipeHandler.ServeHTTP(w, req)
-
-	if w.Code != http.StatusAccepted {
-		t.Errorf("status code should be %d", http.StatusAccepted)
-	}
-
-	if len(mms.GetMetricFamiliesMap()) != 0 {
-		t.Errorf("Length should be %d, got %d instead", 0, len(mms.GetMetricFamiliesMap()))
+func newMockMetricStore() MockMetricStore {
+	return MockMetricStore{
+		metricGroups: storage.GroupingKeyToMetricGroup{},
 	}
 }
 
@@ -628,5 +558,42 @@ func TestSplitLabels(t *testing.T) {
 				t.Errorf("Found unexpected label %s=%q.", k, v)
 			}
 		})
+	}
+}
+
+func TestWipeMetricStore(t *testing.T) {
+	// Create MockMetricStore with a few GroupingKeyToMetricGroup metrics
+	// so they can be returned by GetMetricFamiliesMap() to later send write
+	// requests for each of them.
+	metricCount := 5
+	mms := newMockMetricStore()
+	for i := 0; i < metricCount; i++ {
+		mms.metricGroups[uint64(i)] = storage.MetricGroup{}
+	}
+
+	// Wipe handler should return 202 and delete all metrics.
+	wipeHandler := WipeMetricStore(&mms, logger)
+	w := httptest.NewRecorder()
+	// Then handler is routed to the handler based on verb and path in main.go
+	// therefore (and for now) we use the request to only record the returned status code.
+	req, err := http.NewRequest("PUT", "http://example.org", &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wipeHandler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Errorf("status code should be %d", http.StatusAccepted)
+	}
+
+	if len(mms.writeRequests) != metricCount {
+		t.Errorf("there should be %d write requests, got %d instead", metricCount, len(mms.writeRequests))
+	}
+
+	// Were all the writeRequest deletes?.
+	for i, wr := range mms.writeRequests {
+		if wr.MetricFamilies != nil {
+			t.Errorf("writeRequest at index %d was not a delete request", i)
+		}
 	}
 }
