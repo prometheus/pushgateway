@@ -25,7 +25,7 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
-// WipeMetricStore deletes all the metrics in MetricStore
+// WipeMetricStore deletes all the metrics in MetricStore.
 //
 // The returned handler is already instrumented for Prometheus.
 func WipeMetricStore(
@@ -37,7 +37,7 @@ func WipeMetricStore(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusAccepted)
 			level.Debug(logger).Log("msg", "start wiping metric store")
-			// Delete all metric groups by sending write requests with MetricFamilies equal to nil
+			// Delete all metric groups by sending write requests with MetricFamilies equal to nil.
 			for _, group := range ms.GetMetricFamiliesMap() {
 				ms.SubmitWriteRequest(storage.WriteRequest{
 					Labels:    group.Labels,

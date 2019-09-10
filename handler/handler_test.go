@@ -44,7 +44,7 @@ func newMockMetricStore() MockMetricStore {
 }
 
 // This mock method just set lastWriteRequest and write metrics, but some fields
-// are set to its zero value
+// are set to its zero value.
 func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
 	m.lastWriteRequest = req
 
@@ -56,7 +56,7 @@ func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
 	}
 
 	// Update metric contains similar logic as you find
-	// within diskmetricstore.processWriteRequest()
+	// within diskmetricstore.processWriteRequest().
 	for name, _ := range req.MetricFamilies {
 		group, ok := m.metricGroups[key]
 		if !ok {
@@ -78,7 +78,7 @@ func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 }
 
 func (m *MockMetricStore) GetMetricFamiliesMap() storage.GroupingKeyToMetricGroup {
-	// Simply return them without performing a copy
+	// Simply return them without performing a copy.
 	return m.metricGroups
 }
 
@@ -107,7 +107,7 @@ func TestWipeMetricStore(t *testing.T) {
 	}
 	w := httptest.NewRecorder()
 
-	// Push a few metrics to the MetricStore
+	// Push a few metrics to the MetricStore.
 	count := 10
 	for i := 0; i < count; i++ {
 		pushHandler(
@@ -119,12 +119,12 @@ func TestWipeMetricStore(t *testing.T) {
 		)
 	}
 
-	// Just a basic checking to ensure MockMetricStore was filled up correctly
+	// Just a basic checking to ensure MockMetricStore was filled up correctly.
 	if len(mms.GetMetricFamiliesMap()) != count {
 		t.Errorf("Length should be %d, got %d instead", count, len(mms.GetMetricFamiliesMap()))
 	}
 
-	// Wipe handler should return 202 and delete all metrics
+	// Wipe handler should return 202 and delete all metrics.
 	wipeHandler := WipeMetricStore(&mms, logger)
 	w = httptest.NewRecorder()
 	wipeHandler.ServeHTTP(w, req)
