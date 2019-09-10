@@ -63,6 +63,7 @@ func main() {
 		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		externalURL         = app.Flag("web.external-url", "The URL under which the Pushgateway is externally reachable.").Default("").URL()
 		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints. Defaults to the path of --web.external-url.").Default("").String()
+		enableAdminAPI      = app.Flag("web.enable-admin-api", "Enable API endpoints for admin control actions.").Default("false").Bool()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 		promlogConfig       = promlog.Config{}
@@ -109,6 +110,13 @@ func main() {
 			ErrorLog: logFunc(level.Error(logger).Log),
 		}),
 	)
+
+	if *enableAdminAPI {
+		// To be consistent with Prometheus codebase and provide endpoint versioning, we use the same path
+		// as Prometheus for its admin endpoints, even if this may feel excesive for just one simple endpoint
+		// this will likely change over time.
+		r.Handler("PUT", *routePrefix+"/api/v1/admin/wipe", handler.WipeMetricStore(ms, logger))
+	}
 
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"

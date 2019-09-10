@@ -33,9 +33,12 @@ var logger = log.NewNopLogger()
 
 type MockMetricStore struct {
 	lastWriteRequest storage.WriteRequest
+	metricGroups     storage.GroupingKeyToMetricGroup
+	writeRequests    []storage.WriteRequest
 }
 
 func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
+	m.writeRequests = append(m.writeRequests, req)
 	m.lastWriteRequest = req
 }
 
@@ -44,7 +47,7 @@ func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 }
 
 func (m *MockMetricStore) GetMetricFamiliesMap() storage.GroupingKeyToMetricGroup {
-	panic("not implemented")
+	return m.metricGroups
 }
 
 func (m *MockMetricStore) Shutdown() error {
@@ -549,5 +552,43 @@ func TestSplitLabels(t *testing.T) {
 				t.Errorf("Found unexpected label %s=%q.", k, v)
 			}
 		})
+	}
+}
+
+func TestWipeMetricStore(t *testing.T) {
+	// Create MockMetricStore with a few GroupingKeyToMetricGroup metrics
+	// so they can be returned by GetMetricFamiliesMap() to later send write
+	// requests for each of them.
+	metricCount := 5
+	mgs := storage.GroupingKeyToMetricGroup{}
+	for i := 0; i < metricCount; i++ {
+		mgs[uint64(i)] = storage.MetricGroup{}
+	}
+	mms := MockMetricStore{metricGroups: mgs}
+
+	// Wipe handler should return 202 and delete all metrics.
+	wipeHandler := WipeMetricStore(&mms, logger)
+	w := httptest.NewRecorder()
+	// Then handler is routed to the handler based on verb and path in main.go
+	// therefore (and for now) we use the request to only record the returned status code.
+	req, err := http.NewRequest("PUT", "http://example.org", &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wipeHandler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Errorf("status code should be %d", http.StatusAccepted)
+	}
+
+	if len(mms.writeRequests) != metricCount {
+		t.Errorf("there should be %d write requests, got %d instead", metricCount, len(mms.writeRequests))
+	}
+
+	// Were all the writeRequest deletes?.
+	for i, wr := range mms.writeRequests {
+		if wr.MetricFamilies != nil {
+			t.Errorf("writeRequest at index %d was not a delete request", i)
+		}
 	}
 }
