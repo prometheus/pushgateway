@@ -62,14 +62,8 @@ func (m *MockMetricStore) Ready() error {
 	return nil
 }
 
-func newMockMetricStore() MockMetricStore {
-	return MockMetricStore{
-		metricGroups: storage.GroupingKeyToMetricGroup{},
-	}
-}
-
 func TestHealthyReady(t *testing.T) {
-	mms := newMockMetricStore()
+	mms := MockMetricStore{}
 	req, err := http.NewRequest("GET", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
@@ -91,7 +85,7 @@ func TestHealthyReady(t *testing.T) {
 }
 
 func TestPush(t *testing.T) {
-	mms := newMockMetricStore()
+	mms := MockMetricStore{}
 	handler := Push(&mms, false, false, logger)
 	handlerBase64 := Push(&mms, false, true, logger)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
@@ -395,7 +389,7 @@ another_metric{instance="baz"} 42
 }
 
 func TestDelete(t *testing.T) {
-	mms := newMockMetricStore()
+	mms := MockMetricStore{}
 	handler := Delete(&mms, false, logger)
 	handlerBase64 := Delete(&mms, true, logger)
 
@@ -566,10 +560,11 @@ func TestWipeMetricStore(t *testing.T) {
 	// so they can be returned by GetMetricFamiliesMap() to later send write
 	// requests for each of them.
 	metricCount := 5
-	mms := newMockMetricStore()
+	mgs := storage.GroupingKeyToMetricGroup{}
 	for i := 0; i < metricCount; i++ {
-		mms.metricGroups[uint64(i)] = storage.MetricGroup{}
+		mgs[uint64(i)] = storage.MetricGroup{}
 	}
+	mms := MockMetricStore{metricGroups: mgs}
 
 	// Wipe handler should return 202 and delete all metrics.
 	wipeHandler := WipeMetricStore(&mms, logger)
