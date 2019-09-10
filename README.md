@@ -137,6 +137,10 @@ Examples:
   even if those metrics have the same job label):
 
         curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job
+        
+* Delete all metrics in all groups (requires to enable the admin api`--web.enable-admin-api`)
+
+        curl -XPUT http://pushgateway.example.org:9091/api/v1/admin/wipe
 
 ### About the job and instance labels
 
@@ -320,6 +324,28 @@ guaranteed that the `DELETE` will be processed first (and vice versa).
 Deleting a grouping key without metrics is a no-op and will not result
 in an error.
 
+## Admin API
+
+The Admin API provides administrative access to the pushgateway, and must be
+explicitly enabled by setting `--web.enable-admin-api` flag.
+
+### URL
+
+The default port the push gateway is listening to is 9091. The path looks like
+
+    /api/<API_VERSION>/admin/<HANDLER>
+    
+ * Available endpoints:
+ 
+| HTTP_METHOD| API_VERSION |  HANDLER | DESCRIPTION |
+| :-------: |:-------------:| :-----:| :----- |
+| PUT     | v1 | wipe |  safely deletes all metrics within the push gateway |
+
+
+* For example to wipe all metrics within the pushgateway:
+
+        curl -XPUT http://pushgateway.example.org:9091/api/v1/admin/wipe
+        
 ## Exposed metrics
 
 The Pushgateway exposes the following metrics via the configured
