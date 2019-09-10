@@ -112,8 +112,9 @@ func main() {
 	)
 
 	if *enableAdminAPI {
-		// TODO: I'm not fully clear whether this is the desired admin path,
-		//  from prometheus codebase I would say so, but I will double check.
+		// To be consistent with Prometheus codebase and provide endpoint versioning, we use the same path
+		// as Prometheus for its admin endpoints, even if this may feel excesive for just one simple endpoint
+		// this will likely change over time.
 		r.Handler("PUT", *routePrefix+"/api/v1/admin/wipe", handler.WipeMetricStore(ms, logger))
 	}
 
