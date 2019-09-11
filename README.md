@@ -342,7 +342,7 @@ The default port the Pushgateway is listening to is 9091. The path looks like:
 | PUT     | v1 | wipe |  Safely deletes all metrics from the Pushgateway. |
 
 
-* For example to wipe all metrics within the Pushgateway:
+* For example to wipe all metrics from the Pushgateway:
 
         curl -X PUT http://pushgateway.example.org:9091/api/v1/admin/wipe
         
