@@ -138,9 +138,9 @@ Examples:
 
         curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job
         
-* Delete all metrics in all groups (requires to enable the admin api`--web.enable-admin-api`)
+* Delete all metrics in all groups (requires to enable the admin api`--web.enable-admin-api`):
 
-        curl -XPUT http://pushgateway.example.org:9091/api/v1/admin/wipe
+        curl -X PUT http://pushgateway.example.org:9091/api/v1/admin/wipe
 
 ### About the job and instance labels
 
@@ -326,12 +326,12 @@ in an error.
 
 ## Admin API
 
-The Admin API provides administrative access to the pushgateway, and must be
+The Admin API provides administrative access to the Pushgateway, and must be
 explicitly enabled by setting `--web.enable-admin-api` flag.
 
 ### URL
 
-The default port the push gateway is listening to is 9091. The path looks like
+The default port the Pushgateway is listening to is 9091. The path looks like:
 
     /api/<API_VERSION>/admin/<HANDLER>
     
@@ -339,12 +339,12 @@ The default port the push gateway is listening to is 9091. The path looks like
  
 | HTTP_METHOD| API_VERSION |  HANDLER | DESCRIPTION |
 | :-------: |:-------------:| :-----:| :----- |
-| PUT     | v1 | wipe |  safely deletes all metrics within the push gateway |
+| PUT     | v1 | wipe |  Safely deletes all metrics from the Pushgateway. |
 
 
-* For example to wipe all metrics within the pushgateway:
+* For example to wipe all metrics within the Pushgateway:
 
-        curl -XPUT http://pushgateway.example.org:9091/api/v1/admin/wipe
+        curl -X PUT http://pushgateway.example.org:9091/api/v1/admin/wipe
         
 ## Exposed metrics
 
