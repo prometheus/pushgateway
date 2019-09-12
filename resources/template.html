@@ -56,6 +56,11 @@ limitations under the License.
   
   <div class="container-fluid" id="metrics-div">
     {{$data := .}}
+	<div class="card">
+	  <div class="card-header" id="general-panel">
+	      <button class="btn btn-xs btn-danger float-right {{if le (len .MetricGroups) 0}}disabled{{else}}active{{end}}" onclick="pushgateway.showDelAllModal()" id="del-all">Delete All <span class="badge badge-warning" id="del-all-counter">{{.MetricGroups | len}}</span> Groups</button>
+	  </div>
+	</div>
     <div class="accordion" id="job-accordion">
       {{range .MetricGroups}}
       {{$gCount := $data.Count}}
@@ -227,6 +232,27 @@ limitations under the License.
 	</div>
       </div>
     </div>
+  </div>
+
+  <!-- del ALL modal -->
+  <div id="del-all-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="del-header" aria-hidden="true">
+	  <div class="modal-dialog modal-sm">
+		  <div class="modal-content">
+			  <div class="modal-header">
+				  <h5 class="modal-title">Deletion Confirmation</h5>
+				  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					  <span aria-hidden="true">&times;</span>
+				  </button>
+			  </div>
+			  <div class="modal-body">
+				  <p id="del-modal-all-msg"><!-- To be filled dynamically. --></p>
+			  </div>
+			  <div class="modal-footer">
+				  <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+				  <button class="btn btn-primary btn-danger" onclick="pushgateway.deleteAllGroup()">Delete All</button>
+			  </div>
+		  </div>
+	  </div>
   </div>
 
 </body>
