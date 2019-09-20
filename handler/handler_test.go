@@ -15,9 +15,11 @@ package handler
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-kit/kit/log"
 
@@ -31,15 +33,26 @@ import (
 
 var logger = log.NewNopLogger()
 
+// MockMetricStore isn't doing any of the validation and sanitation a real
+// metric store implementation has to do. Those are tested in the storage
+// package. Here we only ensure that the right method calls are performed
+// by the code in the handlers.
 type MockMetricStore struct {
 	lastWriteRequest storage.WriteRequest
 	metricGroups     storage.GroupingKeyToMetricGroup
 	writeRequests    []storage.WriteRequest
+	err              error // If non-nil, will be sent to Done channel in request.
 }
 
 func (m *MockMetricStore) SubmitWriteRequest(req storage.WriteRequest) {
 	m.writeRequests = append(m.writeRequests, req)
 	m.lastWriteRequest = req
+	if req.Done != nil {
+		if m.err != nil {
+			req.Done <- m.err
+		}
+		close(req.Done)
+	}
 }
 
 func (m *MockMetricStore) GetMetricFamilies() []*dto.MetricFamily {
@@ -86,7 +99,9 @@ func TestHealthyReady(t *testing.T) {
 
 func TestPush(t *testing.T) {
 	mms := MockMetricStore{}
+	mmsWithErr := MockMetricStore{err: errors.New("testerror")}
 	handler := Push(&mms, false, false, logger)
+	handlerWithErr := Push(&mmsWithErr, false, false, logger)
 	handlerBase64 := Push(&mms, false, true, logger)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
@@ -107,7 +122,7 @@ func TestPush(t *testing.T) {
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
 	handler(w, req, httprouter.Params{httprouter.Param{Key: "job", Value: "testjob"}})
-	if expected, got := http.StatusAccepted, w.Code; expected != got {
+	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 	if mms.lastWriteRequest.Timestamp.IsZero() {
@@ -148,7 +163,7 @@ func TestPush(t *testing.T) {
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
 		"POST", "http://example.org/",
-		bytes.NewBufferString("some_metric 3.14\nanother_metric 42\n"),
+		bytes.NewBufferString("some_metric 3.14\nanother_metric{instance=\"testinstance\",job=\"testjob\"} 42\n"),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -161,7 +176,7 @@ func TestPush(t *testing.T) {
 			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
 		},
 	)
-	if expected, got := http.StatusAccepted, w.Code; expected != got {
+	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 	if mms.lastWriteRequest.Timestamp.IsZero() {
@@ -173,21 +188,55 @@ func TestPush(t *testing.T) {
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
-	if _, ok := mms.lastWriteRequest.MetricFamilies["push_time_seconds"]; !ok {
-		t.Errorf("Wanted metric family push_time_seconds missing.")
+
+	// With job name and instance name and text content, storage returns error.
+	req, err = http.NewRequest(
+		"POST", "http://example.org/",
+		bytes.NewBufferString("some_metric 3.14\nanother_metric{instance=\"testinstance\",job=\"testjob\"} 42\n"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+	handlerWithErr(
+		w, req,
+		httprouter.Params{
+			httprouter.Param{Key: "job", Value: "testjob"},
+			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
+		},
+	)
+	if expected, got := http.StatusBadRequest, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if mmsWithErr.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp not set: %#v", mmsWithErr.lastWriteRequest)
+	}
+	if expected, got := "testjob", mmsWithErr.lastWriteRequest.Labels["job"]; expected != got {
+		t.Errorf("Wanted job %v, got %v.", expected, got)
+	}
+	if expected, got := "testinstance", mmsWithErr.lastWriteRequest.Labels["instance"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mmsWithErr.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
+		t.Errorf("Wanted metric family %v, got %v.", expected, got)
+	}
+	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mmsWithErr.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
+		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
 	// With base64-encoded job name and instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
 		"POST", "http://example.org/",
-		bytes.NewBufferString("some_metric 3.14\nanother_metric 42\n"),
+		bytes.NewBufferString("some_metric 3.14\nanother_metric{instance=\"testinstance\",job=\"testjob\"} 42\n"),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -200,7 +249,7 @@ func TestPush(t *testing.T) {
 			httprouter.Param{Key: "labels", Value: "/instance@base64/dGVzdGluc3RhbmNl"}, // instance="testinstance"
 		},
 	)
-	if expected, got := http.StatusAccepted, w.Code; expected != got {
+	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 	if mms.lastWriteRequest.Timestamp.IsZero() {
@@ -212,21 +261,20 @@ func TestPush(t *testing.T) {
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"test/job" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"test/job" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
+	// Note that sanitation hasn't happened yet, job label as still as in the push, not aligned to grouping labels.
+	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
-	if _, ok := mms.lastWriteRequest.MetricFamilies["push_time_seconds"]; !ok {
-		t.Errorf("Wanted metric family push_time_seconds missing.")
 	}
 
 	// With job name and no instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
 		"POST", "http://example.org/",
-		bytes.NewBufferString("some_metric 3.14\nanother_metric 42\n"),
+		bytes.NewBufferString("some_metric 3.14\nanother_metric{instance=\"testinstance\",job=\"testjob\"} 42\n"),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -238,7 +286,7 @@ func TestPush(t *testing.T) {
 			httprouter.Param{Key: "job", Value: "testjob"},
 		},
 	)
-	if expected, got := http.StatusAccepted, w.Code; expected != got {
+	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 	if mms.lastWriteRequest.Timestamp.IsZero() {
@@ -250,10 +298,11 @@ func TestPush(t *testing.T) {
 	if expected, got := "", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
+	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
@@ -274,52 +323,19 @@ func TestPush(t *testing.T) {
 			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
 		},
 	)
-	if expected, got := http.StatusBadRequest, w.Code; expected != got {
+	// Note that a real storage shourd reject pushes with timestamps. Here
+	// we only make sure it gets through. Rejection is tested in the storage
+	// package.
+	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
-	if !mms.lastWriteRequest.Timestamp.IsZero() {
-		t.Errorf("Write request timestamp unexpectedly set: %#v", mms.lastWriteRequest)
+	// Make sure the timestamp from the push didn't make it to the WriteRequest.
+	if time.Now().Sub(mms.lastWriteRequest.Timestamp) > time.Minute {
+		t.Errorf("Write request timestamp set to a too low value: %#v", mms.lastWriteRequest)
 	}
-
-	// With job name and instance name and text content and job and instance labels.
-	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err = http.NewRequest(
-		"POST", "http://example.org",
-		bytes.NewBufferString(`
-some_metric{job="foo",instance="bar"} 3.14
-another_metric{instance="baz"} 42
-`),
-	)
-	if err != nil {
-		t.Fatal(err)
+	if expected, got := int64(1000), mms.lastWriteRequest.MetricFamilies["b"].GetMetric()[0].GetTimestampMs(); expected != got {
+		t.Errorf("Wanted protobuf timestamp %v, got %v.", expected, got)
 	}
-	w = httptest.NewRecorder()
-	handler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
-		},
-	)
-	if expected, got := http.StatusAccepted, w.Code; expected != got {
-		t.Errorf("Wanted status code %v, got %v.", expected, got)
-	}
-	if mms.lastWriteRequest.Timestamp.IsZero() {
-		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
-	}
-	if expected, got := "testjob", mms.lastWriteRequest.Labels["job"]; expected != got {
-		t.Errorf("Wanted job %v, got %v.", expected, got)
-	}
-	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
-		t.Errorf("Wanted instance %v, got %v.", expected, got)
-	}
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
-
 	// With job name and instance name and protobuf content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	buf := &bytes.Buffer{}
@@ -368,7 +384,7 @@ another_metric{instance="baz"} 42
 			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
 		},
 	)
-	if expected, got := http.StatusAccepted, w.Code; expected != got {
+	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 	if mms.lastWriteRequest.Timestamp.IsZero() {
@@ -380,10 +396,12 @@ another_metric{instance="baz"} 42
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:1.234 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:1.234 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	if expected, got := `name:"another_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 }

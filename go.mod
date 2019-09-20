@@ -15,7 +15,7 @@ require (
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd
 	golang.org/x/sys v0.0.0-20190909082730-f460065e899a // indirect
-	golang.org/x/tools v0.0.0-20190731214159-1e85ed8060aa // indirect
+	golang.org/x/tools v0.0.0-20190919031856-7460b8e10b7e // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
 

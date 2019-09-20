@@ -19,14 +19,12 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/golang/protobuf/proto"
 	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/client_golang/prometheus"
@@ -40,8 +38,6 @@ import (
 )
 
 const (
-	pushMetricName = "push_time_seconds"
-	pushMetricHelp = "Last Unix time when this group was changed in the Pushgateway."
 	// Base64Suffix is appended to a label name in the request URL path to
 	// mark the following label value as base64 encoded.
 	Base64Suffix = "@base64"
@@ -84,13 +80,6 @@ func Push(
 		}
 		labels["job"] = job
 
-		if replace {
-			ms.SubmitWriteRequest(storage.WriteRequest{
-				Labels:    labels,
-				Timestamp: time.Now(),
-			})
-		}
-
 		var metricFamilies map[string]*dto.MetricFamily
 		ctMediatype, ctParams, ctErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if ctErr == nil && ctMediatype == "application/vnd.google.protobuf" &&
@@ -119,20 +108,28 @@ func Push(
 			level.Debug(logger).Log("msg", "failed to parse text", "err", err.Error())
 			return
 		}
-		if timestampsPresent(metricFamilies) {
-			http.Error(w, "pushed metrics must not have timestamps", http.StatusBadRequest)
-			level.Debug(logger).Log("msg", "pushed metrics must not have timestamps")
-			return
-		}
 		now := time.Now()
-		addPushTimestamp(metricFamilies, now)
-		sanitizeLabels(metricFamilies, labels)
+		errCh := make(chan error, 1)
 		ms.SubmitWriteRequest(storage.WriteRequest{
 			Labels:         labels,
 			Timestamp:      now,
 			MetricFamilies: metricFamilies,
+			Replace:        replace,
+			Done:           errCh,
 		})
-		w.WriteHeader(http.StatusAccepted)
+		for err := range errCh {
+			http.Error(
+				w,
+				fmt.Sprintf("pushed metrics are invalid or inconsistent with existing metrics: %v", err),
+				http.StatusBadRequest,
+			)
+			level.Error(logger).Log(
+				"msg", "pushed metrics are invalid or inconsistent with existing metrics",
+				"method", r.Method,
+				"source", r.RemoteAddr,
+				"err", err.Error(),
+			)
+		}
 	})
 
 	instrumentedHandler := promhttp.InstrumentHandlerRequestSize(
@@ -146,61 +143,6 @@ func Push(
 		mtx.Lock()
 		ps = params
 		instrumentedHandler.ServeHTTP(w, r)
-	}
-}
-
-// sanitizeLabels ensures that all the labels in groupingLabels and the
-// `instance` label are present in each MetricFamily in metricFamilies. The
-// label values from groupingLabels are set in each MetricFamily, no matter
-// what. After that, if the 'instance' label is not present at all in a
-// MetricFamily, it will be created (with an empty string as value).
-//
-// Finally, sanitizeLabels sorts the label pairs of all metrics.
-func sanitizeLabels(
-	metricFamilies map[string]*dto.MetricFamily,
-	groupingLabels map[string]string,
-) {
-	gLabelsNotYetDone := make(map[string]string, len(groupingLabels))
-
-	for _, mf := range metricFamilies {
-	metric:
-		for _, m := range mf.GetMetric() {
-			for ln, lv := range groupingLabels {
-				gLabelsNotYetDone[ln] = lv
-			}
-			hasInstanceLabel := false
-			for _, lp := range m.GetLabel() {
-				ln := lp.GetName()
-				if lv, ok := gLabelsNotYetDone[ln]; ok {
-					lp.Value = proto.String(lv)
-					delete(gLabelsNotYetDone, ln)
-				}
-				if ln == string(model.InstanceLabel) {
-					hasInstanceLabel = true
-				}
-				if len(gLabelsNotYetDone) == 0 && hasInstanceLabel {
-					sort.Sort(labelPairs(m.Label))
-					continue metric
-				}
-			}
-			for ln, lv := range gLabelsNotYetDone {
-				m.Label = append(m.Label, &dto.LabelPair{
-					Name:  proto.String(ln),
-					Value: proto.String(lv),
-				})
-				if ln == string(model.InstanceLabel) {
-					hasInstanceLabel = true
-				}
-				delete(gLabelsNotYetDone, ln) // To prepare map for next metric.
-			}
-			if !hasInstanceLabel {
-				m.Label = append(m.Label, &dto.LabelPair{
-					Name:  proto.String(string(model.InstanceLabel)),
-					Value: proto.String(""),
-				})
-			}
-			sort.Sort(labelPairs(m.Label))
-		}
 	}
 }
 
@@ -241,48 +183,4 @@ func splitLabels(labels string) (map[string]string, error) {
 		result[trimmedName] = decodedValue
 	}
 	return result, nil
-}
-
-// Checks if any timestamps have been specified.
-func timestampsPresent(metricFamilies map[string]*dto.MetricFamily) bool {
-	for _, mf := range metricFamilies {
-		for _, m := range mf.GetMetric() {
-			if m.TimestampMs != nil {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// Add metric to indicate the push time.
-func addPushTimestamp(metricFamilies map[string]*dto.MetricFamily, t time.Time) {
-	metricFamilies[pushMetricName] = &dto.MetricFamily{
-		Name: proto.String(pushMetricName),
-		Help: proto.String(pushMetricHelp),
-		Type: dto.MetricType_GAUGE.Enum(),
-		Metric: []*dto.Metric{
-			{
-				Gauge: &dto.Gauge{
-					Value: proto.Float64(float64(t.UnixNano()) / 1e9),
-				},
-			},
-		},
-	}
-}
-
-// labelPairs implements sort.Interface. It provides a sortable version of a
-// slice of dto.LabelPair pointers.
-type labelPairs []*dto.LabelPair
-
-func (s labelPairs) Len() int {
-	return len(s)
-}
-
-func (s labelPairs) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s labelPairs) Less(i, j int) bool {
-	return s[i].GetName() < s[j].GetName()
 }
