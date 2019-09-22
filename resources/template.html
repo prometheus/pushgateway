@@ -57,10 +57,8 @@ limitations under the License.
   <div class="container-fluid" id="metrics-div">
     {{$data := .}}
 	{{if eq (index .Flags "web.enable-admin-api") "true"}}
-	<div class="card">
-	  <div class="card-header" id="general-panel">
-	      <button class="btn btn-xs btn-danger float-right {{if le (len .MetricGroups) 0}}disabled{{else}}active{{end}}" onclick="pushgateway.showDelAllModal()" id="del-all">Delete All <span class="badge badge-warning" id="del-all-counter">{{.MetricGroups | len}}</span> Groups</button>
-	  </div>
+	<div class="blank-card">
+		<button class="btn btn-xs btn-danger float-right {{if le (len .MetricGroups) 0}}disabled{{else}}active{{end}}" onclick="pushgateway.showDelAllModal()" id="del-all">Delete All <span class="badge badge-warning" id="del-all-counter">{{.MetricGroups | len}}</span> Groups</button>
 	</div>
 	{{end}}
     <div class="accordion" id="job-accordion">
