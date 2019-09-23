@@ -35,7 +35,7 @@ pushgateway.showDelModal = function(labels, labelsEncoded, panelID, event){
 }
 
 pushgateway.showDelAllModal = function(){
-    if ($('button#del-all').hasClass('active')) {
+    if (!$('button#del-all').hasClass('disabled')) {
         $('#del-modal-all-msg').text(
             'Do you really want to delete all metrics from all metric groups?'
         );
@@ -106,11 +106,9 @@ pushgateway.setDelAllCounter = function(n){
 
 pushgateway.enableDelAllGroupButton = function(){
     $('button#del-all').removeClass('disabled');
-    $('button#del-all').addClass('active');
 }
 
 pushgateway.disableDelAllGroupButton = function(){
-    $('button#del-all').removeClass('active');
     $('button#del-all').addClass('disabled');
 }
 
