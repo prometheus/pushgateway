@@ -145,7 +145,32 @@ func main() {
 		level.Error(logger).Log("err", err)
 		os.Exit(1)
 	}
-	go interruptHandler(l, logger)
+
+	quitCh := make(chan struct{})
+	quitHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Requesting termination... Goodbye!")
+		close(quitCh)
+	})
+
+	forbiddenAPINotEnabled := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Lifecycle APIs are not enabled"))
+	})
+
+	if *enableLifeCycle {
+		r.Handler("PUT", *routePrefix+"/-/quit", quitHandler)
+		r.Handler("POST", *routePrefix+"/-/quit", quitHandler)
+	} else {
+		r.Handler("PUT", *routePrefix+"/-/quit", forbiddenAPINotEnabled)
+		r.Handler("POST", *routePrefix+"/-/quit", forbiddenAPINotEnabled)
+	}
+
+	r.Handler("GET", "/-/quit", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("Only POST or PUT requests allowed"))
+	}))
+
+	go interruptHandler(l, quitCh, logger)
 	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
 	level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
 	// To give running connections a chance to submit their payload, we wait
@@ -191,10 +216,17 @@ func computeRoutePrefix(prefix string, externalURL *url.URL) string {
 	return prefix
 }
 
-func interruptHandler(l net.Listener, logger log.Logger) {
+func interruptHandler(l net.Listener, quitCh <-chan struct{}, logger log.Logger) {
 	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
-	<-notifier
-	level.Info(logger).Log("msg", "received SIGINT/SIGTERM; exiting gracefully...")
+
+	select {
+	case <-notifier:
+		level.Info(logger).Log("msg", "received SIGINT/SIGTERM; exiting gracefully...")
+		break
+	case <-quitCh:
+		level.Warn(logger).Log("msg", "Received termination request via web service, exiting gracefully...")
+		break
+	}
 	l.Close()
 }
