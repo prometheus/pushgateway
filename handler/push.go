@@ -110,6 +110,7 @@ func Push(
 		}
 		now := time.Now()
 		errCh := make(chan error, 1)
+		errReceived := false
 		ms.SubmitWriteRequest(storage.WriteRequest{
 			Labels:         labels,
 			Timestamp:      now,
@@ -118,17 +119,24 @@ func Push(
 			Done:           errCh,
 		})
 		for err := range errCh {
-			http.Error(
-				w,
-				fmt.Sprintf("pushed metrics are invalid or inconsistent with existing metrics: %v", err),
-				http.StatusBadRequest,
-			)
+			// Send only first error via HTTP, but log all of them.
+			// TODO(beorn): Consider sending all errors once we
+			// have a use case. (Currently, at most one error is
+			// produced.)
+			if !errReceived {
+				http.Error(
+					w,
+					fmt.Sprintf("pushed metrics are invalid or inconsistent with existing metrics: %v", err),
+					http.StatusBadRequest,
+				)
+			}
 			level.Error(logger).Log(
 				"msg", "pushed metrics are invalid or inconsistent with existing metrics",
 				"method", r.Method,
 				"source", r.RemoteAddr,
 				"err", err.Error(),
 			)
+			errReceived = true
 		}
 	})
 
