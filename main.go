@@ -170,7 +170,7 @@ func main() {
 		w.Write([]byte("Only POST or PUT requests allowed"))
 	}))
 
-	go interruptHandler(l, quitCh, logger)
+	go exitHandler(l, quitCh, logger)
 	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
 	level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
 	// To give running connections a chance to submit their payload, we wait
@@ -216,7 +216,7 @@ func computeRoutePrefix(prefix string, externalURL *url.URL) string {
 	return prefix
 }
 
-func interruptHandler(l net.Listener, quitCh <-chan struct{}, logger log.Logger) {
+func exitHandler(l net.Listener, quitCh <-chan struct{}, logger log.Logger) {
 	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 
