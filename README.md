@@ -352,6 +352,25 @@ The default port the Pushgateway is listening to is 9091. The path looks like:
 
         curl -X PUT http://pushgateway.example.org:9091/api/v1/admin/wipe
         
+## Management API
+
+Pushgateway provides a set of management API to ease automation and integrations.
+
+* Available endpoints:
+ 
+| HTTP_METHOD |  PATH | DESCRIPTION |
+| :-------: | :-----| :----- |
+| GET    | /-/healthy |  Return 200 whenever the Pushgateway is healthy. |
+| GET    | /-/ready |  Return 200 whenever the Pushgateway is ready. |
+
+* The following endpoints are disabled by default and can be enabled via the `--web.enable-lifecycle` flag.
+
+| HTTP_METHOD |  PATH | DESCRIPTION |
+| :-------: | :-----| :----- |
+| PUT    | /-/quit |  Triggers a graceful shutdown of Pushgateway. |
+
+An alternative way trigger a graceful shutdown is by sending a `SIGTERM` to the Pushgateway process.
+
 ## Exposed metrics
 
 The Pushgateway exposes the following metrics via the configured
