@@ -95,8 +95,8 @@ func main() {
 
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer, logger)
 
-	// Inject the metric families returned by ms.GetMetricFamilies into the default Gatherer:
-	prometheus.DefaultGatherer = prometheus.Gatherers{
+	// Create a Gatherer combining the DefaultGatherer and the metrics from the metric store.
+	g := prometheus.Gatherers{
 		prometheus.DefaultGatherer,
 		prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) { return ms.GetMetricFamilies(), nil }),
 	}
@@ -106,7 +106,7 @@ func main() {
 	r.Handler("GET", *routePrefix+"/-/ready", handler.Ready(ms))
 	r.Handler(
 		"GET", path.Join(*routePrefix, *metricsPath),
-		promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{
+		promhttp.HandlerFor(g, promhttp.HandlerOpts{
 			ErrorLog: logFunc(level.Error(logger).Log),
 		}),
 	)

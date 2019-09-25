@@ -137,6 +137,10 @@ Examples:
   even if those metrics have the same job label):
 
         curl -X DELETE http://pushgateway.example.org:9091/metrics/job/some_job
+        
+* Delete all metrics in all groups (requires to enable the admin API via the command line flag `--web.enable-admin-api`):
+
+        curl -X PUT http://pushgateway.example.org:9091/api/v1/admin/wipe
 
 ### About the job and instance labels
 
@@ -198,10 +202,12 @@ timestamps.
 If you think you need to push a timestamp, please see [When To Use The
 Pushgateway](https://prometheus.io/docs/practices/pushing/).
 
-In order to make it easier to alert on pushers that have not run recently, the
-Pushgateway will add in a metric `push_time_seconds` with the Unix timestamp
-of the last `POST`/`PUT` to each group. This will override any pushed metric by
-that name.
+In order to make it easier to alert on failed pushers or those that have not
+run recently, the Pushgateway will add in the metrics `push_time_seconds` and
+`push_failure_time_seconds` with the Unix timestamp of the last successful and
+failed `POST`/`PUT` to each group. This will override any pushed metric by that
+name. A value of zero for either metric implies that the group has never seen a
+successful or failed `POST`/`PUT`.
 
 ## API
 
@@ -273,20 +279,24 @@ header. (Use the value `application/vnd.google.protobuf;
 proto=io.prometheus.client.MetricFamily; encoding=delimited` for protocol
 buffers, otherwise the text format is tried as a fall-back.)
 
-The response code upon success is always 202 (even if the same
-grouping key has never been used before, i.e. there is no feedback to
-the client if the push has replaced an existing group of metrics or
-created a new one).
+The response code upon success is either 200 or 400. A 200 response implies a
+successful push, either replacing an existing group of metrics or creating a
+new one. A 400 response can happen if the request is malformed or if the pushed
+metrics are inconsistent with metrics pushed to other groups or collide with
+metrics of the Pushgateway itself. An explanation is returned in the body of
+the response and logged on error level.
+
+In rare cases, it is possible that the Pushgateway ends up with an inconsistent
+set of metrics already pushed. In that case, new pushes are also rejected as
+inconsistent even if the culprit is metrics that were pushed earlier. Delete
+the offending metrics to get out of that situation.
 
 _If using the protobuf format, do not send duplicate MetricFamily
 proto messages (i.e. more than one with the same name) in one push, as
 they will overwrite each other._
 
-A successfully finished request means that the pushed metrics are
-queued for an update of the storage. Scraping the push gateway may
-still yield the old results until the queued update is
-processed. Neither is there a guarantee that the pushed metrics are
-persisted to disk. (A server crash may cause data loss. Or the push
+Note that the Pushgateway doesn't provide any strong guarantees that the pushed
+metrics are persisted to disk. (A server crash may cause data loss. Or the push
 gateway is configured to not persist to disk at all.)
 
 A `PUT` request with an empty body effectively deletes all metrics with the
@@ -320,17 +330,41 @@ guaranteed that the `DELETE` will be processed first (and vice versa).
 Deleting a grouping key without metrics is a no-op and will not result
 in an error.
 
+## Admin API
+
+The Admin API provides administrative access to the Pushgateway, and must be
+explicitly enabled by setting `--web.enable-admin-api` flag.
+
+### URL
+
+The default port the Pushgateway is listening to is 9091. The path looks like:
+
+    /api/<API_VERSION>/admin/<HANDLER>
+    
+ * Available endpoints:
+ 
+| HTTP_METHOD| API_VERSION |  HANDLER | DESCRIPTION |
+| :-------: |:-------------:| :-----:| :----- |
+| PUT     | v1 | wipe |  Safely deletes all metrics from the Pushgateway. |
+
+
+* For example to wipe all metrics from the Pushgateway:
+
+        curl -X PUT http://pushgateway.example.org:9091/api/v1/admin/wipe
+        
 ## Exposed metrics
 
 The Pushgateway exposes the following metrics via the configured
 `--web.telemetry-path` (default: `/metrics`):
 - The pushed metrics.
-- For each pushed group, a metric `push_time_seconds` as explained above.
+- For each pushed group, a metric `push_time_seconds` and
+  `push_failure_time_seconds` as explained above.
 - The usual metrics provided by the [Prometheus Go client library](https://github.com/prometheus/client_golang), i.e.:
   - `process_...`
   - `go_...`
   - `promhttp_metric_handler_requests_...`
-- A number of metrics specific to the Pushgateway, as documented by the example scrape below.
+- A number of metrics specific to the Pushgateway, as documented by the example
+  scrape below.
 
 ```
 # HELP pushgateway_build_info A metric with a constant '1' value labeled by version, revision, branch, and goversion from which pushgateway was built.
@@ -359,7 +393,23 @@ pushgateway_http_requests_total{code="202",handler="push",method="post"} 6
 pushgateway_http_requests_total{code="400",handler="push",method="post"} 2
 
 ```
-  
+
+### Alerting on failed pushes
+
+It is in general a good idea to alert on `push_time_seconds` being much farther
+behind than expected. This will catch both failed pushes as well as pushers
+being down completely.
+
+To detect failed pushes much earlier, alert on `push_failure_time_seconds >
+push_time_seconds`.
+
+Pushes can also fail because they are malformed. In this case, they never reach
+any metric group and therefore won't set any `push_failure_time_seconds`
+metrics. Those pushes are still counted as
+`pushgateway_http_requests_total{code="400",handler="push"}`. You can alert on
+the `rate` of this metric, but you have to inspect the logs to identify the
+offending pusher.
+
 ## Development
 
 The normal binary embeds the web files in the `resources` directory.
