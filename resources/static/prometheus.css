@@ -29,3 +29,9 @@ body {
 .navbar .container-fluid {
     padding: 0;
 }
+
+/* This class provides style for containers that hold card like (without background) objects within container-fluid and out of accordion */
+.blank-card {
+  padding-bottom: 50px;
+  padding-right: 25px;
+}

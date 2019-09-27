@@ -34,6 +34,15 @@ pushgateway.showDelModal = function(labels, labelsEncoded, panelID, event){
     $('#del-modal').modal('show');
 }
 
+pushgateway.showDelAllModal = function(){
+    if (!$('button#del-all').hasClass('disabled')) {
+        $('#del-modal-all-msg').text(
+            'Do you really want to delete all metrics from all metric groups?'
+        );
+        $('#del-all-modal').modal('show');
+    }
+}
+
 pushgateway.deleteGroup = function(){
     var pathElements = [];
     for (var ln in pushgateway.labels) {
@@ -52,12 +61,55 @@ pushgateway.deleteGroup = function(){
 	url: 'metrics/job@base64/' + encodeURIComponent(pushgateway.labels['job']) + groupPath,
 	success: function(data, textStatus, jqXHR) {
 	    pushgateway.panel.remove();
+        pushgateway.decreaseDelAllCounter();
 	    $('#del-modal').modal('hide');
 	},
 	error: function(jqXHR, textStatus, error) {
 	    alert('Deleting metric group failed: ' + error);
 	}
     });
+}
+
+pushgateway.deleteAllGroup = function(){
+    $.ajax({
+        type: 'PUT',
+        url: 'api/v1/admin/wipe',
+        success: function(data, textStatus, jqXHR) {
+            $('div').each(function() {
+                id = $(this).attr("id");
+                if (typeof id != 'undefined' && id.match(/^group-panel-[0-9]{1,}$/)) {
+                    $(this).parent().remove();
+                }
+            });
+            pushgateway.setDelAllCounter(0);
+            $('#del-all-modal').modal('hide');
+        },
+        error: function(jqXHR, textStatus, error) {
+            alert('Deleting all metric groups failed: ' + error);
+        }
+    });
+}
+
+pushgateway.decreaseDelAllCounter = function(){
+    var counter = parseInt($('span#del-all-counter').text());
+    pushgateway.setDelAllCounter(--counter);
+}
+
+pushgateway.setDelAllCounter = function(n){
+    $('span#del-all-counter').text(n);
+    if (n <= 0) {
+        pushgateway.disableDelAllGroupButton();
+        return;
+    }
+    pushgateway.enableDelAllGroupButton();
+}
+
+pushgateway.enableDelAllGroupButton = function(){
+    $('button#del-all').removeClass('disabled');
+}
+
+pushgateway.disableDelAllGroupButton = function(){
+    $('button#del-all').addClass('disabled');
 }
 
 $(function () {
