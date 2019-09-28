@@ -154,7 +154,7 @@ func main() {
 
 	forbiddenAPINotEnabled := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("Lifecycle APIs are not enabled"))
+		w.Write([]byte("Lifecycle API is not enabled."))
 	})
 
 	if *enableLifeCycle {
@@ -167,10 +167,10 @@ func main() {
 
 	r.Handler("GET", "/-/quit", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("Only POST or PUT requests allowed"))
+		w.Write([]byte("Only POST or PUT requests allowed."))
 	}))
 
-	go exitHandler(l, quitCh, logger)
+	go closeListenerOnQuit(l, quitCh, logger)
 	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
 	level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
 	// To give running connections a chance to submit their payload, we wait
@@ -216,7 +216,9 @@ func computeRoutePrefix(prefix string, externalURL *url.URL) string {
 	return prefix
 }
 
-func exitHandler(l net.Listener, quitCh <-chan struct{}, logger log.Logger) {
+// closeListenerOnQuite closes the provided listener upon closing the provided
+// quitCh or upon receiving a SIGINT or SIGTERM.
+func closeListenerOnQuit(l net.Listener, quitCh <-chan struct{}, logger log.Logger) {
 	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 
@@ -225,7 +227,7 @@ func exitHandler(l net.Listener, quitCh <-chan struct{}, logger log.Logger) {
 		level.Info(logger).Log("msg", "received SIGINT/SIGTERM; exiting gracefully...")
 		break
 	case <-quitCh:
-		level.Warn(logger).Log("msg", "Received termination request via web service, exiting gracefully...")
+		level.Warn(logger).Log("msg", "received termination request via web service, exiting gracefully...")
 		break
 	}
 	l.Close()
