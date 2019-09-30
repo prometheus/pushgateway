@@ -63,6 +63,7 @@ func main() {
 		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		externalURL         = app.Flag("web.external-url", "The URL under which the Pushgateway is externally reachable.").Default("").URL()
 		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints. Defaults to the path of --web.external-url.").Default("").String()
+		enableLifeCycle     = app.Flag("web.enable-lifecycle", "Enable shutdown via HTTP request.").Default("false").Bool()
 		enableAdminAPI      = app.Flag("web.enable-admin-api", "Enable API endpoints for admin control actions.").Default("false").Bool()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
@@ -144,7 +145,32 @@ func main() {
 		level.Error(logger).Log("err", err)
 		os.Exit(1)
 	}
-	go interruptHandler(l, logger)
+
+	quitCh := make(chan struct{})
+	quitHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Requesting termination... Goodbye!")
+		close(quitCh)
+	})
+
+	forbiddenAPINotEnabled := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Lifecycle API is not enabled."))
+	})
+
+	if *enableLifeCycle {
+		r.Handler("PUT", *routePrefix+"/-/quit", quitHandler)
+		r.Handler("POST", *routePrefix+"/-/quit", quitHandler)
+	} else {
+		r.Handler("PUT", *routePrefix+"/-/quit", forbiddenAPINotEnabled)
+		r.Handler("POST", *routePrefix+"/-/quit", forbiddenAPINotEnabled)
+	}
+
+	r.Handler("GET", "/-/quit", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("Only POST or PUT requests allowed."))
+	}))
+
+	go closeListenerOnQuit(l, quitCh, logger)
 	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
 	level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
 	// To give running connections a chance to submit their payload, we wait
@@ -190,10 +216,19 @@ func computeRoutePrefix(prefix string, externalURL *url.URL) string {
 	return prefix
 }
 
-func interruptHandler(l net.Listener, logger log.Logger) {
+// closeListenerOnQuite closes the provided listener upon closing the provided
+// quitCh or upon receiving a SIGINT or SIGTERM.
+func closeListenerOnQuit(l net.Listener, quitCh <-chan struct{}, logger log.Logger) {
 	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
-	<-notifier
-	level.Info(logger).Log("msg", "received SIGINT/SIGTERM; exiting gracefully...")
+
+	select {
+	case <-notifier:
+		level.Info(logger).Log("msg", "received SIGINT/SIGTERM; exiting gracefully...")
+		break
+	case <-quitCh:
+		level.Warn(logger).Log("msg", "received termination request via web service, exiting gracefully...")
+		break
+	}
 	l.Close()
 }
