@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -60,6 +61,10 @@ type mfStat struct {
 	pos    int  // Where in the result slice is the MetricFamily?
 	copied bool // Has the MetricFamily already been copied?
 }
+
+// legacyGroupingKeyToMetricGroup is like GroupingKeyToMetricGroup but uses the
+// old uint64 grouping key (a hash value) instead of a string grouping key.
+type legacyGroupingKeyToMetricGroup map[uint64]MetricGroup
 
 // NewDiskMetricStore returns a DiskMetricStore ready to use. To cleanly shut it
 // down and free resources, the Shutdown() method has to be called.
@@ -264,7 +269,7 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 	dms.lock.Lock()
 	defer dms.lock.Unlock()
 
-	key := model.LabelsToSignature(wr.Labels)
+	key := groupingKeyFor(wr.Labels)
 
 	if wr.MetricFamilies == nil {
 		// No MetricFamilies means delete request. Delete the whole
@@ -307,7 +312,7 @@ func (dms *DiskMetricStore) setPushFailedTimestamp(wr WriteRequest) {
 	dms.lock.Lock()
 	defer dms.lock.Unlock()
 
-	key := model.LabelsToSignature(wr.Labels)
+	key := groupingKeyFor(wr.Labels)
 
 	group, ok := dms.metricGroups[key]
 	if !ok {
@@ -425,7 +430,25 @@ func (dms *DiskMetricStore) restore() error {
 	}
 	defer f.Close()
 	d := gob.NewDecoder(f)
-	return d.Decode(&dms.metricGroups)
+	if err := d.Decode(&dms.metricGroups); err == nil {
+		return nil
+	}
+	// Convert legacy disk format. TODO(beorn7): Remove prior to v1 release.
+	level.Info(dms.logger).Log("msg", "could not decode persistence file, trying legacy v0.9 format")
+	legacyMetricGroups := legacyGroupingKeyToMetricGroup{}
+	// Need to rewind file and create new decoder.
+	if _, err := f.Seek(0, 0); err != nil {
+		return err
+	}
+	d = gob.NewDecoder(f)
+	if err := d.Decode(&legacyMetricGroups); err != nil {
+		return err // That's a real failure then, unrelated to the format change.
+	}
+	for _, mg := range legacyMetricGroups {
+		dms.metricGroups[groupingKeyFor(mg.Labels)] = mg
+	}
+	level.Info(dms.logger).Log("msg", "conversion from v0.9 legacy format successful, next persisting will happen in current format")
+	return nil
 }
 
 func copyMetricFamily(mf *dto.MetricFamily) *dto.MetricFamily {
@@ -435,6 +458,34 @@ func copyMetricFamily(mf *dto.MetricFamily) *dto.MetricFamily {
 		Type:   mf.Type,
 		Metric: append([]*dto.Metric{}, mf.Metric...),
 	}
+}
+
+// groupingKeyFor creates a grouping key from the provided map of grouping
+// labels. The grouping key is created by joining all label names and values
+// together with model.SeparatorByte as a separator. The label names are sorted
+// lexicographically before joining. In that way, the grouping key is both
+// reproducible and unique.
+func groupingKeyFor(labels map[string]string) string {
+	if len(labels) == 0 { // Super fast path.
+		return ""
+	}
+
+	labelNames := make([]string, 0, len(labels))
+	for labelName := range labels {
+		labelNames = append(labelNames, labelName)
+	}
+	sort.Strings(labelNames)
+
+	sb := strings.Builder{}
+	for i, labelName := range labelNames {
+		sb.WriteString(labelName)
+		sb.WriteByte(model.SeparatorByte)
+		sb.WriteString(labels[labelName])
+		if i+1 < len(labels) { // No separator at the end.
+			sb.WriteByte(model.SeparatorByte)
+		}
+	}
+	return sb.String()
 }
 
 // extractPredefinedHelpStrings extracts all the HELP strings from the provided
