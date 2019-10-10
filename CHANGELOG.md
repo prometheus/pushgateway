@@ -1,3 +1,14 @@
+## 0.10.0 / 2019-10-10
+
+_This release changes the storage format. v0.10 can read the storage format of v0.5–v0.9. It will then persist the new format so that a downgrade won't be possible anymore._
+
+[CHANGE] Change of the storage format (necessary for the hash collision bugfix below). #293
+[CHANGE] Check pushed metrics immediately and reject them if inconsistent. Successful pushes now result in code 200 (not 202). Failures result in code 400 and are logged at error level. #290
+[FEATURE] Shutdown via HTTP request. Enable with `--web.enable-lifecycle`. #292
+[FEATURE] Wipe storage completely via HTTP request and via web UI. Enable with `--web.enable-admin-api`. #287 #285
+[BUGFIX] Rule out hash collisions between metric groups. #293
+[BUGFIX] Avoid multiple calls of `http.Error` in push handler. #291
+
 ## 0.9.1 / 2019-08-01
 
 [BUGFIX] Make `--web.external-url` and `--web.route-prefix` work as documented. #274
