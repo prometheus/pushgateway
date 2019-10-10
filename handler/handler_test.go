@@ -16,6 +16,7 @@ package handler
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -580,7 +581,7 @@ func TestWipeMetricStore(t *testing.T) {
 	metricCount := 5
 	mgs := storage.GroupingKeyToMetricGroup{}
 	for i := 0; i < metricCount; i++ {
-		mgs[uint64(i)] = storage.MetricGroup{}
+		mgs[fmt.Sprint(i)] = storage.MetricGroup{}
 	}
 	mms := MockMetricStore{metricGroups: mgs}
 

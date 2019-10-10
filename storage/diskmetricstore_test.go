@@ -576,7 +576,7 @@ func addGroup(
 	groupingLabels map[string]string,
 	metrics NameToTimestampedMetricFamilyMap,
 ) {
-	mg[model.LabelsToSignature(groupingLabels)] = MetricGroup{
+	mg[groupingKeyFor(groupingLabels)] = MetricGroup{
 		Labels:  groupingLabels,
 		Metrics: metrics,
 	}
@@ -797,7 +797,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		t.Error(err)
 	}
 	// Spot-check timestamp.
-	tmf := dms.metricGroups[model.LabelsToSignature(map[string]string{
+	tmf := dms.metricGroups[groupingKeyFor(map[string]string{
 		"job":      "job1",
 		"instance": "instance2",
 	})].Metrics["mf1"]
@@ -897,7 +897,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		t.Error(err)
 	}
 	// Check that no empty map entry for job3 was left behind.
-	if _, stillExists := dms.metricGroups[model.LabelsToSignature(grouping5)]; stillExists {
+	if _, stillExists := dms.metricGroups[groupingKeyFor(grouping5)]; stillExists {
 		t.Error("An instance map for 'job3' still exists.")
 	}
 
@@ -1326,8 +1326,8 @@ func TestGetMetricFamiliesMap(t *testing.T) {
 		"instance": "instance2",
 	}
 
-	ls1 := model.LabelsToSignature(labels1)
-	ls2 := model.LabelsToSignature(labels2)
+	gk1 := groupingKeyFor(labels1)
+	gk2 := groupingKeyFor(labels2)
 
 	// Submit a single simple metric family.
 	ts1 := time.Now()
@@ -1366,13 +1366,13 @@ func TestGetMetricFamiliesMap(t *testing.T) {
 	// expectedMFMap is a multi-layered map that maps the labelset
 	// fingerprints to the corresponding metric family string
 	// representations.  This is for test assertion purposes.
-	expectedMFMap := map[uint64]map[string]string{
-		ls1: {
+	expectedMFMap := map[string]map[string]string{
+		gk1: {
 			"mf3":                mf3.String(),
 			pushMetricName:       pushTimestamp.String(),
 			pushFailedMetricName: pushFailedTimestamp.String(),
 		},
-		ls2: {
+		gk2: {
 			"mf1":                mf1b.String(),
 			"mf2":                mf2.String(),
 			pushMetricName:       newPushTimestampGauge(labels2, ts2).String(),
@@ -1450,6 +1450,33 @@ func TestHelpStringFix(t *testing.T) {
 
 }
 
+func TestGroupingKeyForLabels(t *testing.T) {
+	sep := string([]byte{model.SeparatorByte})
+	scenarios := []struct {
+		in  map[string]string
+		out string
+	}{
+		{
+			in:  map[string]string{},
+			out: "",
+		},
+		{
+			in:  map[string]string{"foo": "bar"},
+			out: "foo" + sep + "bar",
+		},
+		{
+			in:  map[string]string{"foo": "bar", "dings": "bums"},
+			out: "dings" + sep + "bums" + sep + "foo" + sep + "bar",
+		},
+	}
+
+	for _, s := range scenarios {
+		if want, got := s.out, groupingKeyFor(s.in); want != got {
+			t.Errorf("Want grouping key %q for labels %v, got %q.", want, s.in, got)
+		}
+	}
+}
+
 func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily) error {
 	gotMFs := dms.GetMetricFamilies()
 	if expected, got := len(expectedMFs), len(gotMFs); expected != got {
@@ -1479,7 +1506,7 @@ func checkMetricFamilies(dms *DiskMetricStore, expectedMFs ...*dto.MetricFamily)
 	return nil
 }
 
-func checkMetricFamilyGroups(dms *DiskMetricStore, expectedMFMap map[uint64]map[string]string) error {
+func checkMetricFamilyGroups(dms *DiskMetricStore, expectedMFMap map[string]map[string]string) error {
 	mfMap := dms.GetMetricFamiliesMap()
 
 	if expected, got := len(expectedMFMap), len(mfMap); expected != got {
@@ -1489,7 +1516,7 @@ func checkMetricFamilyGroups(dms *DiskMetricStore, expectedMFMap map[uint64]map[
 	for k, v := range mfMap {
 		if innerMap, ok := expectedMFMap[k]; ok {
 			if len(innerMap) != len(v.Metrics) {
-				return fmt.Errorf("expected %d metric entries for labelSet fingerprint %d  in map, but got %d",
+				return fmt.Errorf("expected %d metric entries for grouping key %s in map, but got %d",
 					len(innerMap), k, len(v.Metrics))
 			}
 			for metricName, metricString := range innerMap {
@@ -1498,7 +1525,7 @@ func checkMetricFamilyGroups(dms *DiskMetricStore, expectedMFMap map[uint64]map[
 				}
 			}
 		} else {
-			return fmt.Errorf("expected key value %d to be present in metric families in map", k)
+			return fmt.Errorf("expected grouping key %s to be present in metric families map", k)
 		}
 	}
 	return nil

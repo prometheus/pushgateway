@@ -104,7 +104,7 @@ type WriteRequest struct {
 
 // GroupingKeyToMetricGroup is the first level of the metric store, keyed by
 // grouping key.
-type GroupingKeyToMetricGroup map[uint64]MetricGroup
+type GroupingKeyToMetricGroup map[string]MetricGroup
 
 // MetricGroup adds the grouping labels to a NameToTimestampedMetricFamilyMap.
 type MetricGroup struct {
