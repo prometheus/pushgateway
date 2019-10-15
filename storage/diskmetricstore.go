@@ -62,10 +62,6 @@ type mfStat struct {
 	copied bool // Has the MetricFamily already been copied?
 }
 
-// legacyGroupingKeyToMetricGroup is like GroupingKeyToMetricGroup but uses the
-// old uint64 grouping key (a hash value) instead of a string grouping key.
-type legacyGroupingKeyToMetricGroup map[uint64]MetricGroup
-
 // NewDiskMetricStore returns a DiskMetricStore ready to use. To cleanly shut it
 // down and free resources, the Shutdown() method has to be called.
 //
@@ -430,24 +426,9 @@ func (dms *DiskMetricStore) restore() error {
 	}
 	defer f.Close()
 	d := gob.NewDecoder(f)
-	if err := d.Decode(&dms.metricGroups); err == nil {
-		return nil
-	}
-	// Convert legacy disk format. TODO(beorn7): Remove prior to v1 release.
-	level.Info(dms.logger).Log("msg", "could not decode persistence file, trying legacy v0.9 format")
-	legacyMetricGroups := legacyGroupingKeyToMetricGroup{}
-	// Need to rewind file and create new decoder.
-	if _, err := f.Seek(0, 0); err != nil {
+	if err := d.Decode(&dms.metricGroups); err != nil {
 		return err
 	}
-	d = gob.NewDecoder(f)
-	if err := d.Decode(&legacyMetricGroups); err != nil {
-		return err // That's a real failure then, unrelated to the format change.
-	}
-	for _, mg := range legacyMetricGroups {
-		dms.metricGroups[groupingKeyFor(mg.Labels)] = mg
-	}
-	level.Info(dms.logger).Log("msg", "conversion from v0.9 legacy format successful, next persisting will happen in current format")
 	return nil
 }
 

@@ -1,3 +1,9 @@
+## 1.0.0 / 2019-10-15
+
+_This release does not support the storage format of v0.5–v0.9 anymore. Only persistence files created by v0.10+ are usable. Upgrade to v0.10 first to convert existing persistence files._
+
+[CHANGE] Remove code to convert the legacy v0.5–v0.9 storage format.
+
 ## 0.10.0 / 2019-10-10
 
 _This release changes the storage format. v0.10 can read the storage format of v0.5–v0.9. It will then persist the new format so that a downgrade won't be possible anymore._
