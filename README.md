@@ -174,6 +174,27 @@ Pushgateway will export it with an emtpy instance label (`{instance=""}`),
 which is equivalent to having no `instance` label at all but prevents the
 server from attaching one.
 
+### About metric inconsistencies
+
+The Pushgateway exposes all pushed metrics together with its own metrics via
+the same `/metrics` endpoint. (See the section about [exposed
+metrics](#exposed-metrics) for details.) Therefore, all the metrics have to be
+consistent with each other: Metrics of the same name must have
+the same type, even if they are pushed to different groups, and there must be
+no duplicates, i.e. metrics with the same name and the exact same label
+pairs. Pushes that would lead to inconsistencies are rejected with status
+code 400.
+
+Inconsistent help strings are tolerated, though. The Pushgateway will pick a
+winning help string and log about it at info level.
+
+_Legacy note: The help string of Pushgateway's own `push_time_seconds` metric
+has changed in v0.10.0. By using a persistence file, metrics pushed to a
+Pushgateway of an earlier versions can make it into a Pushgateway of v0.10.0 or
+later. In this case, the above mentioned log message will show up. Once each
+previously pushed group has been deleted or received a new push, the log
+message will disappear._
+
 ### About timestamps
 
 If you push metrics at time *t*<sub>1</sub>, you might be tempted to believe
