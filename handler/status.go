@@ -67,6 +67,11 @@ func Status(
 			t := template.New("status")
 			t.Funcs(template.FuncMap{
 				"value": func(f float64) string {
+					if f == 0 {
+						return "0"
+					} else if f == 1 {
+						return "1"
+					}
 					return strconv.FormatFloat(f, 'f', -1, 64)
 				},
 				"timeFormat": func(t time.Time) string {
