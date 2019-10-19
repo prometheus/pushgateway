@@ -170,7 +170,7 @@ instance. Even with `honor_labels: true`, the Prometheus server will attach an
 `instance` label if no `instance` label has been set in the first
 place. Therefore, if a metric is pushed to the Pushgateway without an instance
 label (and without instance label in the grouping key, see below), the
-Pushgateway will export it with an emtpy instance label (`{instance=""}`),
+Pushgateway will export it with an empty instance label (`{instance=""}`),
 which is equivalent to having no `instance` label at all but prevents the
 server from attaching one.
 
@@ -215,7 +215,7 @@ be scraped at all anymore. (Prometheus knows only one timestamp per
 sample, there is no way to distinguish a 'time of pushing' and a 'time
 of scraping'.)
 
-As there aren't any use cases where it would make sense to to attach a
+As there aren't any use cases where it would make sense to attach a
 different timestamp, and many users attempting to incorrectly do so (despite no
 client library supporting this), the Pushgateway rejects any pushes with
 timestamps.
