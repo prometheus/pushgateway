@@ -190,7 +190,7 @@ winning help string and log about it at info level.
 
 _Legacy note: The help string of Pushgateway's own `push_time_seconds` metric
 has changed in v0.10.0. By using a persistence file, metrics pushed to a
-Pushgateway of an earlier versions can make it into a Pushgateway of v0.10.0 or
+Pushgateway of earlier versions can make it into a Pushgateway of v0.10.0 or
 later. In this case, the above mentioned log message will show up. Once each
 previously pushed group has been deleted or received a new push, the log
 message will disappear._
