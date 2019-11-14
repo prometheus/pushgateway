@@ -59,11 +59,11 @@ type MetricStore interface {
 	// "restarted" again, but it can still be used for read operations.
 	Shutdown() error
 	// Healthy returns nil if the MetricStore is currently working as
-	// expected or false, Error if it is not.
+	// expected. Otherwise, a non-nil error is returned.
 	Healthy() error
 	// Ready returns nil if the MetricStore is ready to be used (all files
-	// are opened and checkpoints have been restored) or false, Error if it
-	// is not.
+	// are opened and checkpoints have been restored). Otherwise, a non-nil
+	// error is returned.
 	Ready() error
 }
 
