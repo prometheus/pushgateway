@@ -13,6 +13,11 @@ Prometheus.
 
 ## Non-goals
 
+First of all, the Pushgateway is not capable of turning Prometheus into a
+push-based monitoring system. For a general description of use cases for the
+Pushgateway, please read [When To Use The
+Pushgateway](https://prometheus.io/docs/practices/pushing/).
+
 The Pushgateway is explicitly not an _aggregator or distributed counter_ but
 rather a metrics cache. It does not have
 [statsd](https://github.com/etsy/statsd)-like semantics. The metrics pushed are
