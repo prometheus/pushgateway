@@ -978,7 +978,7 @@ func TestRejectTimestamps(t *testing.T) {
 	ts1 := time.Now()
 	grouping1 := map[string]string{
 		"job":      "job1",
-		"instance": "instance1",
+		"instance": "instance2",
 	}
 	errCh := make(chan error, 1)
 	dms.SubmitWriteRequest(WriteRequest{
