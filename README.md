@@ -200,6 +200,18 @@ later. In this case, the above mentioned log message will show up. Once each
 previously pushed group has been deleted or received a new push, the log
 message will disappear._
 
+The consistency check performed during a push is the same as it happens anyway
+during a scrape. In common use cases, scrapes happen more often than
+pushes. Therefore, the performance cost of the push-time check isn't
+relevant. However, if a large amount of metrics on the Pushgateway is combined
+with frequent pushes, the push duration might become prohibitively long. In
+this case, you might consider using the command line flag
+`--push.disable-consistency-check`, which saves the cost of the consistency
+check during a push but allows pushing inconsistent metrics. The check will
+still happen during a scrape, thereby failing all scrapes for as long as
+inconsistent metrics are stored on the Pushgateway. Setting the flag therefore
+puts you at risk to disable the Pushgateway by a single inconsistent push.
+
 ### About timestamps
 
 If you push metrics at time *t*<sub>1</sub>, you might be tempted to believe
@@ -305,12 +317,15 @@ header. (Use the value `application/vnd.google.protobuf;
 proto=io.prometheus.client.MetricFamily; encoding=delimited` for protocol
 buffers, otherwise the text format is tried as a fall-back.)
 
-The response code upon success is either 200 or 400. A 200 response implies a
-successful push, either replacing an existing group of metrics or creating a
-new one. A 400 response can happen if the request is malformed or if the pushed
-metrics are inconsistent with metrics pushed to other groups or collide with
-metrics of the Pushgateway itself. An explanation is returned in the body of
-the response and logged on error level.
+The response code upon success is either 200, 202, or 400. A 200 response
+implies a successful push, either replacing an existing group of metrics or
+creating a new one. A 400 response can happen if the request is malformed or if
+the pushed metrics are inconsistent with metrics pushed to other groups or
+collide with metrics of the Pushgateway itself. An explanation is returned in
+the body of the response and logged on error level. A 202 can only occur if the
+`--push.disable-consistency-check` flag is set. In this case, pushed metrics
+are just queued and not checked for consistency. Inconsistencies will lead to
+failed scrapes, however, as described [above](#about-metric-inconsistencies).
 
 In rare cases, it is possible that the Pushgateway ends up with an inconsistent
 set of metrics already pushed. In that case, new pushes are also rejected as

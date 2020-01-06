@@ -101,9 +101,10 @@ func TestHealthyReady(t *testing.T) {
 func TestPush(t *testing.T) {
 	mms := MockMetricStore{}
 	mmsWithErr := MockMetricStore{err: errors.New("testerror")}
-	handler := Push(&mms, false, false, logger)
-	handlerWithErr := Push(&mmsWithErr, false, false, logger)
-	handlerBase64 := Push(&mms, false, true, logger)
+	// false, true, false → no replace, check consistency, no base64 encoding.
+	handler := Push(&mms, false, true, false, logger)
+	handlerWithErr := Push(&mmsWithErr, false, true, false, logger)
+	handlerBase64 := Push(&mms, false, true, true, logger)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
 		t.Fatal(err)
