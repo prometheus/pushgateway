@@ -253,7 +253,7 @@ All pushes are done via HTTP. The interface is vaguely REST-like.
 
 ### URL
 
-The default port the push gateway is listening to is 9091. The path looks like
+The default port the Pushgateway is listening to is 9091. The path looks like
 
     /metrics/job/<JOB_NAME>{/<LABEL_NAME>/<LABEL_VALUE>}
 
@@ -337,8 +337,8 @@ proto messages (i.e. more than one with the same name) in one push, as
 they will overwrite each other._
 
 Note that the Pushgateway doesn't provide any strong guarantees that the pushed
-metrics are persisted to disk. (A server crash may cause data loss. Or the push
-gateway is configured to not persist to disk at all.)
+metrics are persisted to disk. (A server crash may cause data loss. Or the
+Pushgateway is configured to not persist to disk at all.)
 
 A `PUT` request with an empty body effectively deletes all metrics with the
 specified grouping key. However, in contrast to the
@@ -356,7 +356,7 @@ metrics but does not change any of the previously pushed metrics.
 
 ### `DELETE` method
 
-`DELETE` is used to delete metrics from the push gateway. The request
+`DELETE` is used to delete metrics from the Pushgateway. The request
 must not contain any content. All metrics with the grouping key
 specified in the URL are deleted.
 
