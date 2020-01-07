@@ -45,11 +45,16 @@ const (
 
 // Push returns an http.Handler which accepts samples over HTTP and stores them
 // in the MetricStore. If replace is true, all metrics for the job and instance
-// given by the request are deleted before new ones are stored.
+// given by the request are deleted before new ones are stored. If check is
+// true, the pushed metrics are immediately checked for consistency (with
+// existing metrics and themselves), and an inconsistent push is rejected with
+// http.StatusBadRequest.
 //
 // The returned handler is already instrumented for Prometheus.
 func Push(
-	ms storage.MetricStore, replace bool, jobBase64Encoded bool, logger log.Logger,
+	ms storage.MetricStore,
+	replace, check, jobBase64Encoded bool,
+	logger log.Logger,
 ) func(http.ResponseWriter, *http.Request, httprouter.Params) {
 	var ps httprouter.Params
 	var mtx sync.Mutex // Protects ps.
@@ -109,6 +114,16 @@ func Push(
 			return
 		}
 		now := time.Now()
+		if !check {
+			ms.SubmitWriteRequest(storage.WriteRequest{
+				Labels:         labels,
+				Timestamp:      now,
+				MetricFamilies: metricFamilies,
+				Replace:        replace,
+			})
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
 		errCh := make(chan error, 1)
 		errReceived := false
 		ms.SubmitWriteRequest(storage.WriteRequest{

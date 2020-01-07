@@ -67,6 +67,7 @@ func main() {
 		enableAdminAPI      = app.Flag("web.enable-admin-api", "Enable API endpoints for admin control actions.").Default("false").Bool()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
+		pushUnchecked       = app.Flag("push.disable-consistency-check", "Do not check consistency of pushed metrics. DANGEROUS.").Default("false").Bool()
 		promlogConfig       = promlog.Config{}
 	)
 	promlogflag.AddFlags(app, &promlogConfig)
@@ -123,11 +124,11 @@ func main() {
 	pushAPIPath := *routePrefix + "/metrics"
 	for _, suffix := range []string{"", handler.Base64Suffix} {
 		jobBase64Encoded := suffix == handler.Base64Suffix
-		r.PUT(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, true, jobBase64Encoded, logger))
-		r.POST(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, false, jobBase64Encoded, logger))
+		r.PUT(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger))
+		r.POST(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger))
 		r.DELETE(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Delete(ms, jobBase64Encoded, logger))
-		r.PUT(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, true, jobBase64Encoded, logger))
-		r.POST(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, false, jobBase64Encoded, logger))
+		r.PUT(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger))
+		r.POST(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger))
 		r.DELETE(pushAPIPath+"/job"+suffix+"/:job", handler.Delete(ms, jobBase64Encoded, logger))
 	}
 	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets, *routePrefix))

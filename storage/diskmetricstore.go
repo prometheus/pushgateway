@@ -338,6 +338,10 @@ func (dms *DiskMetricStore) setPushFailedTimestamp(wr WriteRequest) {
 // the WriteRequest _will_ be sanitized: the MetricFamilies are ensured to
 // contain the grouping Labels after the check. If false is returned, the
 // causing error is written to the Done channel of the WriteRequest.
+//
+// Special case: If the WriteRequest has no Done channel set, the (expensive)
+// consistency check is skipped. The WriteRequest is still sanitized, and the
+// presence of timestamps still results in returning false.
 func (dms *DiskMetricStore) checkWriteRequest(wr WriteRequest) bool {
 	if wr.MetricFamilies == nil {
 		// Delete request cannot create inconsistencies, and nothing has
@@ -358,6 +362,11 @@ func (dms *DiskMetricStore) checkWriteRequest(wr WriteRequest) bool {
 	}
 	for _, mf := range wr.MetricFamilies {
 		sanitizeLabels(mf, wr.Labels)
+	}
+
+	// Without Done channel, don't do the expensive consistency check.
+	if wr.Done == nil {
+		return true
 	}
 
 	// Construct a test dms, acting on a copy of the metrics, to test the
