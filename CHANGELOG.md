@@ -1,3 +1,7 @@
+## 1.1.0 / 2020-01-27
+
+* [FEATURE] Add flag `--push.disable-consistency-check`. #318
+
 ## 1.0.1 / 2019-12-21
 
 [ENHANCEMENT] Remove excessive whitespace from HTML templates. #302
