@@ -1,4 +1,4 @@
-resources/static/bootstrap-4.3.1-dist linguist-vendored
-resources/static/bootstrap4-glyphicons linguist-vendored
+resources/static/bootstrap-4.3.1-dist/* linguist-vendored
+resources/static/bootstrap4-glyphicons/* linguist-vendored
 resources/static/jquery-3.4.1.min.js linguist-vendored
-vendor linguist-vendored
+vendor/* linguist-vendored
