@@ -33,8 +33,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
-	"github.com/prometheus/common/version"
 	"github.com/prometheus/common/route"
+	"github.com/prometheus/common/version"
 	// "github.com/prometheus/prometheus/util/httputil"
 	"gopkg.in/alecthomas/kingpin.v2"
 
@@ -177,7 +177,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", r)
 
-	apiV1 := api_V1.New(logger)
+	apiV1 := api_V1.New(logger, ms)
 
 	apiPath := "/api"
 	if *routePrefix != "/" {
@@ -251,11 +251,3 @@ func closeListenerOnQuit(l net.Listener, quitCh <-chan struct{}, logger log.Logg
 	}
 	l.Close()
 }
-
-// func setPathWithPrefix(prefix string) func(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
-// 	return func(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
-// 		return func(w http.ResponseWriter, r *http.Request) {
-// 			handler(w, r.WithContext(httputil.ContextWithPath(r.Context(), prefix+r.URL.Path)))
-// 		}
-// 	}
-// }

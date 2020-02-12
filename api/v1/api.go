@@ -2,25 +2,22 @@ package v1
 
 import (
 	"encoding/json"
-	// "errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	// "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/route"
-	"github.com/prometheus/prometheus/pkg/textparse"
-	// "github.com/prometheus/prometheus/util/httputil"
-	
+
+	"github.com/prometheus/pushgateway/storage"
 )
 
 type status string
 
 const (
 	statusSuccess status = "success"
-	statusError status = "error"
+	statusError   status = "error"
 )
 
 type errorType string
@@ -62,9 +59,10 @@ func setCORS(w http.ResponseWriter) {
 
 // API provides registration of handlers for API routes.
 type API struct {
-	ready    func(http.HandlerFunc) http.HandlerFunc
-	uptime   time.Time
-	logger   log.Logger
+	ready       func(http.HandlerFunc) http.HandlerFunc
+	uptime      time.Time
+	logger      log.Logger
+	MetricStore storage.MetricStore
 }
 
 type apiFuncResult struct {
@@ -78,14 +76,16 @@ type apiFunc func(r *http.Request) apiFuncResult
 // New returns a new API.
 func New(
 	l log.Logger,
+	ms storage.MetricStore,
 ) *API {
 	if l == nil {
 		l = log.NewNopLogger()
 	}
 
 	return &API{
-		uptime:         time.Now(),
-		logger:         l,
+		uptime:      time.Now(),
+		logger:      l,
+		MetricStore: ms,
 	}
 }
 
@@ -99,90 +99,36 @@ func (api *API) Register(r *route.Router) {
 		})
 	}
 
-	// r.Options("/*path", wrap(api.options))
+	r.Options("/*path", wrap(func(w http.ResponseWriter, r *http.Request) {}))
 
-	// r.Get("/metadata",wrap(api.metricMetadata))
-	r.Get("/check",wrap(api.check))
+	r.Get("/metadata", wrap(api.metricMetadata))
 }
 
 type metadata struct {
-	Type textparse.MetricType `json:"type"`
-	Help string               `json:"help"`
-	Unit string               `json:"unit"`
+	Type string `json:"type"`
+	Help string `json:"help"`
 }
 
-// func (api *API) options(r *http.Request) apiFuncResult {
-// 	return apiFuncResult{nil, nil, nil}
-// }
+func (api *API) metricMetadata(w http.ResponseWriter, r *http.Request) {
+	familyMaps := api.MetricStore.GetMetricFamiliesMap()
+	res := make(map[string]interface{})
+	for n, v := range familyMaps {
+		metricResponse := make(map[string]interface{})
+		metricResponse["label"] = v.Labels
+		for _, metricValues := range v.Metrics {
+			uniqueMetrics := [1]metadata{
+				{
+					Type: metricValues.GobbableMetricFamily.Type.String(),
+					Help: *metricValues.GobbableMetricFamily.Help,
+				},
+			}
+			metricResponse[*metricValues.GobbableMetricFamily.Name] = uniqueMetrics
+		}
+		res[n] = metricResponse
+	}
 
-func (api *API) check(w http.ResponseWriter, r *http.Request){
-	res := make(map[string]string)
-	res["message"] = "hello world!!!"
-
-	api.respond(w,res)
+	api.respond(w, res)
 }
-
-// TODO: Make changes in this file for displaying metadata
-// func (api *API) metricMetadata(r *http.Request) apiFuncResult {
-// 	metrics := map[string]map[metadata]struct{}{}
-
-// 	limit := -1
-// 	if s := r.FormValue("limit"); s != "" {
-// 		var err error
-// 		if limit, err = strconv.Atoi(s); err != nil {
-// 			return apiFuncResult{nil, &apiError{errorBadData, errors.New("limit must be a number")}, nil, nil}
-// 		}
-// 	}
-
-// 	metric := r.FormValue("metric")
-
-// 	for _, tt := range api.targetRetriever.TargetsActive() {
-// 		for _, t := range tt {
-
-// 			if metric == "" {
-// 				for _, mm := range t.MetadataList() {
-// 					m := metadata{Type: mm.Type, Help: mm.Help, Unit: mm.Unit}
-// 					ms, ok := metrics[mm.Metric]
-
-// 					if !ok {
-// 						ms = map[metadata]struct{}{}
-// 						metrics[mm.Metric] = ms
-// 					}
-// 					ms[m] = struct{}{}
-// 				}
-// 				continue
-// 			}
-
-// 			if md, ok := t.Metadata(metric); ok {
-// 				m := metadata{Type: md.Type, Help: md.Help, Unit: md.Unit}
-// 				ms, ok := metrics[md.Metric]
-
-// 				if !ok {
-// 					ms = map[metadata]struct{}{}
-// 					metrics[md.Metric] = ms
-// 				}
-// 				ms[m] = struct{}{}
-// 			}
-// 		}
-// 	}
-
-// 	// Put the elements from the pseudo-set into a slice for marshaling.
-// 	res := map[string][]metadata{}
-
-// 	for name, set := range metrics {
-// 		if limit >= 0 && len(res) >= limit {
-// 			break
-// 		}
-
-// 		s := []metadata{}
-// 		for metadata := range set {
-// 			s = append(s, metadata)
-// 		}
-// 		res[name] = s
-// 	}
-
-// 	return apiFuncResult{res,nil,nil,nil}
-// }
 
 type response struct {
 	Status    status      `json:"status"`
