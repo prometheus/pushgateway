@@ -2,6 +2,7 @@ module github.com/prometheus/pushgateway
 
 require (
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
+	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/golang/protobuf v1.3.2
@@ -11,6 +12,7 @@ require (
 	github.com/prometheus/client_golang v1.3.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.9.1
+	github.com/prometheus/prometheus v2.5.0+incompatible
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd
 	golang.org/x/sys v0.0.0-20200124204421-9fbb57f87de9 // indirect
