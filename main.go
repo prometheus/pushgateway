@@ -34,11 +34,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/version"
+	"github.com/prometheus/common/route"
+	// "github.com/prometheus/prometheus/util/httputil"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	dto "github.com/prometheus/client_model/go"
 	promlogflag "github.com/prometheus/common/promlog/flag"
 
+	api_V1 "github.com/prometheus/pushgateway/api/v1"
 	"github.com/prometheus/pushgateway/asset"
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
@@ -171,8 +174,23 @@ func main() {
 		w.Write([]byte("Only POST or PUT requests allowed."))
 	}))
 
+	mux := http.NewServeMux()
+	mux.Handle("/", r)
+
+	apiV1 := api_V1.New(logger)
+
+	apiPath := "/api"
+	if *routePrefix != "/" {
+		apiPath = *routePrefix + apiPath
+		level.Info(logger).Log("msg", "router prefix", "prefix", *routePrefix)
+	}
+	av1 := route.New()
+	apiV1.Register(av1)
+
+	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))
+
 	go closeListenerOnQuit(l, quitCh, logger)
-	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
+	err = (&http.Server{Addr: *listenAddress, Handler: mux}).Serve(l)
 	level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections
@@ -233,3 +251,11 @@ func closeListenerOnQuit(l net.Listener, quitCh <-chan struct{}, logger log.Logg
 	}
 	l.Close()
 }
+
+// func setPathWithPrefix(prefix string) func(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
+// 	return func(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
+// 		return func(w http.ResponseWriter, r *http.Request) {
+// 			handler(w, r.WithContext(httputil.ContextWithPath(r.Context(), prefix+r.URL.Path)))
+// 		}
+// 	}
+// }
