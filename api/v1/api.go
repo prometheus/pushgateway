@@ -63,9 +63,9 @@ type API struct {
 	uptime      time.Time
 	logger      log.Logger
 	MetricStore storage.MetricStore
-	Flags		map[string]string
-	BuildTime	time.Time
-	BuildInfo 	map[string]string
+	Flags       map[string]string
+	BuildTime   time.Time
+	BuildInfo   map[string]string
 }
 
 type apiFuncResult struct {
@@ -92,9 +92,9 @@ func New(
 		uptime:      time.Now(),
 		logger:      l,
 		MetricStore: ms,
-		Flags:		 f,
-		BuildTime:	 build,
-		BuildInfo:	 buildInfo,
+		Flags:       f,
+		BuildTime:   build,
+		BuildInfo:   buildInfo,
 	}
 }
 
