@@ -83,7 +83,7 @@ type API struct {
 func New(
 	l log.Logger,
 	ms storage.MetricStore,
-	f map[string]string,
+	flags map[string]string,
 	buildInfo map[string]string,
 ) *API {
 	if l == nil {
@@ -94,7 +94,7 @@ func New(
 		BuildTime:   time.Now(),
 		logger:      l,
 		MetricStore: ms,
-		Flags:       f,
+		Flags:       flags,
 		BuildInfo:   buildInfo,
 	}
 }
