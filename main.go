@@ -177,7 +177,17 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", r)
 
-	apiV1 := api_V1.New(logger, ms)
+	buildTime := time.Now()
+	buildInfo := map[string]string{
+		"version":   version.Version,
+		"revision":  version.Revision,
+		"branch":    version.Branch,
+		"buildUser": version.BuildUser,
+		"buildDate": version.BuildDate,
+		"goVersion": version.GoVersion,
+	}
+
+	apiV1 := api_V1.New(logger, ms, flags, buildTime, buildInfo)
 
 	apiPath := "/api"
 	if *routePrefix != "/" {

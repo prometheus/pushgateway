@@ -63,6 +63,9 @@ type API struct {
 	uptime      time.Time
 	logger      log.Logger
 	MetricStore storage.MetricStore
+	Flags		map[string]string
+	BuildTime	time.Time
+	BuildInfo 	map[string]string
 }
 
 type apiFuncResult struct {
@@ -77,6 +80,9 @@ type apiFunc func(r *http.Request) apiFuncResult
 func New(
 	l log.Logger,
 	ms storage.MetricStore,
+	f map[string]string,
+	build time.Time,
+	buildInfo map[string]string,
 ) *API {
 	if l == nil {
 		l = log.NewNopLogger()
@@ -86,6 +92,9 @@ func New(
 		uptime:      time.Now(),
 		logger:      l,
 		MetricStore: ms,
+		Flags:		 f,
+		BuildTime:	 build,
+		BuildInfo:	 buildInfo,
 	}
 }
 
@@ -102,6 +111,7 @@ func (api *API) Register(r *route.Router) {
 	r.Options("/*path", wrap(func(w http.ResponseWriter, r *http.Request) {}))
 
 	r.Get("/metadata", wrap(api.metricMetadata))
+	r.Get("/status", wrap(api.status))
 }
 
 type metadata struct {
@@ -126,6 +136,15 @@ func (api *API) metricMetadata(w http.ResponseWriter, r *http.Request) {
 		}
 		res[n] = metricResponse
 	}
+
+	api.respond(w, res)
+}
+
+func (api *API) status(w http.ResponseWriter, r *http.Request) {
+	res := make(map[string]interface{})
+	res["flags"] = api.Flags
+	res["buildTime"] = api.BuildTime
+	res["buildInformation"] = api.BuildInfo
 
 	api.respond(w, res)
 }
