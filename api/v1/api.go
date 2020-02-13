@@ -75,7 +75,7 @@ type API struct {
 	logger      log.Logger
 	MetricStore storage.MetricStore
 	Flags       map[string]string
-	BuildTime   time.Time
+	StartTime   time.Time
 	BuildInfo   map[string]string
 }
 
@@ -91,7 +91,7 @@ func New(
 	}
 
 	return &API{
-		BuildTime:   time.Now(),
+		StartTime:   time.Now(),
 		logger:      l,
 		MetricStore: ms,
 		Flags:       flags,
@@ -147,8 +147,8 @@ func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 func (api *API) status(w http.ResponseWriter, r *http.Request) {
 	res := make(map[string]interface{})
 	res["flags"] = api.Flags
-	res["buildTime"] = api.BuildTime
-	res["buildInformation"] = api.BuildInfo
+	res["start_time"] = api.StartTime
+	res["build_information"] = api.BuildInfo
 
 	api.respond(w, res)
 }
