@@ -112,6 +112,7 @@ func (api *API) Register(r *route.Router) {
 
 	r.Get("/metadata", wrap(api.metricMetadata))
 	r.Get("/status", wrap(api.status))
+	r.Get("/metrics", wrap(api.metrics))
 }
 
 type metadata struct {
@@ -130,6 +131,35 @@ func (api *API) metricMetadata(w http.ResponseWriter, r *http.Request) {
 				{
 					Type: metricValues.GobbableMetricFamily.Type.String(),
 					Help: *metricValues.GobbableMetricFamily.Help,
+				},
+			}
+			metricResponse[*metricValues.GobbableMetricFamily.Name] = uniqueMetrics
+		}
+		res[n] = metricResponse
+	}
+
+	api.respond(w, res)
+}
+
+// TODO: Add implicit data type for Metrics
+type metrics struct {
+	Type    string      `json:"type"`
+	Help    string      `json:"help"`
+	Metrics interface{} `json:"metrics"`
+}
+
+func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
+	familyMaps := api.MetricStore.GetMetricFamiliesMap()
+	res := make(map[string]interface{})
+	for n, v := range familyMaps {
+		metricResponse := make(map[string]interface{})
+		metricResponse["label"] = v.Labels
+		for _, metricValues := range v.Metrics {
+			uniqueMetrics := [1]metrics{
+				{
+					Type:    metricValues.GobbableMetricFamily.Type.String(),
+					Help:    *metricValues.GobbableMetricFamily.Help,
+					Metrics: metricValues.GobbableMetricFamily.Metric,
 				},
 			}
 			metricResponse[*metricValues.GobbableMetricFamily.Name] = uniqueMetrics
