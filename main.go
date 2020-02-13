@@ -35,13 +35,12 @@ import (
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/route"
 	"github.com/prometheus/common/version"
-	// "github.com/prometheus/prometheus/util/httputil"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	dto "github.com/prometheus/client_model/go"
 	promlogflag "github.com/prometheus/common/promlog/flag"
 
-	api_V1 "github.com/prometheus/pushgateway/api/v1"
+	api_v1 "github.com/prometheus/pushgateway/api/v1"
 	"github.com/prometheus/pushgateway/asset"
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
@@ -177,7 +176,6 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", r)
 
-	buildTime := time.Now()
 	buildInfo := map[string]string{
 		"version":   version.Version,
 		"revision":  version.Revision,
@@ -187,15 +185,16 @@ func main() {
 		"goVersion": version.GoVersion,
 	}
 
-	apiV1 := api_V1.New(logger, ms, flags, buildTime, buildInfo)
+	apiv1 := api_v1.New(logger, ms, flags, buildInfo)
 
 	apiPath := "/api"
 	if *routePrefix != "/" {
 		apiPath = *routePrefix + apiPath
-		level.Info(logger).Log("msg", "router prefix", "prefix", *routePrefix)
 	}
+
+	// TODO: Add instrumenation mentioned in prometheus/common/routes
 	av1 := route.New()
-	apiV1.Register(av1)
+	apiv1.Register(av1)
 
 	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))
 

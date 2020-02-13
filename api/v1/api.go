@@ -1,3 +1,15 @@
+// Copyright 2020 The Prometheus Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package v1
 
 import (
@@ -8,6 +20,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/pushgateway/storage"
@@ -59,8 +72,6 @@ func setCORS(w http.ResponseWriter) {
 
 // API provides registration of handlers for API routes.
 type API struct {
-	ready       func(http.HandlerFunc) http.HandlerFunc
-	uptime      time.Time
 	logger      log.Logger
 	MetricStore storage.MetricStore
 	Flags       map[string]string
@@ -68,20 +79,11 @@ type API struct {
 	BuildInfo   map[string]string
 }
 
-type apiFuncResult struct {
-	data      interface{}
-	err       *apiError
-	finalizer func()
-}
-
-type apiFunc func(r *http.Request) apiFuncResult
-
 // New returns a new API.
 func New(
 	l log.Logger,
 	ms storage.MetricStore,
 	f map[string]string,
-	build time.Time,
 	buildInfo map[string]string,
 ) *API {
 	if l == nil {
@@ -89,11 +91,10 @@ func New(
 	}
 
 	return &API{
-		uptime:      time.Now(),
+		BuildTime:   time.Now(),
 		logger:      l,
 		MetricStore: ms,
 		Flags:       f,
-		BuildTime:   build,
 		BuildInfo:   buildInfo,
 	}
 }
@@ -110,61 +111,34 @@ func (api *API) Register(r *route.Router) {
 
 	r.Options("/*path", wrap(func(w http.ResponseWriter, r *http.Request) {}))
 
-	r.Get("/metadata", wrap(api.metricMetadata))
 	r.Get("/status", wrap(api.status))
 	r.Get("/metrics", wrap(api.metrics))
 }
 
-type metadata struct {
-	Type string `json:"type"`
-	Help string `json:"help"`
-}
-
-func (api *API) metricMetadata(w http.ResponseWriter, r *http.Request) {
-	familyMaps := api.MetricStore.GetMetricFamiliesMap()
-	res := make(map[string]interface{})
-	for n, v := range familyMaps {
-		metricResponse := make(map[string]interface{})
-		metricResponse["label"] = v.Labels
-		for _, metricValues := range v.Metrics {
-			uniqueMetrics := [1]metadata{
-				{
-					Type: metricValues.GobbableMetricFamily.Type.String(),
-					Help: *metricValues.GobbableMetricFamily.Help,
-				},
-			}
-			metricResponse[*metricValues.GobbableMetricFamily.Name] = uniqueMetrics
-		}
-		res[n] = metricResponse
-	}
-
-	api.respond(w, res)
-}
-
-// TODO: Add implicit data type for Metrics
 type metrics struct {
-	Type    string      `json:"type"`
-	Help    string      `json:"help"`
-	Metrics interface{} `json:"metrics"`
+	Timestamp time.Time     `json:"time_stamp"`
+	Type      string        `json:"type"`
+	Help      string        `json:"help"`
+	Metrics   []*dto.Metric `json:"metrics"`
 }
 
 func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 	familyMaps := api.MetricStore.GetMetricFamiliesMap()
-	res := make(map[string]interface{})
-	for n, v := range familyMaps {
+	res := make([]interface{}, 0)
+	for _, v := range familyMaps {
 		metricResponse := make(map[string]interface{})
 		metricResponse["label"] = v.Labels
-		for _, metricValues := range v.Metrics {
-			uniqueMetrics := [1]metrics{
-				{
-					Type:    metricValues.GobbableMetricFamily.Type.String(),
-					Help:    *metricValues.GobbableMetricFamily.Help,
-					Metrics: metricValues.GobbableMetricFamily.Metric,
-				},
+		metricResponse["last_success"] = v.LastPushSuccess()
+		for name, metricValues := range v.Metrics {
+			uniqueMetrics := metrics{
+				Type:      metricValues.GobbableMetricFamily.Type.String(),
+				Help:      *metricValues.GobbableMetricFamily.Help,
+				Timestamp: metricValues.Timestamp,
+				Metrics:   metricValues.GobbableMetricFamily.Metric,
 			}
-			metricResponse[*metricValues.GobbableMetricFamily.Name] = uniqueMetrics
+			metricResponse[name] = uniqueMetrics
 		}
-		res[n] = metricResponse
+		res = append(res, metricResponse)
 	}
 
 	api.respond(w, res)
@@ -195,7 +169,7 @@ func (api *API) respond(w http.ResponseWriter, data interface{}) {
 		Data:   data,
 	})
 	if err != nil {
-		level.Error(api.logger).Log("msg", "Error marshaling JSON", "err", err)
+		level.Error(api.logger).Log("msg", "error marshaling JSON", "err", err)
 		return
 	}
 
