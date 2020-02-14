@@ -80,6 +80,11 @@ type API struct {
 }
 
 // New returns a new API.
+// logger can be nil and if log.logger is set to nil no logging is possible
+// MetricStore cannot be left empty
+// Flags is information of flags provide at initialization of pushgateway
+// BuildInfo consist of different information which are set at build time
+// StartTime is time of initialization of APIs
 func New(
 	l log.Logger,
 	ms storage.MetricStore,
