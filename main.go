@@ -14,6 +14,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/prometheus/common/server"
 	"github.com/shurcooL/httpfs/filter"
@@ -216,7 +217,6 @@ func main() {
 
 	r.GET("/new/*filepath", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		filepath := p.ByName("filepath")
-
 		// For paths that the React/Reach router handles, we want to serve the
 		// index.html, but with replaced path prefix placeholder.
 		for _, rp := range reactRouterPaths {
@@ -236,7 +236,8 @@ func main() {
 				fmt.Fprintf(w, "Error reading React index.html: %v", err)
 				return
 			}
-			w.Write(idx)
+			prefixedIdx := bytes.ReplaceAll(idx, []byte("PATH_PREFIX_PLACEHOLDER"), []byte(*routePrefix))
+			w.Write(prefixedIdx)
 			return
 		}
 

@@ -2,11 +2,18 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
-import * as serviceWorker from './serviceWorker';
 
-ReactDOM.render(<App />, document.getElementById('root'));
+// Declared/defined in public/index.html, value replaced by Prometheus when serving bundle.
+declare const GLOBAL_PATH_PREFIX: string;
 
-// If you want your app to work offline and load faster, you can change
-// unregister() to register() below. Note this comes with some pitfalls.
-// Learn more about service workers: https://bit.ly/CRA-PWA
-serviceWorker.unregister();
+let prefix = GLOBAL_PATH_PREFIX;
+
+if (GLOBAL_PATH_PREFIX === 'PATH_PREFIX_PLACEHOLDER' || GLOBAL_PATH_PREFIX === '/') {
+  // Either we are running the app outside of Prometheus, so the placeholder value in
+  // the index.html didn't get replaced, or we have a '/' prefix, which we also need to
+  // normalize to '' to make concatenations work (prefixes like '/foo/bar/' already get
+  // their trailing slash stripped by Prometheus).
+  prefix = '';
+}
+
+ReactDOM.render(<App pathPrefix={prefix} />, document.getElementById('root'));

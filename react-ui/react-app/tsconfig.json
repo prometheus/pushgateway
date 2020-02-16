@@ -17,9 +17,10 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react"
+    "jsx": "react",
+    "noImplicitAny": false,
   },
   "include": [
-    "src"
+    "src", "test", "react-app-env.d.ts"
   ]
 }
