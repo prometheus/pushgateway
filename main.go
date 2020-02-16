@@ -190,7 +190,6 @@ func main() {
 		}
 		var assetsPrefix string = "./react-ui"
 
-
 		static := filter.Keep(
 			http.Dir(path.Join(assetsPrefix, "static")),
 			func(path string, fi os.FileInfo) bool {
