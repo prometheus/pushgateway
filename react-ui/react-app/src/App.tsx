@@ -1,4 +1,6 @@
 import React, { FC } from 'react';
+import Navigation from './Navbar';
+
 import { Container } from 'reactstrap';
 
 import './App.css';
@@ -8,10 +10,10 @@ import PathPrefixProps from './types/PathPrefixProps';
 const App: FC<PathPrefixProps> = ({ pathPrefix }) => {
   return (
     <>
-      <h1>Pushgateway</h1>
+      <Navigation pathPrefix={pathPrefix} />
       <Container fluid style={{ paddingTop: 70 }}>
         <Router basepath={`${pathPrefix}/new`}>
-          <Redirect from="/" to={`${pathPrefix}/new/graph`} />
+          <Redirect from="/" to={`${pathPrefix}/new/metrics`} />
 
           {/*
             NOTE: Any route added here needs to also be added to the list of
