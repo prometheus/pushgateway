@@ -15,6 +15,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/prometheus/common/server"
+	"github.com/shurcooL/httpfs/filter"
+	"github.com/shurcooL/httpfs/union"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -54,6 +58,15 @@ type logFunc func(...interface{}) error
 func (lf logFunc) Println(v ...interface{}) {
 	lf("msg", fmt.Sprintln(v...))
 }
+
+var (
+	// Paths that are handled by the React / Reach router that should all be served the main React app's index.html.
+	reactRouterPaths = []string{
+		"/",
+		"/metrics",
+		"/status",
+	}
+)
 
 func main() {
 	var (
@@ -170,6 +183,69 @@ func main() {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Write([]byte("Only POST or PUT requests allowed."))
 	}))
+
+	var assets http.FileSystem = func() http.FileSystem {
+		if err != nil {
+			panic(err)
+		}
+		var assetsPrefix string = "./react-ui"
+
+
+		static := filter.Keep(
+			http.Dir(path.Join(assetsPrefix, "static")),
+			func(path string, fi os.FileInfo) bool {
+				return fi.IsDir() ||
+					(!strings.HasSuffix(path, "map.js") &&
+						!strings.HasSuffix(path, "/bootstrap.js") &&
+						!strings.HasSuffix(path, "/bootstrap-theme.css") &&
+						!strings.HasSuffix(path, "/bootstrap.css"))
+			},
+		)
+
+		templates := filter.Keep(
+			http.Dir(path.Join(assetsPrefix, "templates")),
+			func(path string, fi os.FileInfo) bool {
+				return fi.IsDir() || strings.HasSuffix(path, ".html")
+			},
+		)
+
+		return union.New(map[string]http.FileSystem{
+			"/templates": templates,
+			"/static":    static,
+		})
+	}()
+
+	r.GET("/new/*filepath", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		filepath := p.ByName("filepath")
+
+		// For paths that the React/Reach router handles, we want to serve the
+		// index.html, but with replaced path prefix placeholder.
+		for _, rp := range reactRouterPaths {
+			if filepath != rp {
+				continue
+			}
+
+			f, err := assets.Open("/static/react/index.html")
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Error opening React index.html: %v", err)
+				return
+			}
+			idx, err := ioutil.ReadAll(f)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Error reading React index.html: %v", err)
+				return
+			}
+			w.Write(idx)
+			return
+		}
+
+		// For all other paths, serve auxiliary assets.
+		r.URL.Path = path.Join("/static/react/", filepath)
+		fs := server.StaticFileServer(assets)
+		fs.ServeHTTP(w, r)
+	})
 
 	go closeListenerOnQuit(l, quitCh, logger)
 	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)

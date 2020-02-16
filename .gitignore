@@ -6,3 +6,5 @@
 *~
 *.exe
 *.tar.gz
+
+/react-ui/static/react
