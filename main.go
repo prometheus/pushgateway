@@ -192,7 +192,7 @@ func main() {
 		apiPath = *routePrefix + apiPath
 	}
 
-	// TODO: Add instrumenation mentioned in prometheus/common/routes
+	// TODO: Instrument API endpoints.
 	av1 := route.New()
 	apiv1.Register(av1)
 

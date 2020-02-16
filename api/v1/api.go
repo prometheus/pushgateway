@@ -79,12 +79,7 @@ type API struct {
 	BuildInfo   map[string]string
 }
 
-// New returns a new API.
-// logger can be nil and if log.logger is set to nil no logging is possible
-// MetricStore cannot be left empty
-// Flags is information of flags provide at initialization of pushgateway
-// BuildInfo consist of different information which are set at build time
-// StartTime is time of initialization of APIs
+// New returns a new API. The log.Logger can be nil, in which case no logging is performed.
 func New(
 	l log.Logger,
 	ms storage.MetricStore,
@@ -123,7 +118,7 @@ func (api *API) Register(r *route.Router) {
 type metrics struct {
 	Timestamp time.Time     `json:"time_stamp"`
 	Type      string        `json:"type"`
-	Help      string        `json:"help"`
+	Help      string        `json:"help,omitempty"`
 	Metrics   []*dto.Metric `json:"metrics"`
 }
 
@@ -132,14 +127,15 @@ func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 	res := make([]interface{}, 0)
 	for _, v := range familyMaps {
 		metricResponse := make(map[string]interface{})
-		metricResponse["label"] = v.Labels
-		metricResponse["last_success"] = v.LastPushSuccess()
+		metricResponse["labels"] = v.Labels
+		metricResponse["last_push_successful"] = v.LastPushSuccess()
 		for name, metricValues := range v.Metrics {
+			metricFamily := metricValues.GetMetricFamily()
 			uniqueMetrics := metrics{
-				Type:      metricValues.GobbableMetricFamily.Type.String(),
-				Help:      *metricValues.GobbableMetricFamily.Help,
+				Type:      metricFamily.GetType().String(),
+				Help:      metricFamily.GetHelp(),
 				Timestamp: metricValues.Timestamp,
-				Metrics:   metricValues.GobbableMetricFamily.Metric,
+				Metrics:   metricFamily.GetMetric(),
 			}
 			metricResponse[name] = uniqueMetrics
 		}
@@ -175,7 +171,10 @@ func (api *API) respond(w http.ResponseWriter, data interface{}) {
 	})
 	if err != nil {
 		level.Error(api.logger).Log("msg", "error marshaling JSON", "err", err)
-		return
+		api.respondError(w, apiError{
+			typ: errorBadData,
+			err: err,
+		}, "")
 	}
 
 	if _, err := w.Write(b); err != nil {
