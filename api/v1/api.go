@@ -269,6 +269,7 @@ func getValue(m *dto.Metric) float64 {
 		return m.GetCounter().GetValue()
 	case m.Untyped != nil:
 		return m.GetUntyped().GetValue()
+	default:
+		return 0
 	}
-	return 0.
 }
