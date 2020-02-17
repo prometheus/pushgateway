@@ -33,12 +33,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
+	"github.com/prometheus/common/route"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	dto "github.com/prometheus/client_model/go"
 	promlogflag "github.com/prometheus/common/promlog/flag"
 
+	api_v1 "github.com/prometheus/pushgateway/api/v1"
 	"github.com/prometheus/pushgateway/asset"
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
@@ -171,8 +173,33 @@ func main() {
 		w.Write([]byte("Only POST or PUT requests allowed."))
 	}))
 
+	mux := http.NewServeMux()
+	mux.Handle("/", r)
+
+	buildInfo := map[string]string{
+		"version":   version.Version,
+		"revision":  version.Revision,
+		"branch":    version.Branch,
+		"buildUser": version.BuildUser,
+		"buildDate": version.BuildDate,
+		"goVersion": version.GoVersion,
+	}
+
+	apiv1 := api_v1.New(logger, ms, flags, buildInfo)
+
+	apiPath := "/api"
+	if *routePrefix != "/" {
+		apiPath = *routePrefix + apiPath
+	}
+
+	// TODO: Instrument API endpoints.
+	av1 := route.New()
+	apiv1.Register(av1)
+
+	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))
+
 	go closeListenerOnQuit(l, quitCh, logger)
-	err = (&http.Server{Addr: *listenAddress, Handler: r}).Serve(l)
+	err = (&http.Server{Addr: *listenAddress, Handler: mux}).Serve(l)
 	level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections
