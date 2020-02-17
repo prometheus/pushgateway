@@ -116,10 +116,10 @@ func (api *API) Register(r *route.Router) {
 }
 
 type metrics struct {
-	Timestamp time.Time     `json:"time_stamp"`
-	Type      string        `json:"type"`
-	Help      string        `json:"help,omitempty"`
-	Metrics   []*dto.Metric `json:"metrics"`
+	Timestamp time.Time    `json:"time_stamp"`
+	Type      string       `json:"type"`
+	Help      string       `json:"help,omitempty"`
+	Metrics   []metricJson `json:"metrics"`
 }
 
 func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +135,7 @@ func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 				Type:      metricFamily.GetType().String(),
 				Help:      metricFamily.GetHelp(),
 				Timestamp: metricValues.Timestamp,
-				Metrics:   metricFamily.GetMetric(),
+				Metrics:   metricsToInterface(metricFamily.GetMetric(), metricFamily.GetType()),
 			}
 			metricResponse[name] = uniqueMetrics
 		}
@@ -208,4 +208,72 @@ func (api *API) respondError(w http.ResponseWriter, apiErr apiError, data interf
 	if _, err := w.Write(b); err != nil {
 		level.Error(api.logger).Log("msg", "failed to write data to connection", "err", err)
 	}
+}
+
+type metricJson map[string]interface{}
+
+func metricsToInterface(metrics []*dto.Metric, metricsType dto.MetricType) []metricJson {
+
+	jsonMetrics := make([]metricJson, len(metrics))
+
+	for i, m := range metrics {
+		individualMetric := make(metricJson)
+		if metricsType == dto.MetricType_SUMMARY {
+			individualMetric["labels"] = makeLabels(m)
+			individualMetric["quantiles"] = makeQuantiles(m)
+			individualMetric["count"] = fmt.Sprint(m.GetSummary().GetSampleCount())
+			individualMetric["sum"] = fmt.Sprint(m.GetSummary().GetSampleSum())
+
+		} else if metricsType == dto.MetricType_HISTOGRAM {
+
+			individualMetric["labels"] = makeLabels(m)
+			individualMetric["buckets"] = makeBuckets(m)
+			individualMetric["count"] = fmt.Sprint(m.GetHistogram().GetSampleCount())
+			individualMetric["sum"] = fmt.Sprint(m.GetHistogram().GetSampleSum())
+		} else {
+
+			individualMetric["labels"] = makeLabels(m)
+			individualMetric["value"] = fmt.Sprint(getValue(m))
+
+		}
+		jsonMetrics[i] = individualMetric
+	}
+	return jsonMetrics
+}
+
+func makeLabels(m *dto.Metric) map[string]string {
+	result := make(map[string]string)
+	for _, lp := range m.Label {
+		result[lp.GetName()] = lp.GetValue()
+	}
+	return result
+}
+
+func makeQuantiles(m *dto.Metric) map[string]string {
+	result := map[string]string{}
+	for _, q := range m.GetSummary().Quantile {
+		result[fmt.Sprint(q.GetQuantile())] = fmt.Sprint(q.GetValue())
+	}
+	return result
+}
+
+func makeBuckets(m *dto.Metric) map[string]string {
+	result := map[string]string{}
+	for _, b := range m.GetHistogram().Bucket {
+		result[fmt.Sprint(b.GetUpperBound())] = fmt.Sprint(b.GetCumulativeCount())
+	}
+	return result
+}
+
+func getValue(m *dto.Metric) float64 {
+	if m.Gauge != nil {
+		return m.GetGauge().GetValue()
+	}
+	if m.Counter != nil {
+		return m.GetCounter().GetValue()
+	}
+	if m.Untyped != nil {
+		return m.GetUntyped().GetValue()
+	}
+	return 0.
 }
