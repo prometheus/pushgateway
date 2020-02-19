@@ -115,7 +115,7 @@ func TestPush(t *testing.T) {
 	handlerWithErr := Push(&mmsWithErr, false, true, false, logger)
 	handlerBase64 := Push(&mms, false, true, true, logger)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
-	params := map[string]string{}
+	var params map[string]string
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,8 +151,6 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 
-	params = map[string]string{}
-
 	// With job name and instance name and invalid text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
@@ -175,8 +173,6 @@ func TestPush(t *testing.T) {
 	if !mms.lastWriteRequest.Timestamp.IsZero() {
 		t.Errorf("Write request timestamp unexpectedly set: %#v", mms.lastWriteRequest)
 	}
-
-	params = map[string]string{}
 
 	// With job name and instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
@@ -215,8 +211,6 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
-	params = map[string]string{}
-
 	// With job name and instance name and text content, storage returns error.
 	req, err = http.NewRequest(
 		"POST", "http://example.org/",
@@ -250,8 +244,6 @@ func TestPush(t *testing.T) {
 	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mmsWithErr.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
-
-	params = map[string]string{}
 
 	// With base64-encoded job name and instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
@@ -289,8 +281,6 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
-	params = map[string]string{}
-
 	// With job name and no instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
@@ -325,8 +315,6 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
-	params = map[string]string{}
-
 	// With job name and instance name and timestamp specified.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
@@ -357,7 +345,6 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted protobuf timestamp %v, got %v.", expected, got)
 	}
 
-	params = map[string]string{}
 	// With job name and instance name and protobuf content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	buf := &bytes.Buffer{}
@@ -431,10 +418,12 @@ func TestDelete(t *testing.T) {
 	handler := Delete(&mms, false, logger)
 	handlerBase64 := Delete(&mms, true, logger)
 	req := &http.Request{}
-	params := map[string]string{}
+	var params map[string]string
+
 	// No job name.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w := httptest.NewRecorder()
+	params = map[string]string{}
 	handler(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
@@ -465,8 +454,6 @@ func TestDelete(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 
-	params = map[string]string{}
-
 	// With job name and instance name.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
@@ -489,8 +476,6 @@ func TestDelete(t *testing.T) {
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
-
-	params = map[string]string{}
 
 	// With base64-encoded job name and instance name.
 	mms.lastWriteRequest = storage.WriteRequest{}
