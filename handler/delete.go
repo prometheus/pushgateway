@@ -16,6 +16,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/common/route"
 	"net/http"
 	"sync"
 	"time"
@@ -38,7 +39,7 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 	instrumentedHandler := promhttp.InstrumentHandlerCounter(
 		httpCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			job := urlParams(ctx, "job")
+			job := route.Param(ctx, "job")
 			if jobBase64Encoded {
 				var err error
 				if job, err = decodeBase64(job); err != nil {
@@ -47,7 +48,7 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 					return
 				}
 			}
-			labelsString := urlParams(ctx, "labels")
+			labelsString := route.Param(ctx, "labels")
 			mtx.Unlock()
 
 			labels, err := splitLabels(labelsString)

@@ -17,6 +17,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/prometheus/common/route"
 	"io"
 	"mime"
 	"net/http"
@@ -60,7 +61,7 @@ func Push(
 	var mtx sync.Mutex // Protects ps.
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		job := urlParams(ctx, "job")
+		job := route.Param(ctx, "job")
 		if jobBase64Encoded {
 			var err error
 			if job, err = decodeBase64(job); err != nil {
@@ -69,7 +70,7 @@ func Push(
 				return
 			}
 		}
-		labelsString := urlParams(ctx, "labels")
+		labelsString := route.Param(ctx, "labels")
 		mtx.Unlock()
 
 		labels, err := splitLabels(labelsString)
@@ -163,6 +164,7 @@ func Push(
 			)))
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println(r.Context())
 		mtx.Lock()
 		ctx = r.Context()
 		instrumentedHandler.ServeHTTP(w, r)
@@ -206,13 +208,4 @@ func splitLabels(labels string) (map[string]string, error) {
 		result[trimmedName] = decodedValue
 	}
 	return result, nil
-}
-
-// TODO: remove this, Don't know the reason but seems that route.Params is Not working
-// Subtitute for route.Params
-func urlParams(ctx context.Context, p string) string {
-	if v := ctx.Value(string(p)); v != nil {
-		return v.(string)
-	}
-	return ""
 }
