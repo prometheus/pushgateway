@@ -15,6 +15,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,10 +26,8 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	dto "github.com/prometheus/client_model/go"
-
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -76,6 +75,16 @@ func (m *MockMetricStore) Ready() error {
 	return nil
 }
 
+func ctxWithParams(params map[string]string, mainReq *http.Request) context.Context {
+	ctx := mainReq.Context()
+
+	for key, value := range params {
+		ctx = context.WithValue(ctx, key, value)
+	}
+
+	return ctx
+}
+
 func TestHealthyReady(t *testing.T) {
 	mms := MockMetricStore{}
 	req, err := http.NewRequest("GET", "http://example.org/", &bytes.Buffer{})
@@ -106,13 +115,14 @@ func TestPush(t *testing.T) {
 	handlerWithErr := Push(&mmsWithErr, false, true, false, logger)
 	handlerBase64 := Push(&mms, false, true, true, logger)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
+	params := map[string]string{}
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// No job name.
 	w := httptest.NewRecorder()
-	handler(w, req, httprouter.Params{})
+	handler(w, req)
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -123,7 +133,11 @@ func TestPush(t *testing.T) {
 	// With job name, but no instance name and no content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
-	handler(w, req, httprouter.Params{httprouter.Param{Key: "job", Value: "testjob"}})
+	params = map[string]string{
+		"job": "testjob",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -137,6 +151,8 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 
+	params = map[string]string{}
+
 	// With job name and instance name and invalid text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
@@ -147,19 +163,20 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "instance", Value: "testinstance"},
-		},
-	)
+	params = map[string]string{
+		"job": "testjob",
+		"instance": "testinstance",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 	if !mms.lastWriteRequest.Timestamp.IsZero() {
 		t.Errorf("Write request timestamp unexpectedly set: %#v", mms.lastWriteRequest)
 	}
+
+	params = map[string]string{}
 
 	// With job name and instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
@@ -171,13 +188,13 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
-		},
-	)
+
+	params = map[string]string{
+		"job": "testjob",
+		"labels": "/instance/testinstance",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -198,6 +215,8 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
+	params = map[string]string{}
+
 	// With job name and instance name and text content, storage returns error.
 	req, err = http.NewRequest(
 		"POST", "http://example.org/",
@@ -207,13 +226,11 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handlerWithErr(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
-		},
-	)
+	params = map[string]string{
+		"job": "testjob",
+		"labels": "/instance/testinstance",
+	}
+	handlerWithErr(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -234,6 +251,8 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
+	params = map[string]string{}
+
 	// With base64-encoded job name and instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
@@ -244,13 +263,11 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handlerBase64(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "dGVzdC9qb2I="},                         // job="test/job"
-			httprouter.Param{Key: "labels", Value: "/instance@base64/dGVzdGluc3RhbmNl"}, // instance="testinstance"
-		},
-	)
+	params = map[string]string{
+		"job": "dGVzdC9qb2I=", // job="test/job"
+		"labels": "/instance@base64/dGVzdGluc3RhbmNl", // instance="testinstance"
+	}
+	handlerBase64(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -272,6 +289,8 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
+	params = map[string]string{}
+
 	// With job name and no instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
@@ -282,12 +301,10 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-		},
-	)
+	params = map[string]string{
+		"job": "testjob",
+	}
+	handler(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -308,6 +325,8 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted metric family %v, got %v.", expected, got)
 	}
 
+	params = map[string]string{}
+
 	// With job name and instance name and timestamp specified.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	req, err = http.NewRequest(
@@ -318,13 +337,12 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	handler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
-		},
-	)
+	params = map[string]string{
+		"job": "testjob",
+		"labels": "/instance/testinstance",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
 	// Note that a real storage shourd reject pushes with timestamps. Here
 	// we only make sure it gets through. Rejection is tested in the storage
 	// package.
@@ -338,6 +356,8 @@ func TestPush(t *testing.T) {
 	if expected, got := int64(1000), mms.lastWriteRequest.MetricFamilies["b"].GetMetric()[0].GetTimestampMs(); expected != got {
 		t.Errorf("Wanted protobuf timestamp %v, got %v.", expected, got)
 	}
+
+	params = map[string]string{}
 	// With job name and instance name and protobuf content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	buf := &bytes.Buffer{}
@@ -379,13 +399,11 @@ func TestPush(t *testing.T) {
 	}
 	req.Header.Set("Content-Type", "application/vnd.google.protobuf; encoding=delimited; proto=io.prometheus.client.MetricFamily")
 	w = httptest.NewRecorder()
-	handler(
-		w, req,
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
-		},
-	)
+	params = map[string]string{
+		"job": "testjob",
+		"labels": "/instance/testinstance",
+	}
+	handler(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -412,14 +430,12 @@ func TestDelete(t *testing.T) {
 	mms := MockMetricStore{}
 	handler := Delete(&mms, false, logger)
 	handlerBase64 := Delete(&mms, true, logger)
-
+	req := &http.Request{}
+	params := map[string]string{}
 	// No job name.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w := httptest.NewRecorder()
-	handler(
-		w, &http.Request{},
-		httprouter.Params{},
-	)
+	handler(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusBadRequest, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -430,12 +446,12 @@ func TestDelete(t *testing.T) {
 	// With job name, but no instance name.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
-	handler(
-		w, &http.Request{},
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-		},
-	)
+
+	params = map[string]string{
+		"job": "testjob",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -449,16 +465,18 @@ func TestDelete(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 
+	params = map[string]string{}
+
 	// With job name and instance name.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
-	handler(
-		w, &http.Request{},
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "testjob"},
-			httprouter.Param{Key: "labels", Value: "/instance/testinstance"},
-		},
-	)
+
+	params = map[string]string{
+		"job": "testjob",
+		"labels": "/instance/testinstance",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
@@ -472,16 +490,18 @@ func TestDelete(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 
+	params = map[string]string{}
+
 	// With base64-encoded job name and instance name.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
-	handlerBase64(
-		w, &http.Request{},
-		httprouter.Params{
-			httprouter.Param{Key: "job", Value: "dGVzdC9qb2I="},                         // job="test/job"
-			httprouter.Param{Key: "labels", Value: "/instance@base64/dGVzdGluc3RhbmNl"}, // instance="testinstance"
-		},
-	)
+
+	params = map[string]string{
+		"job": "dGVzdC9qb2I=",
+		"labels": "/instance@base64/dGVzdGluc3RhbmNl",
+	}
+
+	handlerBase64(w, req.WithContext(ctxWithParams(params, req)))
 	if expected, got := http.StatusAccepted, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}

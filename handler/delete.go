@@ -14,6 +14,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -21,7 +22,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -31,23 +31,23 @@ import (
 // Delete returns a handler that accepts delete requests.
 //
 // The returned handler is already instrumented for Prometheus.
-func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) func(http.ResponseWriter, *http.Request, httprouter.Params) {
-	var ps httprouter.Params
+func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) func(http.ResponseWriter, *http.Request) {
+	var ctx context.Context
 	var mtx sync.Mutex // Protects ps.
 
 	instrumentedHandler := promhttp.InstrumentHandlerCounter(
 		httpCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			job := ps.ByName("job")
+			job := urlParams(ctx, "job")
 			if jobBase64Encoded {
 				var err error
 				if job, err = decodeBase64(job); err != nil {
-					http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", ps.ByName("job"), err), http.StatusBadRequest)
-					level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", ps.ByName("job"), "err", err.Error())
+					http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", job, err), http.StatusBadRequest)
+					level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", job, "err", err.Error())
 					return
 				}
 			}
-			labelsString := ps.ByName("labels")
+			labelsString := urlParams(ctx, "labels")
 			mtx.Unlock()
 
 			labels, err := splitLabels(labelsString)
@@ -70,9 +70,9 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 		}),
 	)
 
-	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		mtx.Lock()
-		ps = params
+		ctx = r.Context()
 		instrumentedHandler.ServeHTTP(w, r)
 	}
 }

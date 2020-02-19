@@ -14,6 +14,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -25,7 +26,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/julienschmidt/httprouter"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -55,21 +55,21 @@ func Push(
 	ms storage.MetricStore,
 	replace, check, jobBase64Encoded bool,
 	logger log.Logger,
-) func(http.ResponseWriter, *http.Request, httprouter.Params) {
-	var ps httprouter.Params
+) func(http.ResponseWriter, *http.Request) {
+	var ctx context.Context
 	var mtx sync.Mutex // Protects ps.
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		job := ps.ByName("job")
+		job := urlParams(ctx, "job")
 		if jobBase64Encoded {
 			var err error
 			if job, err = decodeBase64(job); err != nil {
-				http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", ps.ByName("job"), err), http.StatusBadRequest)
-				level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", ps.ByName("job"), "err", err.Error())
+				http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", job, err), http.StatusBadRequest)
+				level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", job, "err", err.Error())
 				return
 			}
 		}
-		labelsString := ps.ByName("labels")
+		labelsString := urlParams(ctx, "labels")
 		mtx.Unlock()
 
 		labels, err := splitLabels(labelsString)
@@ -162,9 +162,9 @@ func Push(
 				handler,
 			)))
 
-	return func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		mtx.Lock()
-		ps = params
+		ctx = r.Context()
 		instrumentedHandler.ServeHTTP(w, r)
 	}
 }
@@ -206,4 +206,13 @@ func splitLabels(labels string) (map[string]string, error) {
 		result[trimmedName] = decodedValue
 	}
 	return result, nil
+}
+
+// TODO: remove this, Don't know the reason but seems that route.Params is Not working
+// Subtitute for route.Params
+func urlParams(ctx context.Context, p string) string {
+	if v := ctx.Value(string(p)); v != nil {
+		return v.(string)
+	}
+	return ""
 }

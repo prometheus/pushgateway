@@ -29,7 +29,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
@@ -105,42 +104,42 @@ func main() {
 		prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) { return ms.GetMetricFamilies(), nil }),
 	}
 
-	r := httprouter.New()
-	r.Handler("GET", *routePrefix+"/-/healthy", handler.Healthy(ms))
-	r.Handler("GET", *routePrefix+"/-/ready", handler.Ready(ms))
-	r.Handler(
-		"GET", path.Join(*routePrefix, *metricsPath),
+	r := route.New()
+	r.Get(*routePrefix+"/-/healthy", handler.Healthy(ms).ServeHTTP)
+	r.Get(*routePrefix+"/-/ready", handler.Ready(ms).ServeHTTP)
+	r.Get(
+		path.Join(*routePrefix, *metricsPath),
 		promhttp.HandlerFor(g, promhttp.HandlerOpts{
 			ErrorLog: logFunc(level.Error(logger).Log),
-		}),
+		}).ServeHTTP,
 	)
 
 	if *enableAdminAPI {
 		// To be consistent with Prometheus codebase and provide endpoint versioning, we use the same path
 		// as Prometheus for its admin endpoints, even if this may feel excesive for just one simple endpoint
 		// this will likely change over time.
-		r.Handler("PUT", *routePrefix+"/api/v1/admin/wipe", handler.WipeMetricStore(ms, logger))
+		r.Put(*routePrefix+"/api/v1/admin/wipe", handler.WipeMetricStore(ms, logger).ServeHTTP)
 	}
 
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"
 	for _, suffix := range []string{"", handler.Base64Suffix} {
 		jobBase64Encoded := suffix == handler.Base64Suffix
-		r.PUT(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger))
-		r.POST(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger))
-		r.DELETE(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Delete(ms, jobBase64Encoded, logger))
-		r.PUT(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger))
-		r.POST(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger))
-		r.DELETE(pushAPIPath+"/job"+suffix+"/:job", handler.Delete(ms, jobBase64Encoded, logger))
+		r.Put(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger))
+		r.Post(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger))
+		r.Del(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Delete(ms, jobBase64Encoded, logger))
+		r.Put(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger))
+		r.Post(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger))
+		r.Del(pushAPIPath+"/job"+suffix+"/:job", handler.Delete(ms, jobBase64Encoded, logger))
 	}
-	r.Handler("GET", *routePrefix+"/static/*filepath", handler.Static(asset.Assets, *routePrefix))
+	r.Get(*routePrefix+"/static/*filepath", handler.Static(asset.Assets, *routePrefix).ServeHTTP)
 
 	statusHandler := handler.Status(ms, asset.Assets, flags, externalPathPrefix, logger)
-	r.Handler("GET", *routePrefix+"/status", statusHandler)
-	r.Handler("GET", *routePrefix+"/", statusHandler)
+	r.Get(*routePrefix+"/status", statusHandler.ServeHTTP)
+	r.Get(*routePrefix+"/", statusHandler.ServeHTTP)
 
 	// Re-enable pprof.
-	r.GET(*routePrefix+"/debug/pprof/*pprof", handlePprof)
+	r.Get(*routePrefix+"/debug/pprof/*pprof", handlePprof)
 
 	level.Info(logger).Log("listen_address", *listenAddress)
 	l, err := net.Listen("tcp", *listenAddress)
@@ -150,28 +149,28 @@ func main() {
 	}
 
 	quitCh := make(chan struct{})
-	quitHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	quitHandler := func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Requesting termination... Goodbye!")
 		close(quitCh)
-	})
-
-	forbiddenAPINotEnabled := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("Lifecycle API is not enabled."))
-	})
-
-	if *enableLifeCycle {
-		r.Handler("PUT", *routePrefix+"/-/quit", quitHandler)
-		r.Handler("POST", *routePrefix+"/-/quit", quitHandler)
-	} else {
-		r.Handler("PUT", *routePrefix+"/-/quit", forbiddenAPINotEnabled)
-		r.Handler("POST", *routePrefix+"/-/quit", forbiddenAPINotEnabled)
 	}
 
-	r.Handler("GET", "/-/quit", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	forbiddenAPINotEnabled := func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Lifecycle API is not enabled."))
+	}
+
+	if *enableLifeCycle {
+		r.Put(*routePrefix+"/-/quit", quitHandler)
+		r.Post(*routePrefix+"/-/quit", quitHandler)
+	} else {
+		r.Put(*routePrefix+"/-/quit", forbiddenAPINotEnabled)
+		r.Post(*routePrefix+"/-/quit", forbiddenAPINotEnabled)
+	}
+
+	r.Get("/-/quit", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Write([]byte("Only POST or PUT requests allowed."))
-	}))
+	})
 
 	mux := http.NewServeMux()
 	mux.Handle("/", r)
@@ -210,8 +209,8 @@ func main() {
 	}
 }
 
-func handlePprof(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	switch p.ByName("pprof") {
+func handlePprof(w http.ResponseWriter, r *http.Request) {
+	switch route.Param(r.Context(), "pprof") {
 	case "/cmdline":
 		pprof.Cmdline(w, r)
 	case "/profile":
