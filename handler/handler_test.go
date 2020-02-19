@@ -164,7 +164,7 @@ func TestPush(t *testing.T) {
 	}
 	w = httptest.NewRecorder()
 	params = map[string]string{
-		"job": "testjob",
+		"job":      "testjob",
 		"instance": "testinstance",
 	}
 
@@ -190,7 +190,7 @@ func TestPush(t *testing.T) {
 	w = httptest.NewRecorder()
 
 	params = map[string]string{
-		"job": "testjob",
+		"job":    "testjob",
 		"labels": "/instance/testinstance",
 	}
 
@@ -227,7 +227,7 @@ func TestPush(t *testing.T) {
 	}
 	w = httptest.NewRecorder()
 	params = map[string]string{
-		"job": "testjob",
+		"job":    "testjob",
 		"labels": "/instance/testinstance",
 	}
 	handlerWithErr(w, req.WithContext(ctxWithParams(params, req)))
@@ -264,7 +264,7 @@ func TestPush(t *testing.T) {
 	}
 	w = httptest.NewRecorder()
 	params = map[string]string{
-		"job": "dGVzdC9qb2I=", // job="test/job"
+		"job":    "dGVzdC9qb2I=",                      // job="test/job"
 		"labels": "/instance@base64/dGVzdGluc3RhbmNl", // instance="testinstance"
 	}
 	handlerBase64(w, req.WithContext(ctxWithParams(params, req)))
@@ -338,7 +338,7 @@ func TestPush(t *testing.T) {
 	}
 	w = httptest.NewRecorder()
 	params = map[string]string{
-		"job": "testjob",
+		"job":    "testjob",
 		"labels": "/instance/testinstance",
 	}
 
@@ -400,7 +400,7 @@ func TestPush(t *testing.T) {
 	req.Header.Set("Content-Type", "application/vnd.google.protobuf; encoding=delimited; proto=io.prometheus.client.MetricFamily")
 	w = httptest.NewRecorder()
 	params = map[string]string{
-		"job": "testjob",
+		"job":    "testjob",
 		"labels": "/instance/testinstance",
 	}
 	handler(w, req.WithContext(ctxWithParams(params, req)))
@@ -472,7 +472,7 @@ func TestDelete(t *testing.T) {
 	w = httptest.NewRecorder()
 
 	params = map[string]string{
-		"job": "testjob",
+		"job":    "testjob",
 		"labels": "/instance/testinstance",
 	}
 
@@ -497,7 +497,7 @@ func TestDelete(t *testing.T) {
 	w = httptest.NewRecorder()
 
 	params = map[string]string{
-		"job": "dGVzdC9qb2I=",
+		"job":    "dGVzdC9qb2I=",
 		"labels": "/instance@base64/dGVzdGluc3RhbmNl",
 	}
 
