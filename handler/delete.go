@@ -16,7 +16,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/common/route"
 	"net/http"
 	"sync"
 	"time"
@@ -25,6 +24,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/pushgateway/storage"
 )

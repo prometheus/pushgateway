@@ -28,6 +28,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/route"
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -79,7 +80,7 @@ func ctxWithParams(params map[string]string, mainReq *http.Request) context.Cont
 	ctx := mainReq.Context()
 
 	for key, value := range params {
-		ctx = context.WithValue(ctx, key, value)
+		ctx = route.WithParam(ctx, key, value)
 	}
 
 	return ctx

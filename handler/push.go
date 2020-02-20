@@ -14,10 +14,8 @@
 package handler
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/prometheus/common/route"
 	"io"
 	"mime"
 	"net/http"
@@ -32,6 +30,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/route"
 
 	dto "github.com/prometheus/client_model/go"
 
@@ -57,11 +56,10 @@ func Push(
 	replace, check, jobBase64Encoded bool,
 	logger log.Logger,
 ) func(http.ResponseWriter, *http.Request) {
-	var ctx context.Context
 	var mtx sync.Mutex // Protects ps.
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		job := route.Param(ctx, "job")
+		job := route.Param(r.Context(), "job")
 		if jobBase64Encoded {
 			var err error
 			if job, err = decodeBase64(job); err != nil {
@@ -70,7 +68,7 @@ func Push(
 				return
 			}
 		}
-		labelsString := route.Param(ctx, "labels")
+		labelsString := route.Param(r.Context(), "labels")
 		mtx.Unlock()
 
 		labels, err := splitLabels(labelsString)
@@ -164,9 +162,7 @@ func Push(
 			)))
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println(r.Context())
 		mtx.Lock()
-		ctx = r.Context()
 		instrumentedHandler.ServeHTTP(w, r)
 	}
 }
