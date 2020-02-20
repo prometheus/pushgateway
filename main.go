@@ -45,8 +45,42 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
+var (
+	requestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "pushgateway_http_request_duration_seconds",
+			Help:    "Histogram of latencies for HTTP requests.",
+			Buckets: []float64{.05, 0.1, .25, .5, .75, 1, 2, 5, 20, 60},
+		},
+		[]string{"handler", "method"},
+	)
+	responseSize = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "pushgateway_http_response_size_bytes",
+			Help:    "Histogram of response size for HTTP requests.",
+			Buckets: prometheus.ExponentialBuckets(100, 10, 7),
+		},
+		[]string{"handler", "method"},
+	)
+)
+
 func init() {
 	prometheus.MustRegister(version.NewCollector("pushgateway"))
+	prometheus.MustRegister(requestDuration)
+	prometheus.MustRegister(responseSize)
+}
+
+func instrumentHandler(prefix string) func(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
+	return func(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
+		handlerLabel := prometheus.Labels{"handler": prefix + handlerName}
+		return promhttp.InstrumentHandlerDuration(
+			requestDuration.MustCurryWith(handlerLabel),
+			promhttp.InstrumentHandlerResponseSize(
+				responseSize.MustCurryWith(handlerLabel),
+				handler,
+			),
+		)
+	}
 }
 
 // logFunc in an adaptor to plug gokit logging into promhttp.HandlerOpts.
@@ -104,7 +138,7 @@ func main() {
 		prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) { return ms.GetMetricFamilies(), nil }),
 	}
 
-	r := route.New()
+	r := route.New().WithInstrumentation(instrumentHandler(*routePrefix))
 	r.Get(*routePrefix+"/-/healthy", handler.Healthy(ms).ServeHTTP)
 	r.Get(*routePrefix+"/-/ready", handler.Ready(ms).ServeHTTP)
 	r.Get(
@@ -191,8 +225,7 @@ func main() {
 		apiPath = *routePrefix + apiPath
 	}
 
-	// TODO: Instrument API endpoints.
-	av1 := route.New()
+	av1 := route.New().WithInstrumentation(instrumentHandler(apiPath + "/v1/"))
 	apiv1.Register(av1)
 
 	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))

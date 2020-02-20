@@ -14,7 +14,6 @@
 package handler
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -33,13 +32,12 @@ import (
 //
 // The returned handler is already instrumented for Prometheus.
 func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) func(http.ResponseWriter, *http.Request) {
-	var ctx context.Context
 	var mtx sync.Mutex // Protects ps.
 
 	instrumentedHandler := promhttp.InstrumentHandlerCounter(
 		httpCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
-		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			job := route.Param(ctx, "job")
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			job := route.Param(r.Context(), "job")
 			if jobBase64Encoded {
 				var err error
 				if job, err = decodeBase64(job); err != nil {
@@ -48,7 +46,7 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 					return
 				}
 			}
-			labelsString := route.Param(ctx, "labels")
+			labelsString := route.Param(r.Context(), "labels")
 			mtx.Unlock()
 
 			labels, err := splitLabels(labelsString)
@@ -73,7 +71,6 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		mtx.Lock()
-		ctx = r.Context()
 		instrumentedHandler.ServeHTTP(w, r)
 	}
 }
