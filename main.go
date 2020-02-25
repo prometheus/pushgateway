@@ -225,7 +225,7 @@ func main() {
 		apiPath = *routePrefix + apiPath
 	}
 
-	av1 := route.New().WithInstrumentation(instrumentHandler(apiPath + "/v1/"))
+	av1 := route.New().WithInstrumentation(instrumentHandler(apiPath + "/v1"))
 	apiv1.Register(av1)
 
 	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))

@@ -24,11 +24,12 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
-	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/route"
+
+	dto "github.com/prometheus/client_model/go"
+
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -116,7 +117,6 @@ func TestPush(t *testing.T) {
 	handlerWithErr := Push(&mmsWithErr, false, true, false, logger)
 	handlerBase64 := Push(&mms, false, true, true, logger)
 	req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
-	var params map[string]string
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestPush(t *testing.T) {
 	// With job name, but no instance name and no content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	w = httptest.NewRecorder()
-	params = map[string]string{
+	params := map[string]string{
 		"job": "testjob",
 	}
 
