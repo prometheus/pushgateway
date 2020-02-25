@@ -19,9 +19,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -32,18 +29,15 @@ func WipeMetricStore(
 	ms storage.MetricStore,
 	logger log.Logger) http.Handler {
 
-	return promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "wipe"}),
-		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusAccepted)
-			level.Debug(logger).Log("msg", "start wiping metric store")
-			// Delete all metric groups by sending write requests with MetricFamilies equal to nil.
-			for _, group := range ms.GetMetricFamiliesMap() {
-				ms.SubmitWriteRequest(storage.WriteRequest{
-					Labels:    group.Labels,
-					Timestamp: time.Now(),
-				})
-			}
-
-		}))
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		level.Debug(logger).Log("msg", "start wiping metric store")
+		// Delete all metric groups by sending write requests with MetricFamilies equal to nil.
+		for _, group := range ms.GetMetricFamiliesMap() {
+			ms.SubmitWriteRequest(storage.WriteRequest{
+				Labels:    group.Labels,
+				Timestamp: time.Now(),
+			})
+		}
+	})
 }

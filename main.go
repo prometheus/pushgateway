@@ -45,42 +45,18 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
-var (
-	requestDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "pushgateway_http_request_duration_seconds",
-			Help:    "Histogram of latencies for HTTP requests.",
-			Buckets: []float64{.05, 0.1, .25, .5, .75, 1, 2, 5, 20, 60},
-		},
-		[]string{"handler", "method"},
-	)
-	responseSize = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "pushgateway_http_response_size_bytes",
-			Help:    "Histogram of response size for HTTP requests.",
-			Buckets: prometheus.ExponentialBuckets(100, 10, 7),
-		},
-		[]string{"handler", "method"},
-	)
-)
-
 func init() {
 	prometheus.MustRegister(version.NewCollector("pushgateway"))
-	prometheus.MustRegister(requestDuration)
-	prometheus.MustRegister(responseSize)
 }
 
-func instrumentHandler(prefix string) func(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
-	return func(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
-		handlerLabel := prometheus.Labels{"handler": prefix + handlerName}
-		return promhttp.InstrumentHandlerDuration(
-			requestDuration.MustCurryWith(handlerLabel),
-			promhttp.InstrumentHandlerResponseSize(
-				responseSize.MustCurryWith(handlerLabel),
-				handler,
-			),
-		)
-	}
+func wrap(f http.HandlerFunc, name string) http.HandlerFunc {
+
+	return promhttp.InstrumentHandlerCounter(
+		handler.HttpCnt.MustCurryWith(prometheus.Labels{"handler": name}),
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			f(w, r)
+		}),
+	)
 }
 
 // logFunc in an adaptor to plug gokit logging into promhttp.HandlerOpts.
@@ -138,9 +114,9 @@ func main() {
 		prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) { return ms.GetMetricFamilies(), nil }),
 	}
 
-	r := route.New().WithInstrumentation(instrumentHandler(*routePrefix))
-	r.Get(*routePrefix+"/-/healthy", handler.Healthy(ms).ServeHTTP)
-	r.Get(*routePrefix+"/-/ready", handler.Ready(ms).ServeHTTP)
+	r := route.New()
+	r.Get(*routePrefix+"/-/healthy", wrap(handler.Healthy(ms).ServeHTTP, "healthy"))
+	r.Get(*routePrefix+"/-/ready", wrap(handler.Ready(ms).ServeHTTP, "ready"))
 	r.Get(
 		path.Join(*routePrefix, *metricsPath),
 		promhttp.HandlerFor(g, promhttp.HandlerOpts{
@@ -152,25 +128,25 @@ func main() {
 		// To be consistent with Prometheus codebase and provide endpoint versioning, we use the same path
 		// as Prometheus for its admin endpoints, even if this may feel excesive for just one simple endpoint
 		// this will likely change over time.
-		r.Put(*routePrefix+"/api/v1/admin/wipe", handler.WipeMetricStore(ms, logger).ServeHTTP)
+		r.Put(*routePrefix+"/api/v1/admin/wipe", wrap(handler.WipeMetricStore(ms, logger).ServeHTTP, "wipe"))
 	}
 
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"
 	for _, suffix := range []string{"", handler.Base64Suffix} {
 		jobBase64Encoded := suffix == handler.Base64Suffix
-		r.Put(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger))
-		r.Post(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger))
-		r.Del(pushAPIPath+"/job"+suffix+"/:job/*labels", handler.Delete(ms, jobBase64Encoded, logger))
-		r.Put(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger))
-		r.Post(pushAPIPath+"/job"+suffix+"/:job", handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger))
-		r.Del(pushAPIPath+"/job"+suffix+"/:job", handler.Delete(ms, jobBase64Encoded, logger))
+		r.Put(pushAPIPath+"/job"+suffix+"/:job/*labels", wrap(handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger), "push"))
+		r.Post(pushAPIPath+"/job"+suffix+"/:job/*labels", wrap(handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger), "push"))
+		r.Del(pushAPIPath+"/job"+suffix+"/:job/*labels", wrap(handler.Delete(ms, jobBase64Encoded, logger), "delete"))
+		r.Put(pushAPIPath+"/job"+suffix+"/:job", wrap(handler.Push(ms, true, !*pushUnchecked, jobBase64Encoded, logger), "push"))
+		r.Post(pushAPIPath+"/job"+suffix+"/:job", wrap(handler.Push(ms, false, !*pushUnchecked, jobBase64Encoded, logger), "push"))
+		r.Del(pushAPIPath+"/job"+suffix+"/:job", wrap(handler.Delete(ms, jobBase64Encoded, logger), "delete"))
 	}
-	r.Get(*routePrefix+"/static/*filepath", handler.Static(asset.Assets, *routePrefix).ServeHTTP)
+	r.Get(*routePrefix+"/static/*filepath", wrap(handler.Static(asset.Assets, *routePrefix).ServeHTTP, "static"))
 
 	statusHandler := handler.Status(ms, asset.Assets, flags, externalPathPrefix, logger)
-	r.Get(*routePrefix+"/status", statusHandler.ServeHTTP)
-	r.Get(*routePrefix+"/", statusHandler.ServeHTTP)
+	r.Get(*routePrefix+"/status", wrap(statusHandler.ServeHTTP, "status"))
+	r.Get(*routePrefix+"/", wrap(statusHandler.ServeHTTP, "status"))
 
 	// Re-enable pprof.
 	r.Get(*routePrefix+"/debug/pprof/*pprof", handlePprof)
@@ -225,7 +201,7 @@ func main() {
 		apiPath = *routePrefix + apiPath
 	}
 
-	av1 := route.New().WithInstrumentation(instrumentHandler(apiPath + "/v1/"))
+	av1 := route.New()
 	apiv1.Register(av1)
 
 	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))

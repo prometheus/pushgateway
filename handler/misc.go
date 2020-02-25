@@ -17,8 +17,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/server"
 
 	"github.com/prometheus/pushgateway/storage"
@@ -29,17 +27,14 @@ import (
 //
 // The returned handler is already instrumented for Prometheus.
 func Healthy(ms storage.MetricStore) http.Handler {
-	return promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "healthy"}),
-		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			err := ms.Healthy()
-			if err == nil {
-				io.WriteString(w, "OK")
-			} else {
-				http.Error(w, err.Error(), 500)
-			}
-		}),
-	)
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		err := ms.Healthy()
+		if err == nil {
+			io.WriteString(w, "OK")
+		} else {
+			http.Error(w, err.Error(), 500)
+		}
+	})
 }
 
 // Ready is used to report if the Pushgateway is ready to process requests. It
@@ -48,17 +43,14 @@ func Healthy(ms storage.MetricStore) http.Handler {
 //
 // The returned handler is already instrumented for Prometheus.
 func Ready(ms storage.MetricStore) http.Handler {
-	return promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "ready"}),
-		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			err := ms.Ready()
-			if err == nil {
-				io.WriteString(w, "OK")
-			} else {
-				http.Error(w, err.Error(), 500)
-			}
-		}),
-	)
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		err := ms.Ready()
+		if err == nil {
+			io.WriteString(w, "OK")
+		} else {
+			http.Error(w, err.Error(), 500)
+		}
+	})
 }
 
 // Static serves the static files from the provided http.FileSystem.
@@ -70,11 +62,8 @@ func Static(root http.FileSystem, prefix string) http.Handler {
 	}
 
 	handler := server.StaticFileServer(root)
-	return promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "static"}),
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.URL.Path = r.URL.Path[len(prefix):]
-			handler.ServeHTTP(w, r)
-		}),
-	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.URL.Path = r.URL.Path[len(prefix):]
+		handler.ServeHTTP(w, r)
+	})
 }

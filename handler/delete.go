@@ -21,8 +21,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/pushgateway/storage"
@@ -34,43 +32,36 @@ import (
 func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) func(http.ResponseWriter, *http.Request) {
 	var mtx sync.Mutex // Protects ps.
 
-	instrumentedHandler := promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			job := route.Param(r.Context(), "job")
-			if jobBase64Encoded {
-				var err error
-				if job, err = decodeBase64(job); err != nil {
-					http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", job, err), http.StatusBadRequest)
-					level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", job, "err", err.Error())
-					return
-				}
-			}
-			labelsString := route.Param(r.Context(), "labels")
-			mtx.Unlock()
-
-			labels, err := splitLabels(labelsString)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				level.Debug(logger).Log("msg", "failed to parse URL", "url", labelsString, "err", err.Error())
-				return
-			}
-			if job == "" {
-				http.Error(w, "job name is required", http.StatusBadRequest)
-				level.Debug(logger).Log("msg", "job name is required")
-				return
-			}
-			labels["job"] = job
-			ms.SubmitWriteRequest(storage.WriteRequest{
-				Labels:    labels,
-				Timestamp: time.Now(),
-			})
-			w.WriteHeader(http.StatusAccepted)
-		}),
-	)
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		mtx.Lock()
-		instrumentedHandler.ServeHTTP(w, r)
+		job := route.Param(r.Context(), "job")
+		if jobBase64Encoded {
+			var err error
+			if job, err = decodeBase64(job); err != nil {
+				http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", job, err), http.StatusBadRequest)
+				level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", job, "err", err.Error())
+				return
+			}
+		}
+		labelsString := route.Param(r.Context(), "labels")
+		mtx.Unlock()
+
+		labels, err := splitLabels(labelsString)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			level.Debug(logger).Log("msg", "failed to parse URL", "url", labelsString, "err", err.Error())
+			return
+		}
+		if job == "" {
+			http.Error(w, "job name is required", http.StatusBadRequest)
+			level.Debug(logger).Log("msg", "job name is required")
+			return
+		}
+		labels["job"] = job
+		ms.SubmitWriteRequest(storage.WriteRequest{
+			Labels:    labels,
+			Timestamp: time.Now(),
+		})
+		w.WriteHeader(http.StatusAccepted)
 	}
 }

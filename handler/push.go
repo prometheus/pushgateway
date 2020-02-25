@@ -26,8 +26,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
@@ -154,17 +152,7 @@ func Push(
 		}
 	})
 
-	instrumentedHandler := promhttp.InstrumentHandlerRequestSize(
-		httpPushSize, promhttp.InstrumentHandlerDuration(
-			httpPushDuration, promhttp.InstrumentHandlerCounter(
-				httpCnt.MustCurryWith(prometheus.Labels{"handler": "push"}),
-				handler,
-			)))
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		mtx.Lock()
-		instrumentedHandler.ServeHTTP(w, r)
-	}
+	return handler
 }
 
 // decodeBase64 decodes the provided string using the “Base 64 Encoding with URL

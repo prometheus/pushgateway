@@ -15,6 +15,8 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"time"
 
@@ -23,6 +25,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/route"
 
+	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -44,6 +47,8 @@ const (
 	errorInternal    errorType = "internal"
 	errorUnavailable errorType = "unavailable"
 	errorNotFound    errorType = "not_found"
+
+	apiVersion string = "api/v1/"
 )
 
 type apiError struct {
@@ -102,17 +107,21 @@ func New(
 // Register registers the API handlers under their correct routes
 // in the given router.
 func (api *API) Register(r *route.Router) {
-	wrap := func(f http.HandlerFunc) http.HandlerFunc {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			setCORS(w)
-			f(w, r)
-		})
+	wrap := func(f http.HandlerFunc, name string) http.HandlerFunc {
+
+		return promhttp.InstrumentHandlerCounter(
+			handler.HttpCnt.MustCurryWith(prometheus.Labels{"handler": apiVersion + name}),
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				setCORS(w)
+				f(w, r)
+			}),
+		)
 	}
 
-	r.Options("/*path", wrap(func(w http.ResponseWriter, r *http.Request) {}))
+	r.Options("/*path", wrap(func(w http.ResponseWriter, r *http.Request) {}, "options"))
 
-	r.Get("/status", wrap(api.status))
-	r.Get("/metrics", wrap(api.metrics))
+	r.Get("/status", wrap(api.status, "status"))
+	r.Get("/metrics", wrap(api.metrics, "metrics"))
 }
 
 type metrics struct {
