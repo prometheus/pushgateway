@@ -114,13 +114,6 @@ func main() {
 		}).ServeHTTP,
 	)
 
-	if *enableAdminAPI {
-		// To be consistent with Prometheus codebase and provide endpoint versioning, we use the same path
-		// as Prometheus for its admin endpoints, even if this may feel excesive for just one simple endpoint
-		// this will likely change over time.
-		r.Put(*routePrefix+"/api/v1/admin/wipe", handler.WipeMetricStore(ms, logger).ServeHTTP)
-	}
-
 	// Handlers for pushing and deleting metrics.
 	pushAPIPath := *routePrefix + "/metrics"
 	for _, suffix := range []string{"", handler.Base64Suffix} {
@@ -193,6 +186,9 @@ func main() {
 
 	av1 := route.New()
 	apiv1.Register(av1)
+	if *enableAdminAPI {
+		av1.Put("/admin/wipe", handler.WipeMetricStore(ms, logger).ServeHTTP)
+	}
 
 	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))
 
