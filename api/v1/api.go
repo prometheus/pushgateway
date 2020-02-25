@@ -124,9 +124,9 @@ type metrics struct {
 
 func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 	familyMaps := api.MetricStore.GetMetricFamiliesMap()
-	res := make([]interface{}, 0)
+	var res []interface{}
 	for _, v := range familyMaps {
-		metricResponse := make(map[string]interface{})
+		metricResponse := map[string]interface{}{}
 		metricResponse["labels"] = v.Labels
 		metricResponse["last_push_successful"] = v.LastPushSuccess()
 		for name, metricValues := range v.Metrics {
@@ -146,7 +146,7 @@ func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) status(w http.ResponseWriter, r *http.Request) {
-	res := make(map[string]interface{})
+	res := map[string]interface{}{}
 	res["flags"] = api.Flags
 	res["start_time"] = api.StartTime
 	res["build_information"] = api.BuildInfo
