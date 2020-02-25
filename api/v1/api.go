@@ -20,9 +20,12 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/route"
 
+	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -102,17 +105,20 @@ func New(
 // Register registers the API handlers under their correct routes
 // in the given router.
 func (api *API) Register(r *route.Router) {
-	wrap := func(f http.HandlerFunc) http.HandlerFunc {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			setCORS(w)
-			f(w, r)
-		})
+	wrap := func(handlerName string, f http.HandlerFunc) http.HandlerFunc {
+		return promhttp.InstrumentHandlerCounter(
+			handler.HTTPCnt.MustCurryWith(prometheus.Labels{"handler": handlerName}),
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				setCORS(w)
+				f(w, r)
+			}),
+		)
 	}
 
-	r.Options("/*path", wrap(func(w http.ResponseWriter, r *http.Request) {}))
+	r.Options("/*path", wrap("api/v1/options", func(w http.ResponseWriter, r *http.Request) {}))
 
-	r.Get("/status", wrap(api.status))
-	r.Get("/metrics", wrap(api.metrics))
+	r.Get("/status", wrap("api/v1/status", api.status))
+	r.Get("/metrics", wrap("api/v1/metrics", api.metrics))
 }
 
 type metrics struct {

@@ -62,7 +62,7 @@ func Status(
 ) http.Handler {
 	birth := time.Now()
 	return promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "status"}),
+		HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "status"}),
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			t := template.New("status")
 			t.Funcs(template.FuncMap{

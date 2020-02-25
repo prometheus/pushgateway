@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	httpCnt = promauto.NewCounterVec(
+	HTTPCnt = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "pushgateway_http_requests_total",
 			Help: "Total HTTP requests processed by the Pushgateway, excluding scrapes.",

@@ -35,7 +35,7 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 	var mtx sync.Mutex // Protects ps.
 
 	instrumentedHandler := promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
+		HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			job := route.Param(r.Context(), "job")
 			if jobBase64Encoded {

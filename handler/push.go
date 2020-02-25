@@ -157,7 +157,7 @@ func Push(
 	instrumentedHandler := promhttp.InstrumentHandlerRequestSize(
 		httpPushSize, promhttp.InstrumentHandlerDuration(
 			httpPushDuration, promhttp.InstrumentHandlerCounter(
-				httpCnt.MustCurryWith(prometheus.Labels{"handler": "push"}),
+				HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "push"}),
 				handler,
 			)))
 

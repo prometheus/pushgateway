@@ -30,7 +30,7 @@ import (
 // The returned handler is already instrumented for Prometheus.
 func Healthy(ms storage.MetricStore) http.Handler {
 	return promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "healthy"}),
+		HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "healthy"}),
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			err := ms.Healthy()
 			if err == nil {
@@ -49,7 +49,7 @@ func Healthy(ms storage.MetricStore) http.Handler {
 // The returned handler is already instrumented for Prometheus.
 func Ready(ms storage.MetricStore) http.Handler {
 	return promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "ready"}),
+		HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "ready"}),
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			err := ms.Ready()
 			if err == nil {
@@ -71,7 +71,7 @@ func Static(root http.FileSystem, prefix string) http.Handler {
 
 	handler := server.StaticFileServer(root)
 	return promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "static"}),
+		HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "static"}),
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r.URL.Path = r.URL.Path[len(prefix):]
 			handler.ServeHTTP(w, r)

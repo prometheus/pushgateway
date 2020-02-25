@@ -33,7 +33,7 @@ func WipeMetricStore(
 	logger log.Logger) http.Handler {
 
 	return promhttp.InstrumentHandlerCounter(
-		httpCnt.MustCurryWith(prometheus.Labels{"handler": "wipe"}),
+		HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "wipe"}),
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusAccepted)
 			level.Debug(logger).Log("msg", "start wiping metric store")
