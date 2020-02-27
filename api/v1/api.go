@@ -20,9 +20,11 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/route"
 
+	dto "github.com/prometheus/client_model/go"
+
+	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -102,17 +104,20 @@ func New(
 // Register registers the API handlers under their correct routes
 // in the given router.
 func (api *API) Register(r *route.Router) {
-	wrap := func(f http.HandlerFunc) http.HandlerFunc {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			setCORS(w)
-			f(w, r)
-		})
+	wrap := func(handlerName string, f http.HandlerFunc) http.HandlerFunc {
+		return handler.InstrumentWithCounter(
+			handlerName,
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				setCORS(w)
+				f(w, r)
+			}),
+		)
 	}
 
-	r.Options("/*path", wrap(func(w http.ResponseWriter, r *http.Request) {}))
+	r.Options("/*path", wrap("api/v1/options", func(w http.ResponseWriter, r *http.Request) {}))
 
-	r.Get("/status", wrap(api.status))
-	r.Get("/metrics", wrap(api.metrics))
+	r.Get("/status", wrap("api/v1/status", api.status))
+	r.Get("/metrics", wrap("api/v1/metrics", api.metrics))
 }
 
 type metrics struct {
@@ -124,9 +129,9 @@ type metrics struct {
 
 func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 	familyMaps := api.MetricStore.GetMetricFamiliesMap()
-	res := make([]interface{}, 0)
+	var res []interface{}
 	for _, v := range familyMaps {
-		metricResponse := make(map[string]interface{})
+		metricResponse := map[string]interface{}{}
 		metricResponse["labels"] = v.Labels
 		metricResponse["last_push_successful"] = v.LastPushSuccess()
 		for name, metricValues := range v.Metrics {
@@ -146,7 +151,7 @@ func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) status(w http.ResponseWriter, r *http.Request) {
-	res := make(map[string]interface{})
+	res := map[string]interface{}{}
 	res["flags"] = api.Flags
 	res["start_time"] = api.StartTime
 	res["build_information"] = api.BuildInfo

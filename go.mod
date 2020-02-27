@@ -5,7 +5,7 @@ require (
 	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/golang/protobuf v1.3.2
-	github.com/julienschmidt/httprouter v1.3.0
+	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.3.0

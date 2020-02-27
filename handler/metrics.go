@@ -14,8 +14,11 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -43,3 +46,10 @@ var (
 		[]string{"method"},
 	)
 )
+
+func InstrumentWithCounter(handlerName string, handler http.Handler) http.HandlerFunc {
+	return promhttp.InstrumentHandlerCounter(
+		httpCnt.MustCurryWith(prometheus.Labels{"handler": handlerName}),
+		handler,
+	)
+}
