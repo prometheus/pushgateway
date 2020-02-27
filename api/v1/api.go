@@ -20,8 +20,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/route"
 
 	dto "github.com/prometheus/client_model/go"
@@ -107,8 +105,8 @@ func New(
 // in the given router.
 func (api *API) Register(r *route.Router) {
 	wrap := func(handlerName string, f http.HandlerFunc) http.HandlerFunc {
-		return promhttp.InstrumentHandlerCounter(
-			handler.HTTPCnt.MustCurryWith(prometheus.Labels{"handler": handlerName}),
+		return handler.InstrumentWithCounter(
+			handlerName,
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				setCORS(w)
 				f(w, r)

@@ -14,12 +14,15 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
-	HTTPCnt = promauto.NewCounterVec(
+	httpCnt = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "pushgateway_http_requests_total",
 			Help: "Total HTTP requests processed by the Pushgateway, excluding scrapes.",
@@ -43,3 +46,10 @@ var (
 		[]string{"method"},
 	)
 )
+
+func InstrumentWithCounter(handlerName string, handler http.Handler) http.HandlerFunc {
+	return promhttp.InstrumentHandlerCounter(
+		httpCnt.MustCurryWith(prometheus.Labels{"handler": handlerName}),
+		handler,
+	)
+}

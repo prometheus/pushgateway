@@ -19,8 +19,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -32,8 +30,8 @@ func WipeMetricStore(
 	ms storage.MetricStore,
 	logger log.Logger) http.Handler {
 
-	return promhttp.InstrumentHandlerCounter(
-		HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "wipe"}),
+	return InstrumentWithCounter(
+		"wipe",
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusAccepted)
 			level.Debug(logger).Log("msg", "start wiping metric store")

@@ -26,7 +26,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
@@ -156,10 +155,8 @@ func Push(
 
 	instrumentedHandler := promhttp.InstrumentHandlerRequestSize(
 		httpPushSize, promhttp.InstrumentHandlerDuration(
-			httpPushDuration, promhttp.InstrumentHandlerCounter(
-				HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "push"}),
-				handler,
-			)))
+			httpPushDuration, InstrumentWithCounter("push", handler),
+		))
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		mtx.Lock()

@@ -21,8 +21,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/pushgateway/storage"
@@ -34,8 +32,8 @@ import (
 func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) func(http.ResponseWriter, *http.Request) {
 	var mtx sync.Mutex // Protects ps.
 
-	instrumentedHandler := promhttp.InstrumentHandlerCounter(
-		HTTPCnt.MustCurryWith(prometheus.Labels{"handler": "delete"}),
+	instrumentedHandler := InstrumentWithCounter(
+		"delete",
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			job := route.Param(r.Context(), "job")
 			if jobBase64Encoded {
