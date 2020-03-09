@@ -15,7 +15,6 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -43,103 +42,32 @@ var (
 
 	mf1 = &dto.MetricFamily{
 		Name: proto.String("mf1"),
-		Type: dto.MetricType_UNTYPED.Enum(),
+		Type: dto.MetricType_SUMMARY.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
 						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Value: proto.String("instance1"),
 					},
 					{
 						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Value: proto.String("Björn"),
 					},
 				},
-				Untyped: &dto.Untyped{
-					Value: proto.Float64(-3e3),
-				},
-			},
-		},
-	}
-
-	mf2 = &dto.MetricFamily{
-		Name: proto.String("mf2"),
-		Help: proto.String("doc string 2"),
-		Type: dto.MetricType_GAUGE.Enum(),
-		Metric: []*dto.Metric{
-			{
-				Label: []*dto.LabelPair{
-					{
-						Name:  proto.String("basename"),
-						Value: proto.String("basevalue2"),
-					},
-					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
-					},
-					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
-					},
-					{
-						Name:  proto.String("labelname"),
-						Value: proto.String("val2"),
-					},
-				},
-				Gauge: &dto.Gauge{
-					Value: proto.Float64(math.Inf(+1)),
-				},
-			},
-			{
-				Label: []*dto.LabelPair{
-					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
-					},
-					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
-					},
-					{
-						Name:  proto.String("labelname"),
-						Value: proto.String("val1"),
-					},
-				},
-				Gauge: &dto.Gauge{
-					Value: proto.Float64(math.Inf(-1)),
+				Summary: &dto.Summary{
+					SampleCount: proto.Uint64(0),
+					SampleSum:   proto.Float64(0),
 				},
 			},
 		},
 	}
 
 	grouping1 = map[string]string{
-		"job":      "job1",
+		"job":      "Björn",
 		"instance": "instance1",
 	}
 )
-
-func templateMetrics(metricStore storage.MetricStore) []interface{} {
-	familyMaps := metricStore.GetMetricFamiliesMap()
-	res := make([]interface{}, 0)
-	for _, v := range familyMaps {
-		metricResponse := make(map[string]interface{})
-		metricResponse["labels"] = v.Labels
-		metricResponse["last_push_successful"] = v.LastPushSuccess()
-		for name, metricValues := range v.Metrics {
-			metricFamily := metricValues.GetMetricFamily()
-			uniqueMetrics := metrics{
-				Type:      metricFamily.GetType().String(),
-				Help:      metricFamily.GetHelp(),
-				Timestamp: metricValues.Timestamp,
-				Metrics:   makeEncodableMetrics(metricFamily.GetMetric(), metricFamily.GetType()),
-			}
-			metricResponse[name] = uniqueMetrics
-		}
-		res = append(res, metricResponse)
-	}
-	return res
-}
 
 func compareMaps(mainMap map[string]interface{}, testMap map[string]string) bool {
 	if len(mainMap) != len(testMap) {
@@ -148,18 +76,6 @@ func compareMaps(mainMap map[string]interface{}, testMap map[string]string) bool
 
 	for key, _ := range mainMap {
 		if mainMap[key].(string) != testMap[key] {
-			return false
-		}
-	}
-	return true
-}
-
-func compareArray(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
 			return false
 		}
 	}
@@ -189,11 +105,11 @@ func TestStatusAPI(t *testing.T) {
 	}
 
 	if !compareMaps(responseFlagData, testFlags) {
-		t.Errorf("Wanted following flags %v, got %v.", testFlags, responseFlagData)
+		t.Errorf("Wanted following flags %q, got %q.", testFlags, responseFlagData)
 	}
 
 	if !compareMaps(responseBuildInfo, testBuildInfo) {
-		t.Errorf("Wanted following build info %v, got %v.", testBuildInfo, responseBuildInfo)
+		t.Errorf("Wanted following build info %q, got %q.", testBuildInfo, responseBuildInfo)
 	}
 }
 
@@ -214,23 +130,20 @@ func TestMetricsAPI(t *testing.T) {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 
-	requiredResponse, _ := json.Marshal(&response{
-		Status: statusSuccess,
-		Data:   []interface{}{},
-	})
+	requiredResponse := `{"status":"success","data":[]}`
 
-	if !compareArray(requiredResponse, w.Body.Bytes()) {
-		t.Errorf("Wanted response %v, got %v.", string(requiredResponse), w.Body.String())
+	if expected, got := requiredResponse, w.Body.String(); expected != got {
+		t.Errorf("Wanted response %q, got %q.", requiredResponse, w.Body.String())
 	}
 
-	testTime := time.Now()
+	testTime, _ := time.Parse(time.RFC3339Nano, "2020-03-10T00:54:08.025744841+05:30")
 
 	errCh := make(chan error, 1)
 
 	dms.SubmitWriteRequest(storage.WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      testTime,
-		MetricFamilies: metricFamiliesMap(mf1, mf2),
+		MetricFamilies: metricFamiliesMap(mf1),
 		Done:           errCh,
 	})
 
@@ -242,17 +155,71 @@ func TestMetricsAPI(t *testing.T) {
 
 	TestApi.metrics(w, req)
 
-	requiredResponse, _ = json.Marshal(&response{
-		Status: statusSuccess,
-		Data:   templateMetrics(dms),
-	})
+	var prettyJSON bytes.Buffer
+	json.Indent(&prettyJSON, w.Body.Bytes(), "", "\t")
+
+	requiredResponse = `{
+	"status": "success",
+	"data": [
+		{
+			"labels": {
+				"instance": "instance1",
+				"job": "Björn"
+			},
+			"last_push_successful": true,
+			"mf1": {
+				"time_stamp": "2020-03-10T00:54:08.025744841+05:30",
+				"type": "SUMMARY",
+				"metrics": [
+					{
+						"count": "0",
+						"labels": {
+							"instance": "instance1",
+							"job": "Björn"
+						},
+						"quantiles": {},
+						"sum": "0"
+					}
+				]
+			},
+			"push_failure_time_seconds": {
+				"time_stamp": "2020-03-10T00:54:08.025744841+05:30",
+				"type": "GAUGE",
+				"help": "Last Unix time when changing this group in the Pushgateway failed.",
+				"metrics": [
+					{
+						"labels": {
+							"instance": "instance1",
+							"job": "Björn"
+						},
+						"value": "0"
+					}
+				]
+			},
+			"push_time_seconds": {
+				"time_stamp": "2020-03-10T00:54:08.025744841+05:30",
+				"type": "GAUGE",
+				"help": "Last Unix time when changing this group in the Pushgateway succeeded.",
+				"metrics": [
+					{
+						"labels": {
+							"instance": "instance1",
+							"job": "Björn"
+						},
+						"value": "1.583781848025745e+09"
+					}
+				]
+			}
+		}
+	]
+}`
 
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 
-	if !compareArray(requiredResponse, w.Body.Bytes()) {
-		t.Errorf("Wanted response %v, got %v.", string(requiredResponse), w.Body.String())
+	if expected, got := requiredResponse, prettyJSON.String(); expected != got {
+		t.Errorf("Wanted response %q, got %q.", expected, got)
 	}
 }
 
