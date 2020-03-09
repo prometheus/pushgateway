@@ -129,7 +129,7 @@ type metrics struct {
 
 func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 	familyMaps := api.MetricStore.GetMetricFamiliesMap()
-	var res []interface{}
+	res := []interface{}{}
 	for _, v := range familyMaps {
 		metricResponse := map[string]interface{}{}
 		metricResponse["labels"] = v.Labels
