@@ -25,6 +25,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/pushgateway/storage"
+	"github.com/prometheus/pushgateway/testutil"
 )
 
 var (
@@ -143,7 +144,7 @@ func TestMetricsAPI(t *testing.T) {
 	dms.SubmitWriteRequest(storage.WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      testTime,
-		MetricFamilies: metricFamiliesMap(mf1),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1),
 		Done:           errCh,
 	})
 
@@ -221,20 +222,4 @@ func TestMetricsAPI(t *testing.T) {
 	if expected, got := requiredResponse, prettyJSON.String(); expected != got {
 		t.Errorf("Wanted response %q, got %q.", expected, got)
 	}
-}
-
-func metricFamiliesMap(mfs ...*dto.MetricFamily) map[string]*dto.MetricFamily {
-	m := map[string]*dto.MetricFamily{}
-	for _, mf := range mfs {
-		buf, err := proto.Marshal(mf)
-		if err != nil {
-			panic(err)
-		}
-		mfCopy := &dto.MetricFamily{}
-		if err := proto.Unmarshal(buf, mfCopy); err != nil {
-			panic(err)
-		}
-		m[mf.GetName()] = mfCopy
-	}
-	return m
 }

@@ -29,6 +29,8 @@ import (
 	"github.com/prometheus/common/model"
 
 	dto "github.com/prometheus/client_model/go"
+
+	"github.com/prometheus/pushgateway/testutil"
 )
 
 var (
@@ -550,27 +552,6 @@ var (
 	}
 )
 
-// metricFamiliesMap creates the map needed in the MetricFamilies field of a
-// WriteRequest from the provided reference metric families. While doing so, it
-// creates deep copies of the metric families so that modifications that might
-// happen during processing of the WriteRequest will not affect the reference
-// metric families.
-func metricFamiliesMap(mfs ...*dto.MetricFamily) map[string]*dto.MetricFamily {
-	m := map[string]*dto.MetricFamily{}
-	for _, mf := range mfs {
-		buf, err := proto.Marshal(mf)
-		if err != nil {
-			panic(err)
-		}
-		mfCopy := &dto.MetricFamily{}
-		if err := proto.Unmarshal(buf, mfCopy); err != nil {
-			panic(err)
-		}
-		m[mf.GetName()] = mfCopy
-	}
-	return m
-}
-
 func addGroup(
 	mg GroupingKeyToMetricGroup,
 	groupingLabels map[string]string,
@@ -688,7 +669,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts1,
-		MetricFamilies: metricFamiliesMap(mf3),
+		MetricFamilies: testutil.MetricFamiliesMap(mf3),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -713,7 +694,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping2,
 		Timestamp:      ts2,
-		MetricFamilies: metricFamiliesMap(mf1b, mf2),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1b, mf2),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -741,7 +722,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping2,
 		Timestamp:      ts3,
-		MetricFamilies: metricFamiliesMap(mf1a),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1a),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -764,7 +745,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping4,
 		Timestamp:      ts4,
-		MetricFamilies: metricFamiliesMap(mf5),
+		MetricFamilies: testutil.MetricFamiliesMap(mf5),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -841,7 +822,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping5,
 		Timestamp:      ts5,
-		MetricFamilies: metricFamiliesMap(mf4),
+		MetricFamilies: testutil.MetricFamiliesMap(mf4),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -907,7 +888,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		dms.SubmitWriteRequest(WriteRequest{
 			Labels:         grouping5,
 			Timestamp:      ts5,
-			MetricFamilies: metricFamiliesMap(mf4),
+			MetricFamilies: testutil.MetricFamiliesMap(mf4),
 		})
 	}
 	if err := dms.Shutdown(); err != nil {
@@ -939,7 +920,7 @@ func TestNoPersistence(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts1,
-		MetricFamilies: metricFamiliesMap(mf3),
+		MetricFamilies: testutil.MetricFamiliesMap(mf3),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -984,7 +965,7 @@ func TestRejectTimestamps(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts1,
-		MetricFamilies: metricFamiliesMap(mf1ts),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1ts),
 		Done:           errCh,
 	})
 	var err error
@@ -1021,7 +1002,7 @@ func TestRejectInconsistentPush(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts1,
-		MetricFamilies: metricFamiliesMap(mfgc),
+		MetricFamilies: testutil.MetricFamiliesMap(mfgc),
 		Done:           errCh,
 	})
 	var err error
@@ -1044,7 +1025,7 @@ func TestRejectInconsistentPush(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts2,
-		MetricFamilies: metricFamiliesMap(mf1a),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1a),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -1067,7 +1048,7 @@ func TestRejectInconsistentPush(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping3,
 		Timestamp:      ts3,
-		MetricFamilies: metricFamiliesMap(mf1b),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1b),
 		Done:           errCh,
 	})
 	err = nil
@@ -1107,7 +1088,7 @@ func TestSanitizeLabels(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts1,
-		MetricFamilies: metricFamiliesMap(mf1c),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1c),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -1128,7 +1109,7 @@ func TestSanitizeLabels(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts2,
-		MetricFamilies: metricFamiliesMap(mf1e),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1e),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -1153,7 +1134,7 @@ func TestSanitizeLabels(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping3,
 		Timestamp:      ts3,
-		MetricFamilies: metricFamiliesMap(mf1e),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1e),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -1187,7 +1168,7 @@ func TestReplace(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts1,
-		MetricFamilies: metricFamiliesMap(mf1ts),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1ts),
 		Done:           errCh,
 	})
 	var err error
@@ -1215,7 +1196,7 @@ func TestReplace(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts2,
-		MetricFamilies: metricFamiliesMap(mf1a),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1a),
 		Done:           errCh,
 		Replace:        true,
 	})
@@ -1236,7 +1217,7 @@ func TestReplace(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts3,
-		MetricFamilies: metricFamiliesMap(mf2),
+		MetricFamilies: testutil.MetricFamiliesMap(mf2),
 		Done:           errCh,
 		Replace:        true,
 	})
@@ -1258,7 +1239,7 @@ func TestReplace(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts4,
-		MetricFamilies: metricFamiliesMap(mf1ts),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1ts),
 		Done:           errCh,
 		Replace:        true,
 	})
@@ -1286,7 +1267,7 @@ func TestReplace(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts5,
-		MetricFamilies: metricFamiliesMap(),
+		MetricFamilies: testutil.MetricFamiliesMap(),
 		Done:           errCh,
 		Replace:        true,
 	})
@@ -1335,7 +1316,7 @@ func TestGetMetricFamiliesMap(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         labels1,
 		Timestamp:      ts1,
-		MetricFamilies: metricFamiliesMap(mf3),
+		MetricFamilies: testutil.MetricFamiliesMap(mf3),
 		Done:           errCh,
 	})
 	for err := range errCh {
@@ -1356,7 +1337,7 @@ func TestGetMetricFamiliesMap(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         labels2,
 		Timestamp:      ts2,
-		MetricFamilies: metricFamiliesMap(mf1b, mf2),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1b, mf2),
 		Done:           errCh,
 	})
 	for err := range errCh {
