@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -49,7 +50,7 @@ var (
 				Label: []*dto.LabelPair{
 					{
 						Name:  proto.String("instance"),
-						Value: proto.String("instance1"),
+						Value: proto.String(`inst'a"n\ce1`),
 					},
 					{
 						Name:  proto.String("job"),
@@ -66,26 +67,21 @@ var (
 
 	grouping1 = map[string]string{
 		"job":      "Björn",
-		"instance": "instance1",
+		"instance": `inst'a"n\ce1`,
 	}
 )
 
-func compareMaps(mainMap map[string]interface{}, testMap map[string]string) bool {
-	if len(mainMap) != len(testMap) {
-		return false
+func convertMap(m map[string]string) map[string]interface{} {
+	result := map[string]interface{}{}
+	for k, v := range m {
+		result[k] = v
 	}
-
-	for key, _ := range mainMap {
-		if mainMap[key].(string) != testMap[key] {
-			return false
-		}
-	}
-	return true
+	return result
 }
 
 func TestStatusAPI(t *testing.T) {
 	dms := storage.NewDiskMetricStore("", 100*time.Millisecond, nil, logger)
-	TestApi := New(logger, dms, testFlags, testBuildInfo)
+	testAPI := New(logger, dms, testFlags, testBuildInfo)
 
 	req, err := http.NewRequest("GET", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
@@ -95,7 +91,7 @@ func TestStatusAPI(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	testResponse := response{}
-	TestApi.status(w, req)
+	testAPI.status(w, req)
 	json.Unmarshal(w.Body.Bytes(), &testResponse)
 	jsonData := testResponse.Data.(map[string]interface{})
 	responseFlagData := jsonData["flags"].(map[string]interface{})
@@ -105,18 +101,18 @@ func TestStatusAPI(t *testing.T) {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 
-	if !compareMaps(responseFlagData, testFlags) {
+	if !reflect.DeepEqual(responseFlagData, convertMap(testFlags)) {
 		t.Errorf("Wanted following flags %q, got %q.", testFlags, responseFlagData)
 	}
 
-	if !compareMaps(responseBuildInfo, testBuildInfo) {
+	if !reflect.DeepEqual(responseBuildInfo, convertMap(testBuildInfo)) {
 		t.Errorf("Wanted following build info %q, got %q.", testBuildInfo, responseBuildInfo)
 	}
 }
 
 func TestMetricsAPI(t *testing.T) {
 	dms := storage.NewDiskMetricStore("", 100*time.Millisecond, nil, logger)
-	TestApi := New(logger, dms, testFlags, testBuildInfo)
+	testAPI := New(logger, dms, testFlags, testBuildInfo)
 
 	req, err := http.NewRequest("GET", "http://example.org/", &bytes.Buffer{})
 	if err != nil {
@@ -125,7 +121,7 @@ func TestMetricsAPI(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	TestApi.metrics(w, req)
+	testAPI.metrics(w, req)
 
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
@@ -154,7 +150,7 @@ func TestMetricsAPI(t *testing.T) {
 
 	w = httptest.NewRecorder()
 
-	TestApi.metrics(w, req)
+	testAPI.metrics(w, req)
 
 	var prettyJSON bytes.Buffer
 	json.Indent(&prettyJSON, w.Body.Bytes(), "", "\t")
@@ -164,7 +160,7 @@ func TestMetricsAPI(t *testing.T) {
 	"data": [
 		{
 			"labels": {
-				"instance": "instance1",
+				"instance": "inst'a\"n\\ce1",
 				"job": "Björn"
 			},
 			"last_push_successful": true,
@@ -175,7 +171,7 @@ func TestMetricsAPI(t *testing.T) {
 					{
 						"count": "0",
 						"labels": {
-							"instance": "instance1",
+							"instance": "inst'a\"n\\ce1",
 							"job": "Björn"
 						},
 						"quantiles": {},
@@ -190,7 +186,7 @@ func TestMetricsAPI(t *testing.T) {
 				"metrics": [
 					{
 						"labels": {
-							"instance": "instance1",
+							"instance": "inst'a\"n\\ce1",
 							"job": "Björn"
 						},
 						"value": "0"
@@ -204,7 +200,7 @@ func TestMetricsAPI(t *testing.T) {
 				"metrics": [
 					{
 						"labels": {
-							"instance": "instance1",
+							"instance": "inst'a\"n\\ce1",
 							"job": "Björn"
 						},
 						"value": "1.583781848025745e+09"
