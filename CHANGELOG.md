@@ -1,3 +1,7 @@
+## 1.2.0 / 2020-03-11
+
+* [FEATURE] Add an HTTP API to query pushed metrics and runtime information. #184
+
 ## 1.1.0 / 2020-01-27
 
 * [FEATURE] Add flag `--push.disable-consistency-check`. #318
