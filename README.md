@@ -392,6 +392,110 @@ The default port the Pushgateway is listening to is 9091. The path looks like:
 * For example to wipe all metrics from the Pushgateway:
 
         curl -X PUT http://pushgateway.example.org:9091/api/v1/admin/wipe
+
+## Query API
+
+The query API allows accessing pushed metrics and build and runtime information.
+
+### URL
+
+    /api/<API_VERSION>/<HANDLER>
+    
+ * Available endpoints:
+ 
+| HTTP_METHOD| API_VERSION |  HANDLER | DESCRIPTION |
+| :-------: |:-------------:| :-----:| :----- |
+| GET     | v1 | status |  Returns build information, command line flags, and the start time in JSON format. |
+| GET     | v1 | metrics |  Returns the pushed metric families in JSON format. |
+
+
+* For example :
+
+        curl -X GET http://pushgateway.example.org:9091/api/v1/status
+        
+        {
+          "status": "success",
+          "data": {
+            "build_information": {
+              "branch": "master",
+              "buildDate": "20200310-20:14:39",
+              "buildUser": "flipbyte@localhost.localdomain",
+              "goVersion": "go1.13.6",
+              "revision": "eba0ec4100873d23666bcf4b8b1d44617d6430c4",
+              "version": "1.1.0"
+            },
+            "flags": {
+              "log.format": "logfmt",
+              "log.level": "info",
+              "persistence.file": "",
+              "persistence.interval": "5m0s",
+              "push.disable-consistency-check": "false",
+              "web.enable-admin-api": "false",
+              "web.enable-lifecycle": "false",
+              "web.external-url": "",
+              "web.listen-address": ":9091",
+              "web.route-prefix": "",
+              "web.telemetry-path": "/metrics"
+            },
+            "start_time": "2020-03-11T01:44:49.9189758+05:30"
+          }
+        }
+        
+        curl -X GET http://pushgateway.example.org:9091/api/v1/metrics
+        
+        {
+          "status": "success",
+          "data": [
+            {
+              "labels": {
+                "job": "batch"
+              },
+              "last_push_successful": true,
+              "my_job_duration_seconds": {
+                "time_stamp": "2020-03-11T02:02:27.716605811+05:30",
+                "type": "GAUGE",
+                "help": "Duration of my batch jon in seconds",
+                "metrics": [
+                  {
+                    "labels": {
+                      "instance": "",
+                      "job": "batch"
+                    },
+                    "value": "0.2721322309989773"
+                  }
+                ]
+              },
+              "push_failure_time_seconds": {
+                "time_stamp": "2020-03-11T02:02:27.716605811+05:30",
+                "type": "GAUGE",
+                "help": "Last Unix time when changing this group in the Pushgateway failed.",
+                "metrics": [
+                  {
+                    "labels": {
+                      "instance": "",
+                      "job": "batch"
+                    },
+                    "value": "0"
+                  }
+                ]
+              },
+              "push_time_seconds": {
+                "time_stamp": "2020-03-11T02:02:27.716605811+05:30",
+                "type": "GAUGE",
+                "help": "Last Unix time when changing this group in the Pushgateway succeeded.",
+                "metrics": [
+                  {
+                    "labels": {
+                      "instance": "",
+                      "job": "batch"
+                    },
+                    "value": "1.5838723477166057e+09"
+                  }
+                ]
+              }
+            }
+          ]
+        }
         
 ## Management API
 
