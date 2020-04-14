@@ -75,7 +75,7 @@ type MetricStore interface {
 // MetricStore with the MetricFamilies.
 //
 // If Replace is true, the MetricFamilies will completely replace the metrics
-// with the same grouping key. Otherwise, only those MetricFamilies whith the
+// with the same grouping key. Otherwise, only those MetricFamilies with the
 // same name as new MetricFamilies will be replaced.
 //
 // The key in MetricFamilies is the name of the mapped metric family.
@@ -92,7 +92,7 @@ type MetricStore interface {
 // are invalid and will be rejected.
 //
 // The Done channel may be nil. If it is not nil, it will be closed once the
-// write request is processed. Any errors occuring during processing are sent to
+// write request is processed. Any errors occurring during processing are sent to
 // the channel before closing it.
 type WriteRequest struct {
 	Labels         map[string]string
