@@ -1,6 +1,5 @@
 # Prometheus Pushgateway
 
-[![Build Status](https://travis-ci.org/prometheus/pushgateway.svg)][travis]
 [![CircleCI](https://circleci.com/gh/prometheus/pushgateway/tree/master.svg?style=shield)][circleci]
 [![Docker Repository on Quay](https://quay.io/repository/prometheus/pushgateway/status)][quay]
 [![Docker Pulls](https://img.shields.io/docker/pulls/prom/pushgateway.svg?maxAge=604800)][hub]
@@ -591,7 +590,6 @@ and the _Formatting and style_ section of Peter Bourgon's [Go:
 Best Practices for Production
 Environments](http://peter.bourgon.org/go-in-production/#formatting-and-style).
 
-[travis]: https://travis-ci.org/prometheus/pushgateway
 [hub]: https://hub.docker.com/r/prom/pushgateway/
 [circleci]: https://circleci.com/gh/prometheus/pushgateway
 [quay]: https://quay.io/repository/prometheus/pushgateway
