@@ -62,7 +62,7 @@ persisted (so that they survive restarts of the Pushgateway).
 
 ### Using Docker
 
-You can deploy the Pushgateway using the [prom/pushgateway](https://registry.hub.docker.com/u/prom/pushgateway/) Docker image.
+You can deploy the Pushgateway using the [prom/pushgateway](https://hub.docker.com/r/prom/pushgateway) Docker image.
 
 For example:
 
