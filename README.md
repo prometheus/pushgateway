@@ -266,10 +266,20 @@ _will be overwritten to match the labels defined by the URL path!_
 If `job` or any label name is suffixed with `@base64`, the following job name
 or label value is interpreted as a base64 encoded string according to [RFC
 4648, using the URL and filename safe
-alphabet](https://tools.ietf.org/html/rfc4648#section-5). (Padding is
-optional.) This is the only way of using job names or label values that contain
-a `/`. For other special characters, the usual URI component encoding works,
-too, but the base64 might be more convenient.
+alphabet](https://tools.ietf.org/html/rfc4648#section-5). (Padding is optional,
+but a single `=` is required to encode an empty label value.) This is the only
+way to handle the following cases:
+
+* A job name or a label value that contains a `/`, because the plain (or even
+  URI-encoded) `/` would otherwise be interpreted as a path separator.
+* An empty label value, because the resulting `//` or trailing `/` would
+  disappear when the path is sanitized by the HTTP router code. Note that an
+  empty `job` name is invalid. Empty label values are valid but rarely
+  useful. To encode them with base64, you have to use at least one `=` padding
+  character to avoid a `//` or a trailing `/`.
+
+For other special characters, the usual URI component encoding works, too, but
+the base64 might be more convenient.
 
 Ideally, client libraries take care of the suffixing and encoding.
 
@@ -278,25 +288,35 @@ Examples:
 * To use the grouping key `job="directory_cleaner",path="/var/tmp"`, the
   following path will _not_ work:
 
-	  /metrics/job/directory_cleaner/path//var/tmp
-	  
+      /metrics/job/directory_cleaner/path//var/tmp
+      
   Instead, use the base64 URL-safe encoding for the label value and mark it by
   suffixing the label name with `@base64`:
   
-  	  /metrics/job/directory_cleaner/path@base64/L3Zhci90bXA
-	  
+      /metrics/job/directory_cleaner/path@base64/L3Zhci90bXA
+      
   If you are not using a client library that handles the encoding for you, you
   can use encoding tools. For example, there is a command line tool `base64url`
   (Debian package `basez`), which you could combine with `curl` to push from
   the command line in the following way:
   
       echo 'some_metric{foo="bar"} 3.14' | curl --data-binary @- http://pushgateway.example.org:9091/metrics/job/directory_cleaner/path@base64/$(echo -n '/var/tmp' | base64url)
+
+* To use a grouping key containing an empty label value such as
+  `job="example",first_label="",second_label="foobar"`, the following path will
+  _not_ work:
   
+       /metrics/job/example/first_label//second_label/foobar
+
+  Instead, use the following path including the `=` padding character:
+  
+      /metrics/job/example/first_label@base64/=/second_label/foobar
+
 * The grouping key `job="titan",name="Προμηθεύς"` can be represented
   “traditionally” with URI encoding:
   
       /metrics/job/titan/name/%CE%A0%CF%81%CE%BF%CE%BC%CE%B7%CE%B8%CE%B5%CF%8D%CF%82
-	  
+      
   Or you can use the more compact base64 encoding:
   
       /metrics/job/titan/name@base64/zqDPgc6_zrzOt864zrXPjc-C
