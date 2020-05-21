@@ -430,7 +430,7 @@ The query API allows accessing pushed metrics and build and runtime information.
 
 * For example :
 
-        curl -X GET http://pushgateway.example.org:9091/api/v1/status
+        curl -X GET http://pushgateway.example.org:9091/api/v1/status|jq
         
         {
           "status": "success",
@@ -460,7 +460,7 @@ The query API allows accessing pushed metrics and build and runtime information.
           }
         }
         
-        curl -X GET http://pushgateway.example.org:9091/api/v1/metrics
+        curl -X GET http://pushgateway.example.org:9091/api/v1/metrics|jq
         
         {
           "status": "success",
