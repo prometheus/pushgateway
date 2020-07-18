@@ -108,7 +108,7 @@ func Push(
 		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			level.Debug(logger).Log("msg", "failed to parse text", "err", err.Error())
+			level.Debug(logger).Log("msg", "failed to parse text", "source", r.RemoteAddr, "err", err.Error())
 			return
 		}
 		now := time.Now()
