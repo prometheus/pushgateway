@@ -8,45 +8,42 @@
 
 ## 1.0.1 / 2019-12-21
 
-[ENHANCEMENT] Remove excessive whitespace from HTML templates. #302
-[BUGFIX] Fix docker manifest files for non-amd64 architectures. #310
+* [ENHANCEMENT] Remove excessive whitespace from HTML templates. #302
+* [BUGFIX] Fix docker manifest files for non-amd64 architectures. #310
 
 ## 1.0.0 / 2019-10-15
 
 _This release does not support the storage format of v0.5–v0.9 anymore. Only persistence files created by v0.10+ are usable. Upgrade to v0.10 first to convert existing persistence files._
 
-[CHANGE] Remove code to convert the legacy v0.5–v0.9 storage format.
+* [CHANGE] Remove code to convert the legacy v0.5–v0.9 storage format.
 
 ## 0.10.0 / 2019-10-10
 
 _This release changes the storage format. v0.10 can read the storage format of v0.5–v0.9. It will then persist the new format so that a downgrade won't be possible anymore._
 
-[CHANGE] Change of the storage format (necessary for the hash collision bugfix below). #293
-[CHANGE] Check pushed metrics immediately and reject them if inconsistent. Successful pushes now result in code 200 (not 202). Failures result in code 400 and are logged at error level. #290
-[FEATURE] Shutdown via HTTP request. Enable with `--web.enable-lifecycle`. #292
-[FEATURE] Wipe storage completely via HTTP request and via web UI. Enable with `--web.enable-admin-api`. #287 #285
-[BUGFIX] Rule out hash collisions between metric groups. #293
-[BUGFIX] Avoid multiple calls of `http.Error` in push handler. #291
+* [CHANGE] Change of the storage format (necessary for the hash collision bugfix below). #293
+* [CHANGE] Check pushed metrics immediately and reject them if inconsistent. Successful pushes now result in code 200 (not 202). Failures result in code 400 and are logged at error level. #290
+* [FEATURE] Shutdown via HTTP request. Enable with `--web.enable-lifecycle`. #292
+* [FEATURE] Wipe storage completely via HTTP request and via web UI. Enable with `--web.enable-admin-api`. #287 #285
+* [BUGFIX] Rule out hash collisions between metric groups. #293
+* [BUGFIX] Avoid multiple calls of `http.Error` in push handler. #291
 
 ## 0.9.1 / 2019-08-01
 
-[BUGFIX] Make `--web.external-url` and `--web.route-prefix` work as documented. #274
+* [BUGFIX] Make `--web.external-url` and `--web.route-prefix` work as documented. #274
 
 ## 0.9.0 / 2019-07-23
 
-[CHANGE] Web: Update to Bootstrap 4.3.1 and jquery 3.4.1, changing appearance of the web UI to be more in line with the Prometheus server. Also add favicon and remove timestamp column. #261
-[CHANGE] Update logging to be in line with other Prometheus projects, using gokit and promlog. #263
-[FEATURE] Add optional base64 encoding for label values in the grouping key. #268
-[FEATURE] Add ARM container images. #265
-[FEATURE] Log errors during scrapes. #267
-[BUGFIX] Web: Fixed Content-Type for js and css instead of using /etc/mime.types. #252
+* [CHANGE] Web: Update to Bootstrap 4.3.1 and jquery 3.4.1, changing appearance of the web UI to be more in line with the Prometheus server. Also add favicon and remove timestamp column. #261
+* [CHANGE] Update logging to be in line with other Prometheus projects, using gokit and promlog. #263
+* [FEATURE] Add optional base64 encoding for label values in the grouping key. #268
+* [FEATURE] Add ARM container images. #265
+* [FEATURE] Log errors during scrapes. #267
+* [BUGFIX] Web: Fixed Content-Type for js and css instead of using /etc/mime.types. #252
 
 ## 0.8.0 / 2019-04-13
 
-_If you use the prebuilt Docker container or you build your own one based on
-the provided Dockerfile, note that this release changes the user to
-`nobody`. Should you use a persistence file, make sure it is readable and
-writable by user `nobody`._
+_If you use the prebuilt Docker container or you build your own one based on the provided Dockerfile, note that this release changes the user to `nobody`. Should you use a persistence file, make sure it is readable and writable by user `nobody`._
 
 * [CHANGE] Run as user `nobody` in Docker. #242
 * [CHANGE] Adjust `--web.route-prefix` to work the same as in Prometheus. #190
@@ -54,8 +51,7 @@ writable by user `nobody`._
 
 ## 0.7.0 / 2018-12-07
 
-_As preparation for the 1.0.0 release, this release removes the long deprecated
-legacy HTTP push endpoint (which uses `/jobs/` rather than `/job/` in the URL)._
+_As preparation for the 1.0.0 release, this release removes the long deprecated legacy HTTP push endpoint (which uses `/jobs/` rather than `/job/` in the URL)._
 
 * [CHANGE] Remove legacy push API. #227
 * [ENHANCEMENT] Update dependencies. #230
@@ -64,14 +60,11 @@ legacy HTTP push endpoint (which uses `/jobs/` rather than `/job/` in the URL)._
 
 ## 0.6.0 / 2018-10-17
 
-_Persistence storage prior to 0.5.0 is unsupported. Upgrade to 0.5.2 first for
-conversion._
+_Persistence storage prior to 0.5.0 is unsupported. Upgrade to 0.5.2 first for conversion._
 
-* [CHANGE] Enforce consistency of help strings by changing them during
-  exposition. (An INFO-level log message describes the change.) #194
+* [CHANGE] Enforce consistency of help strings by changing them during exposition. (An INFO-level log message describes the change.) #194
 * [CHANGE] Drop support of pre-0.5 storage format.
-* [CHANGE] Use prometheus/client_golang v0.9, which changes the `http_...`
-  metrics. (See README.md for full documentation of exposed metrics.)
+* [CHANGE] Use prometheus/client_golang v0.9, which changes the `http_...` metrics. (See README.md for full documentation of exposed metrics.)
 
 ## 0.5.2 / 2018-06-15
 
@@ -138,8 +131,7 @@ Breaking change:
 * [BUGFIX] Re-add pprof endpoints.
 
 ## 0.1.0 / 2014-08-13
-* [FEATURE] When being scraped, metrics of the same name but with different
-  job/instance label are now merged into one metric family.
+* [FEATURE] When being scraped, metrics of the same name but with different job/instance label are now merged into one metric family.
 * [FEATURE] Added Dockerfile.
 * [CHANGE] Default HTTP port now 9091.
 * [BUGFIX] Fixed parsing of content-type header.	
