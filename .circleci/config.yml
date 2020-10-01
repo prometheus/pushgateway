@@ -8,7 +8,7 @@ executors:
   # Whenever the Go version is updated here, .promu.yml should also be updated.
   golang:
     docker:
-    - image: circleci/golang:1.14
+    - image: circleci/golang:1.15
 
 jobs:
   test:
