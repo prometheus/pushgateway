@@ -1,3 +1,10 @@
+## 1.3.0 / 2020-10-01
+
+* [FEATURE] Add Docker image build for ppc64le architecture. #339
+* [ENHANCEMENT] Web UI: Add scroll bare to list of pushed metrics. #354
+* [ENHANCEMENT] Logging: Show remote address when failing to parse pushed metrics. #361
+* [BUGFIX] Web UI: Update JQuery to v3.5.1 to address security concerns. #360
+
 ## 1.2.0 / 2020-03-11
 
 * [FEATURE] Add an HTTP API to query pushed metrics and runtime information. #184

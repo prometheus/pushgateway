@@ -21,10 +21,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	//lint:ignore SA1019 Dependencies use the deprecated package, so we have to, too.
+	"github.com/golang/protobuf/proto"
+
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/go-kit/kit/log"
-	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/pushgateway/storage"
 	"github.com/prometheus/pushgateway/testutil"
 )
