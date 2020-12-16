@@ -48,7 +48,8 @@ pushgateway.deleteGroup = function(){
     for (var ln in pushgateway.labels) {
 	if (ln != 'job') {
 	    pathElements.push(encodeURIComponent(ln+'@base64'));
-	    pathElements.push(encodeURIComponent(pushgateway.labels[ln]));
+	    // Always add a padding '=' to ensure empty label values work.
+	    pathElements.push(encodeURIComponent(pushgateway.labels[ln]+'='));
 	}
     }
     var groupPath = pathElements.join('/');
