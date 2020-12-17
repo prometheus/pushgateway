@@ -1,3 +1,8 @@
+## 1.3.1 / 2020-12-17
+
+* [ENHANCEMENT] Web UI: Improved metrics text alignment. #369
+* [BUGFIX] Web UI: Fix deletion of groups with empty label values. #377
+
 ## 1.3.0 / 2020-10-01
 
 * [FEATURE] Add Docker image build for ppc64le architecture. #339
