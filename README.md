@@ -602,6 +602,9 @@ To use TLS and/or basic authentication, you need to pass a configuration file
 using the `--web.config.file` parameter. The format of the file is described
 [in the exporter-toolkit repository](https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md).
 
+Note that the TLS and basic authentication settings affects the API's to
+push metrics, the /metrics endpoint used by Prometheus and the web UI.
+
 ## Development
 
 The normal binary embeds the web files in the `resources` directory.
