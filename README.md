@@ -593,6 +593,15 @@ metrics. Those pushes are still counted as
 the `rate` of this metric, but you have to inspect the logs to identify the
 offending pusher.
 
+## TLS and basic authentication
+
+The Pushgateway supports TLS and basic authentication. This enables better
+control of the API's.
+
+To use TLS and/or basic authentication, you need to pass a configuration file
+using the `--web.config.file` parameter. The format of the file is described
+[in the exporter-toolkit repository](https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md).
+
 ## Development
 
 The normal binary embeds the web files in the `resources` directory.
