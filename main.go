@@ -88,12 +88,6 @@ func main() {
 	level.Debug(logger).Log("msg", "path prefix used externally", "path", externalPathPrefix)
 	level.Debug(logger).Log("msg", "path prefix for internal routing", "path", *routePrefix)
 
-	err := https.Validate(*httpsConfig)
-	if err != nil {
-		level.Error(logger).Log("msg", "Unable to validate web configuration file", "err", err)
-		os.Exit(1)
-	}
-
 	// flags is used to show command line flags on the status page.
 	// Kingpin default flags are excluded as they would be confusing.
 	flags := map[string]string{}
