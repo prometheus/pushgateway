@@ -34,8 +34,8 @@ import (
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/route"
 	"github.com/prometheus/common/version"
-	"github.com/prometheus/exporter-toolkit/https"
-	httpsflag "github.com/prometheus/exporter-toolkit/https/kingpinflag"
+	"github.com/prometheus/exporter-toolkit/web"
+	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	dto "github.com/prometheus/client_model/go"
@@ -61,7 +61,7 @@ func (lf logFunc) Println(v ...interface{}) {
 func main() {
 	var (
 		app                 = kingpin.New(filepath.Base(os.Args[0]), "The Pushgateway")
-		httpsConfig         = httpsflag.AddFlags(app)
+		webConfig           = webflag.AddFlags(app)
 		listenAddress       = app.Flag("web.listen-address", "Address to listen on for the web interface, API, and telemetry.").Default(":9091").String()
 		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		externalURL         = app.Flag("web.external-url", "The URL under which the Pushgateway is externally reachable.").Default("").URL()
@@ -195,7 +195,7 @@ func main() {
 	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))
 
 	go closeListenerOnQuit(l, quitCh, logger)
-	err = https.Serve(l, &http.Server{Addr: *listenAddress, Handler: mux}, *httpsConfig, logger)
+	err = web.Serve(l, &http.Server{Addr: *listenAddress, Handler: mux}, *webConfig, logger)
 	level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections
