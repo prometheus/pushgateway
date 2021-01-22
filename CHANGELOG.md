@@ -1,3 +1,7 @@
+## 1.4.0 / 2021-01-23
+
+* [FEATURE] **Experimental!** Add TLS and basic authentication to HTTP endpoints. #381
+
 ## 1.3.1 / 2020-12-17
 
 * [ENHANCEMENT] Web UI: Improved metrics text alignment. #369
