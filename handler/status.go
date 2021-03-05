@@ -104,6 +104,10 @@ func Status(
 				"goVersion": version.GoVersion,
 			}
 
+			if pathPrefix == "" {
+				pathPrefix = "."
+			}
+
 			d := &data{
 				MetricGroups: ms.GetMetricFamiliesMap(),
 				BuildInfo:    buildInfo,
