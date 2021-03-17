@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	//lint:ignore SA1019 Dependencies use the deprecated package, so we have to, too.
+	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
 	"github.com/golang/protobuf/proto"
 
 	dto "github.com/prometheus/client_model/go"
