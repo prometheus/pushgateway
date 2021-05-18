@@ -253,7 +253,11 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 			for {
 				select {
 				case wr := <-dms.writeQueue:
-					dms.processWriteRequest(wr)
+					if dms.checkWriteRequest(wr) {
+						dms.processWriteRequest(wr)
+					} else {
+						dms.setPushFailedTimestamp(wr)
+					}
 				default:
 					dms.done <- dms.persist()
 					return

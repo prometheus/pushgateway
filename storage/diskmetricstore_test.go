@@ -551,6 +551,19 @@ var (
 			},
 		},
 	}
+	mfUnlabelled = &dto.MetricFamily{
+		Name: proto.String("mf_unlabelled"),
+		Help: proto.String("Metric with no labels to check sanitizeLabels."),
+		Type: dto.MetricType_GAUGE.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{},
+				Gauge: &dto.Gauge{
+					Value: proto.Float64(42),
+				},
+			},
+		},
+	}
 )
 
 func addGroup(
@@ -892,17 +905,42 @@ func TestAddDeletePersistRestore(t *testing.T) {
 			MetricFamilies: testutil.MetricFamiliesMap(mf4),
 		})
 	}
+	grouping6 := map[string]string{
+		"job":      "job4",
+		"instance": "instance1",
+	}
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels:         grouping6,
+		Timestamp:      ts5,
+		MetricFamilies: testutil.MetricFamiliesMap(mfUnlabelled),
+	})
 	if err := dms.Shutdown(); err != nil {
 		t.Fatal(err)
 	}
 	pushTimestamp.Metric = append(
-		pushTimestamp.Metric, newPushTimestampGauge(grouping5, ts5).Metric[0],
+		pushTimestamp.Metric,
+		newPushTimestampGauge(grouping5, ts5).Metric[0],
+		newPushTimestampGauge(grouping6, ts5).Metric[0],
 	)
 	pushFailedTimestamp.Metric = append(
-		pushFailedTimestamp.Metric, newPushFailedTimestampGauge(grouping5, time.Time{}).Metric[0],
+		pushFailedTimestamp.Metric,
+		newPushFailedTimestampGauge(grouping5, time.Time{}).Metric[0],
+		newPushFailedTimestampGauge(grouping6, time.Time{}).Metric[0],
 	)
+	mfLabelled := proto.Clone(mfUnlabelled).(*dto.MetricFamily)
+	// SanitizeLabels should add these labels to the unlabelled metric.
+	mfLabelled.Metric[0].Label = []*dto.LabelPair{
+		{
+			Name:  proto.String("instance"),
+			Value: proto.String("instance1"),
+		},
+		{
+			Name:  proto.String("job"),
+			Value: proto.String("job4"),
+		},
+	}
 	if err := checkMetricFamilies(
-		dms, mf1a, mf2, mf4,
+		dms, mf1a, mf2, mf4, mfLabelled,
 		pushTimestamp, pushFailedTimestamp,
 	); err != nil {
 		t.Error(err)
