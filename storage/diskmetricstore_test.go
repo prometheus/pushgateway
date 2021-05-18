@@ -927,9 +927,9 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		newPushFailedTimestampGauge(grouping5, time.Time{}).Metric[0],
 		newPushFailedTimestampGauge(grouping6, time.Time{}).Metric[0],
 	)
-	mfLaballed := proto.Clone(mfUnlabelled).(*dto.MetricFamily)
-	// sanitizeLabels should add these labels to the unlabelled metric
-	mfLaballed.Metric[0].Label = []*dto.LabelPair{
+	mfLabelled := proto.Clone(mfUnlabelled).(*dto.MetricFamily)
+	// SanitizeLabels should add these labels to the unlabelled metric.
+	mfLabelled.Metric[0].Label = []*dto.LabelPair{
 		{
 			Name:  proto.String("instance"),
 			Value: proto.String("instance1"),
@@ -940,7 +940,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		},
 	}
 	if err := checkMetricFamilies(
-		dms, mf1a, mf2, mf4, mfLaballed,
+		dms, mf1a, mf2, mf4, mfLabelled,
 		pushTimestamp, pushFailedTimestamp,
 	); err != nil {
 		t.Error(err)
