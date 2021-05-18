@@ -551,7 +551,7 @@ var (
 			},
 		},
 	}
-	mfUnlaballed = &dto.MetricFamily{
+	mfUnlabelled = &dto.MetricFamily{
 		Name: proto.String("mf_unlabelled"),
 		Help: proto.String("Metric with no labels to check sanitizeLabels."),
 		Type: dto.MetricType_GAUGE.Enum(),
@@ -912,7 +912,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping6,
 		Timestamp:      ts5,
-		MetricFamilies: testutil.MetricFamiliesMap(mfUnlaballed),
+		MetricFamilies: testutil.MetricFamiliesMap(mfUnlabelled),
 	})
 	if err := dms.Shutdown(); err != nil {
 		t.Fatal(err)
@@ -927,7 +927,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		newPushFailedTimestampGauge(grouping5, time.Time{}).Metric[0],
 		newPushFailedTimestampGauge(grouping6, time.Time{}).Metric[0],
 	)
-	mfLaballed := proto.Clone(mfUnlaballed).(*dto.MetricFamily)
+	mfLaballed := proto.Clone(mfUnlabelled).(*dto.MetricFamily)
 	// sanitizeLabels should add these labels to the unlabelled metric
 	mfLaballed.Metric[0].Label = []*dto.LabelPair{
 		{
