@@ -1,3 +1,8 @@
+## 1.4.1 / 2021-05-28
+
+* [BUGFIX] Persist labels properly when draining. #404
+* [BUGFIX] Use relative paths for web assets. #390
+
 ## 1.4.0 / 2021-01-23
 
 * [FEATURE] **Experimental!** Add TLS and basic authentication to HTTP endpoints. #381
