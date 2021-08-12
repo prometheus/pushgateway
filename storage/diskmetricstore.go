@@ -25,8 +25,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 
 	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
 	"github.com/golang/protobuf/proto"

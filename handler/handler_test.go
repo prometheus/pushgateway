@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
 	"github.com/golang/protobuf/proto"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
