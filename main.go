@@ -196,11 +196,14 @@ func main() {
 
 	go closeListenerOnQuit(l, quitCh, logger)
 	err = web.Serve(l, &http.Server{Addr: *listenAddress, Handler: mux}, *webConfig, logger)
-	if err != nil {
-		level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
-	} else {
+
+	// In the case of a shutdown, log gracefully
+	if strings.Contains(err.Error(), "use of closed network connection") {
 		level.Info(logger).Log("msg", "HTTP server stopped")
+	} else {
+		level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
 	}
+
 	// To give running connections a chance to submit their payload, we wait
 	// for 1sec, but we don't want to wait long (e.g. until all connections
 	// are done) to not delay the shutdown.
