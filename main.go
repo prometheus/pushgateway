@@ -202,7 +202,7 @@ func main() {
 	go shutdownServerOnQuit(server, quitCh, logger)
 	err = web.Serve(l, server, *webConfig, logger)
 
-	// In the case of a shutdown, log gracefully
+	// In the case of a graceful shutdown, do not log the error.
 	if err == http.ErrServerClosed {
 		level.Info(logger).Log("msg", "HTTP server stopped")
 	} else {
