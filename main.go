@@ -14,6 +14,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -25,7 +26,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -194,13 +194,21 @@ func main() {
 
 	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))
 
-	go closeListenerOnQuit(l, quitCh, logger)
-	err = web.Serve(l, &http.Server{Addr: *listenAddress, Handler: mux}, *webConfig, logger)
-	level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
-	// To give running connections a chance to submit their payload, we wait
-	// for 1sec, but we don't want to wait long (e.g. until all connections
-	// are done) to not delay the shutdown.
-	time.Sleep(time.Second)
+	server := &http.Server{
+		Addr:    *listenAddress,
+		Handler: mux,
+	}
+
+	go shutdownServerOnQuit(server, quitCh, logger)
+	err = web.Serve(l, server, *webConfig, logger)
+
+	// In the case of a graceful shutdown, do not log the error.
+	if err == http.ErrServerClosed {
+		level.Info(logger).Log("msg", "HTTP server stopped")
+	} else {
+		level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
+	}
+
 	if err := ms.Shutdown(); err != nil {
 		level.Error(logger).Log("msg", "problem shutting down metric storage", "err", err)
 	}
@@ -240,9 +248,9 @@ func computeRoutePrefix(prefix string, externalURL *url.URL) string {
 	return prefix
 }
 
-// closeListenerOnQuite closes the provided listener upon closing the provided
+// shutdownServerOnQuit shutdowns the provided server upon closing the provided
 // quitCh or upon receiving a SIGINT or SIGTERM.
-func closeListenerOnQuit(l net.Listener, quitCh <-chan struct{}, logger log.Logger) {
+func shutdownServerOnQuit(server *http.Server, quitCh <-chan struct{}, logger log.Logger) error {
 	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 
@@ -254,5 +262,5 @@ func closeListenerOnQuit(l net.Listener, quitCh <-chan struct{}, logger log.Logg
 		level.Warn(logger).Log("msg", "received termination request via web service, exiting gracefully...")
 		break
 	}
-	l.Close()
+	return server.Shutdown(context.Background())
 }
