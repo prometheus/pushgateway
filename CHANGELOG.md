@@ -1,3 +1,8 @@
+## 1.4.2 / 2021-10-11
+
+* [BUGFIX] Do not log an error upon graceful shutdown. #428
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
+
 ## 1.4.1 / 2021-05-28
 
 * [BUGFIX] Persist labels properly when draining. #404
