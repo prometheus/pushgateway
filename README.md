@@ -119,13 +119,11 @@ Examples:
 
 * Push something more complex into the group identified by `{job="some_job",instance="some_instance"}`:
 
-        cat <<EOF | curl --data-binary @- http://pushgateway.example.org:9091/metrics/job/some_job/instance/some_instance
-        # TYPE some_metric counter
+        echo '# TYPE some_metric counter
         some_metric{label="val1"} 42
         # TYPE another_metric gauge
         # HELP another_metric Just an example.
-        another_metric 2398.283
-        EOF
+        another_metric 2398.283' | curl --data-binary @- http://pushgateway.example.org:9091/metrics/job/some_job/instance/some_instance
 
   Note how type information and help strings are provided. Those lines
   are optional, but strongly encouraged for anything more complex.
