@@ -390,6 +390,16 @@ guaranteed that the `DELETE` will be processed first (and vice versa).
 Deleting a grouping key without metrics is a no-op and will not result
 in an error.
 
+### Request compression
+
+The body of a POST or PUT request may be gzip-compressed. Add a header `Content-Encoding: gzip` to do so.
+
+Example:
+
+```
+echo "some_metric 3.14" | gzip | curl -H 'Content-Encoding: gzip' --data-binary @- http://pushgateway.example.org:9091/metrics/job/some_job
+```
+
 ## Admin API
 
 The Admin API provides administrative access to the Pushgateway, and must be

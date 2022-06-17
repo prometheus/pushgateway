@@ -14,6 +14,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
 	"net"
@@ -56,6 +57,22 @@ type logFunc func(...interface{}) error
 
 func (lf logFunc) Println(v ...interface{}) {
 	lf("msg", fmt.Sprintln(v...))
+}
+
+func gunzipRequest(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentEncoding := r.Header.Get("Content-Encoding")
+		if contentEncoding == "gzip" {
+			gr, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			defer gr.Close()
+			r.Body = gr
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 func main() {
@@ -168,7 +185,7 @@ func main() {
 	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/", r)
+	mux.Handle("/", gunzipRequest(r))
 
 	buildInfo := map[string]string{
 		"version":   version.Version,
