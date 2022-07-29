@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"html"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -82,7 +82,7 @@ func Status(
 				return
 			}
 			defer f.Close()
-			tpl, err := ioutil.ReadAll(f)
+			tpl, err := io.ReadAll(f)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				level.Error(logger).Log("msg", "error reading template.html", "err", err.Error())

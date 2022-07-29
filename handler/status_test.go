@@ -14,7 +14,7 @@
 package handler
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -44,7 +44,7 @@ func TestPathPrefixPresenceInPage(t *testing.T) {
 		t.Fatalf("Wanted status %d, got %d", http.StatusOK, w.Code)
 	}
 
-	rawBody, err := ioutil.ReadAll(w.Result().Body)
+	rawBody, err := io.ReadAll(w.Result().Body)
 	if err != nil {
 		t.Fatal(err)
 	}
