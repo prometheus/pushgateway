@@ -15,7 +15,6 @@ package storage
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math"
 	"os"
 	"path"
@@ -665,7 +664,7 @@ func TestGetMetricFamilies(t *testing.T) {
 }
 
 func TestAddDeletePersistRestore(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "diskmetricstore.TestAddDeletePersistRestore.")
+	tempDir, err := os.MkdirTemp("", "diskmetricstore.TestAddDeletePersistRestore.")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1327,7 +1326,7 @@ func TestReplace(t *testing.T) {
 }
 
 func TestGetMetricFamiliesMap(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "diskmetricstore.TestGetMetricFamiliesMap.")
+	tempDir, err := os.MkdirTemp("", "diskmetricstore.TestGetMetricFamiliesMap.")
 	if err != nil {
 		t.Fatal(err)
 	}
