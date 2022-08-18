@@ -20,9 +20,8 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/prometheus/common/route"
-
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
