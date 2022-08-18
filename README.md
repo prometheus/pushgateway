@@ -396,7 +396,7 @@ The body of a POST or PUT request may be gzip-compressed. Add a header `Content-
 
 Example:
 
-```
+```bash
 echo "some_metric 3.14" | gzip | curl -H 'Content-Encoding: gzip' --data-binary @- http://pushgateway.example.org:9091/metrics/job/some_job
 ```
 
