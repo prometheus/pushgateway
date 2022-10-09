@@ -167,7 +167,7 @@ type response struct {
 
 func (api *API) respond(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 
 	b, err := json.Marshal(&response{
 		Status: statusSuccess,

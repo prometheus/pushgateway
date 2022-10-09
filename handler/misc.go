@@ -34,7 +34,7 @@ func Healthy(ms storage.MetricStore) http.Handler {
 			if err == nil {
 				io.WriteString(w, "OK")
 			} else {
-				http.Error(w, err.Error(), 500)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		}),
 	)
@@ -53,7 +53,7 @@ func Ready(ms storage.MetricStore) http.Handler {
 			if err == nil {
 				io.WriteString(w, "OK")
 			} else {
-				http.Error(w, err.Error(), 500)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		}),
 	)

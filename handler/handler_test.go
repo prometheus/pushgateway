@@ -340,7 +340,7 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
 	}
 	// Make sure the timestamp from the push didn't make it to the WriteRequest.
-	if time.Now().Sub(mms.lastWriteRequest.Timestamp) > time.Minute {
+	if time.Since(mms.lastWriteRequest.Timestamp) > time.Minute {
 		t.Errorf("Write request timestamp set to a too low value: %#v", mms.lastWriteRequest)
 	}
 	if expected, got := int64(1000), mms.lastWriteRequest.MetricFamilies["b"].GetMetric()[0].GetTimestampMs(); expected != got {
