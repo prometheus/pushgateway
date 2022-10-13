@@ -161,7 +161,7 @@ those labels to `exported_job` and `exported_instance`.
 
 However, this behavior is usually undesired when scraping a
 Pushgateway. Generally, you would like to retain the `job` and `instance`
-labels of the metrics pushed to the Pushgateway. That's why you have set
+labels of the metrics pushed to the Pushgateway. That's why you have to set
 `honor_labels: true` in the scrape config for the Pushgateway. It enables the
 desired behavior. See the
 [documentation](https://prometheus.io/docs/operating/configuration/#scrape_config)
