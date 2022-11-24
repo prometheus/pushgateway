@@ -1,3 +1,8 @@
+## 1.5.0 / 2022-11-24
+
+* [FEATURE] Add multiple listeners and systemd socket support. #512
+* [FEATURE] Accept a gzip'd body of a POST or PUT request. #477
+
 ## 1.4.3 / 2022-05-30
 
 * [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.

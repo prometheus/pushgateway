@@ -17,7 +17,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/pprof"
 	"net/url"
@@ -78,8 +77,7 @@ func gunzipRequest(h http.Handler) http.Handler {
 func main() {
 	var (
 		app                 = kingpin.New(filepath.Base(os.Args[0]), "The Pushgateway")
-		webConfig           = webflag.AddFlags(app)
-		listenAddress       = app.Flag("web.listen-address", "Address to listen on for the web interface, API, and telemetry.").Default(":9091").String()
+		webConfig           = webflag.AddFlags(app, ":9091")
 		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		externalURL         = app.Flag("web.external-url", "The URL under which the Pushgateway is externally reachable.").Default("").URL()
 		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints. Defaults to the path of --web.external-url.").Default("").String()
@@ -153,13 +151,6 @@ func main() {
 	// Re-enable pprof.
 	r.Get(*routePrefix+"/debug/pprof/*pprof", handlePprof)
 
-	level.Info(logger).Log("listen_address", *listenAddress)
-	l, err := net.Listen("tcp", *listenAddress)
-	if err != nil {
-		level.Error(logger).Log("err", err)
-		os.Exit(1)
-	}
-
 	quitCh := make(chan struct{})
 	quitHandler := func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Requesting termination... Goodbye!")
@@ -211,13 +202,10 @@ func main() {
 
 	mux.Handle(apiPath+"/v1/", http.StripPrefix(apiPath+"/v1", av1))
 
-	server := &http.Server{
-		Addr:    *listenAddress,
-		Handler: mux,
-	}
+	server := &http.Server{Handler: mux}
 
 	go shutdownServerOnQuit(server, quitCh, logger)
-	err = web.Serve(l, server, *webConfig, logger)
+	err := web.ListenAndServe(server, webConfig, logger)
 
 	// In the case of a graceful shutdown, do not log the error.
 	if err == http.ErrServerClosed {
