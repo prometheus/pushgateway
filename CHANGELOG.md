@@ -1,3 +1,7 @@
+## 1.5.1 / 2022-11-29
+
+* [SECURITY] Fix basic authentication bypass vulnerability (CVE-2022-46146). #516
+
 ## 1.5.0 / 2022-11-24
 
 * [FEATURE] Add multiple listeners and systemd socket support. #512
