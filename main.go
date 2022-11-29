@@ -17,6 +17,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/pprof"
 	"net/url"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
@@ -56,22 +58,6 @@ type logFunc func(...interface{}) error
 
 func (lf logFunc) Println(v ...interface{}) {
 	lf("msg", fmt.Sprintln(v...))
-}
-
-func gunzipRequest(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		contentEncoding := r.Header.Get("Content-Encoding")
-		if contentEncoding == "gzip" {
-			gr, err := gzip.NewReader(r.Body)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			defer gr.Close()
-			r.Body = gr
-		}
-		h.ServeHTTP(w, r)
-	})
 }
 
 func main() {
@@ -176,7 +162,7 @@ func main() {
 	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/", gunzipRequest(r))
+	mux.Handle("/", decodeRequest(r))
 
 	buildInfo := map[string]string{
 		"version":   version.Version,
@@ -217,6 +203,28 @@ func main() {
 	if err := ms.Shutdown(); err != nil {
 		level.Error(logger).Log("msg", "problem shutting down metric storage", "err", err)
 	}
+}
+
+func decodeRequest(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close() // Make sure the underlying io.Reader is closed.
+		switch contentEncoding := r.Header.Get("Content-Encoding"); strings.ToLower(contentEncoding) {
+		case "gzip":
+			gr, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			defer gr.Close()
+			r.Body = gr
+		case "snappy":
+			r.Body = io.NopCloser(snappy.NewReader(r.Body))
+		default:
+			// Do nothing.
+		}
+
+		h.ServeHTTP(w, r)
+	})
 }
 
 func handlePprof(w http.ResponseWriter, r *http.Request) {

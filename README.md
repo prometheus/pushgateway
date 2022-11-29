@@ -392,12 +392,14 @@ in an error.
 
 ### Request compression
 
-The body of a POST or PUT request may be gzip-compressed. Add a header `Content-Encoding: gzip` to do so.
+The body of a POST or PUT request may be gzip- or snappy-compressed. Add a
+header `Content-Encoding: gzip` or `Content-Encoding: snappy` to do so.
 
-Example:
+Examples:
 
 ```bash
 echo "some_metric 3.14" | gzip | curl -H 'Content-Encoding: gzip' --data-binary @- http://pushgateway.example.org:9091/metrics/job/some_job
+echo "some_metric 3.14" | snzip | curl -H 'Content-Encoding: snappy' --data-binary @- http://pushgateway.example.org:9091/metrics/job/some_job
 ```
 
 ## Admin API

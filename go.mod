@@ -3,6 +3,7 @@ module github.com/prometheus/pushgateway
 require (
 	github.com/go-kit/log v0.2.1
 	github.com/golang/protobuf v1.5.2
+	github.com/golang/snappy v0.0.4
 	github.com/matttproud/golang_protobuf_extensions v1.0.4
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/client_model v0.3.0
