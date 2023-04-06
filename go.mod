@@ -9,7 +9,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.41.0
-	github.com/prometheus/exporter-toolkit v0.9.0
+	github.com/prometheus/exporter-toolkit v0.9.1
 	github.com/shurcooL/vfsgen v0.0.0-20200824052919-0d455de96546
 )
 
