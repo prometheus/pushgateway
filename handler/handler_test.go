@@ -24,10 +24,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
-	"github.com/golang/protobuf/proto"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/common/route"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 
 	dto "github.com/prometheus/client_model/go"
 
@@ -613,7 +613,7 @@ func verifyMetricFamily(t *testing.T, expText string, got *dto.MetricFamily) {
 	}
 
 	exp := &dto.MetricFamily{}
-	err = proto.UnmarshalText(expText, exp)
+	err = prototext.Unmarshal([]byte(expText), exp)
 	if err != nil {
 		t.Errorf("unexpected error unmarshaling MetricFamily text %v", expText)
 	}
