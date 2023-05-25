@@ -24,10 +24,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
-	"github.com/golang/protobuf/proto"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/common/route"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 
 	dto "github.com/prometheus/client_model/go"
 
@@ -206,12 +206,8 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 	// Note that sanitation hasn't happened yet, grouping labels not in request.
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
+	verifyMetricFamily(t, `name:"some_metric" type:UNTYPED metric:{untyped:{value:3.14}}`, mms.lastWriteRequest.MetricFamilies["some_metric"])
+	verifyMetricFamily(t, `name:"another_metric" type:UNTYPED metric:{label:{name:"instance" value:"testinstance"} label:{name:"job" value:"testjob"} untyped:{value:42}}`, mms.lastWriteRequest.MetricFamilies["another_metric"])
 
 	// With job name and instance name and text content, storage returns error.
 	req, err = http.NewRequest(
@@ -240,12 +236,8 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 	// Note that sanitation hasn't happened yet, grouping labels not in request.
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mmsWithErr.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mmsWithErr.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
+	verifyMetricFamily(t, `name:"some_metric" type:UNTYPED metric:{untyped:{value:3.14}}`, mmsWithErr.lastWriteRequest.MetricFamilies["some_metric"])
+	verifyMetricFamily(t, `name:"another_metric" type:UNTYPED metric:{label:{name:"instance" value:"testinstance"} label:{name:"job" value:"testjob"} untyped:{value:42}}`, mmsWithErr.lastWriteRequest.MetricFamilies["another_metric"])
 
 	// With base64-encoded job name and instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
@@ -275,13 +267,9 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 	// Note that sanitation hasn't happened yet, grouping labels not in request.
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
+	verifyMetricFamily(t, `name:"some_metric" type:UNTYPED metric:{untyped:{value:3.14}}`, mms.lastWriteRequest.MetricFamilies["some_metric"])
 	// Note that sanitation hasn't happened yet, job label as still as in the push, not aligned to grouping labels.
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
+	verifyMetricFamily(t, `name:"another_metric" type:UNTYPED metric:{label:{name:"instance" value:"testinstance"} label:{name:"job" value:"testjob"} untyped:{value:42}}`, mms.lastWriteRequest.MetricFamilies["another_metric"])
 
 	// With job name and no instance name and text content.
 	mms.lastWriteRequest = storage.WriteRequest{}
@@ -310,12 +298,8 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 	// Note that sanitation hasn't happened yet, grouping labels not in request.
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<label:<name:"instance" value:"testinstance" > label:<name:"job" value:"testjob" > untyped:<value:42 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
+	verifyMetricFamily(t, `name:"some_metric" type:UNTYPED metric:{untyped:{value:3.14}}`, mms.lastWriteRequest.MetricFamilies["some_metric"])
+	verifyMetricFamily(t, `name:"another_metric" type:UNTYPED metric:{label:{name:"instance" value:"testinstance"} label:{name:"job" value:"testjob"} untyped:{value:42}}`, mms.lastWriteRequest.MetricFamilies["another_metric"])
 
 	// With job name and instance name and timestamp specified.
 	mms.lastWriteRequest = storage.WriteRequest{}
@@ -406,13 +390,9 @@ func TestPush(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 	// Note that sanitation hasn't happened yet, grouping labels not in request.
-	if expected, got := `name:"some_metric" type:UNTYPED metric:<untyped:<value:1.234 > > `, mms.lastWriteRequest.MetricFamilies["some_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
+	verifyMetricFamily(t, `name:"some_metric" type:UNTYPED metric:{untyped:{value:1.234}}`, mms.lastWriteRequest.MetricFamilies["some_metric"])
 	// Note that sanitation hasn't happened yet, grouping labels not in request.
-	if expected, got := `name:"another_metric" type:UNTYPED metric:<untyped:<value:3.14 > > `, mms.lastWriteRequest.MetricFamilies["another_metric"].String(); expected != got {
-		t.Errorf("Wanted metric family %v, got %v.", expected, got)
-	}
+	verifyMetricFamily(t, `name:"another_metric" type:UNTYPED metric:{untyped:{value:3.14}}`, mms.lastWriteRequest.MetricFamilies["another_metric"])
 }
 
 func TestDelete(t *testing.T) {
@@ -617,5 +597,32 @@ func TestWipeMetricStore(t *testing.T) {
 		if wr.MetricFamilies != nil {
 			t.Errorf("writeRequest at index %d was not a delete request", i)
 		}
+	}
+}
+
+// verifyMetricFamily jumps through a few hoops because the current protobuf
+// implementation is deliberately creating an unstable formatting for the text
+// representation. So this takes the text representation of the expected
+// MetricFamily and unmarshals it into a proto message object first. Then it
+// marshals both the expected and the got proto message into a binary protobuf,
+// which it then compares.
+func verifyMetricFamily(t *testing.T, expText string, got *dto.MetricFamily) {
+	gotProto, err := proto.Marshal(got)
+	if err != nil {
+		t.Errorf("unexpected error marshaling MetricFamily %v", got)
+	}
+
+	exp := &dto.MetricFamily{}
+	err = prototext.Unmarshal([]byte(expText), exp)
+	if err != nil {
+		t.Errorf("unexpected error unmarshaling MetricFamily text %v", expText)
+	}
+	expProto, err := proto.Marshal(exp)
+	if err != nil {
+		t.Errorf("unexpected error marshaling MetricFamily %v", exp)
+	}
+
+	if bytes.Compare(expProto, gotProto) != 0 {
+		t.Errorf("Wanted metric family %v, got %v.", exp, got)
 	}
 }

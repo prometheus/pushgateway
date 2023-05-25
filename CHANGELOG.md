@@ -1,3 +1,9 @@
+## 1.6.0 / 2023-05-25
+
+* [FEATURE] Add snappy encoding support for `/metrics` endpoint. #518
+* [ENHANCEMENT] Add pre-built binaries for the s390x architecture. #537
+* [BUGFIX] Fix possible leak of a file handle when using compression. #518
+
 ## 1.5.1 / 2022-11-29
 
 * [SECURITY] Fix basic authentication bypass vulnerability (CVE-2022-46146). #516
