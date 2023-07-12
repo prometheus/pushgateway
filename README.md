@@ -23,9 +23,8 @@ rather a metrics cache. It does not have
 exactly the same as you would present for scraping in a permanently running
 program. If you need distributed counting, you could either use the actual
 statsd in combination with the [Prometheus statsd
-exporter](https://github.com/prometheus/statsd_exporter), or have a look at
-[Weavework's aggregation
-gateway](https://github.com/weaveworks/prom-aggregation-gateway). With more
+exporter](https://github.com/prometheus/statsd_exporter), or have a look at the
+[prom-aggregation-gateway](https://github.com/zapier/prom-aggregation-gateway). With more
 experience gathered, the Prometheus project might one day be able to provide a
 native solution, separate from or possibly even as part of the Pushgateway.
 
