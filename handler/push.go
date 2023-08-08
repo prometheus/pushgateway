@@ -20,7 +20,6 @@ import (
 	"mime"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-kit/log"
@@ -55,8 +54,6 @@ func Push(
 	replace, check, jobBase64Encoded bool,
 	logger log.Logger,
 ) func(http.ResponseWriter, *http.Request) {
-	var mtx sync.Mutex // Protects ps.
-
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		job := route.Param(r.Context(), "job")
 		if jobBase64Encoded {
@@ -68,8 +65,6 @@ func Push(
 			}
 		}
 		labelsString := route.Param(r.Context(), "labels")
-		mtx.Unlock()
-
 		labels, err := splitLabels(labelsString)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -159,7 +154,6 @@ func Push(
 		))
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		mtx.Lock()
 		instrumentedHandler.ServeHTTP(w, r)
 	}
 }

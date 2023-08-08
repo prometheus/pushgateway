@@ -16,7 +16,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/go-kit/log"
@@ -30,8 +29,6 @@ import (
 //
 // The returned handler is already instrumented for Prometheus.
 func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) func(http.ResponseWriter, *http.Request) {
-	var mtx sync.Mutex // Protects ps.
-
 	instrumentedHandler := InstrumentWithCounter(
 		"delete",
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +42,6 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 				}
 			}
 			labelsString := route.Param(r.Context(), "labels")
-			mtx.Unlock()
-
 			labels, err := splitLabels(labelsString)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -68,7 +63,6 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 	)
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		mtx.Lock()
 		instrumentedHandler.ServeHTTP(w, r)
 	}
 }
