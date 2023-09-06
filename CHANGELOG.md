@@ -1,3 +1,8 @@
+## 1.6.1 / 2023-09-05
+
+* [SECURITY] Build precompiled binaries with current Go version (1.21.0) to avoid known bugs in older Go versions.
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
+
 ## 1.6.0 / 2023-05-25
 
 * [FEATURE] Add snappy encoding support for `/metrics` endpoint. #518

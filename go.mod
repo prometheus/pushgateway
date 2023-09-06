@@ -1,5 +1,7 @@
 module github.com/prometheus/pushgateway
 
+go 1.19
+
 require (
 	github.com/alecthomas/kingpin/v2 v2.3.2
 	github.com/go-kit/log v0.2.1
@@ -10,7 +12,7 @@ require (
 	github.com/prometheus/client_model v0.4.0
 	github.com/prometheus/common v0.44.0
 	github.com/prometheus/exporter-toolkit v0.10.0
-	github.com/shurcooL/vfsgen v0.0.0-20200824052919-0d455de96546
+	github.com/shurcooL/vfsgen v0.0.0-20230704071429-0000e147ea92
 	google.golang.org/protobuf v1.31.0
 )
 
@@ -36,5 +38,3 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
-
-go 1.17
