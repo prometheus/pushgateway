@@ -1,3 +1,7 @@
+## 1.6.2 / 2023-09-13
+
+* [SECURITY] Build precompiled binaries with Go v1.21.1 to avoid [security issues with Go v1.21.0](https://groups.google.com/g/golang-announce/c/Fm51GRLNRvM).
+
 ## 1.6.1 / 2023-09-05
 
 * [SECURITY] Build precompiled binaries with current Go version (1.21.0) to avoid known bugs in older Go versions.
