@@ -115,7 +115,7 @@ func (dms *DiskMetricStore) cleanUpLoop(ttl time.Duration) {
 	}
 	for {
 		dms.cleanTimeoutValues(ttl)
-		timer1 := time.NewTimer(15 * time.Second)
+		timer1 := time.NewTimer(60 * time.Second)
 		<-timer1.C
 	}
 }
@@ -176,9 +176,15 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 
 	result := []*dto.MetricFamily{}
 	mfStatByName := map[string]mfStat{}
+	requestAt := time.Now()
 
 	for _, group := range dms.metricGroups {
 		for name, tmf := range group.Metrics {
+			// Check timeout
+			if dms.ttl > 0 && tmf.Timestamp.Add(dms.ttl).Before(requestAt) {
+				level.Debug(dms.logger).Log("msg", "Stale metrics values")
+				continue
+			}
 			mf := tmf.GetMetricFamily()
 			if mf == nil {
 				level.Warn(dms.logger).Log("msg", "storage corruption detected, consider wiping the persistence file")
@@ -224,11 +230,17 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 func (dms *DiskMetricStore) GetMetricFamiliesMap() GroupingKeyToMetricGroup {
 	dms.lock.RLock()
 	defer dms.lock.RUnlock()
+	requestAt := time.Now()
+
 	groupsCopy := make(GroupingKeyToMetricGroup, len(dms.metricGroups))
 	for k, g := range dms.metricGroups {
 		metricsCopy := make(NameToTimestampedMetricFamilyMap, len(g.Metrics))
 		groupsCopy[k] = MetricGroup{Labels: g.Labels, Metrics: metricsCopy}
 		for n, tmf := range g.Metrics {
+			// Check timeout
+			if dms.ttl > 0 && tmf.Timestamp.Add(dms.ttl).Before(requestAt) {
+				continue
+			}
 			metricsCopy[n] = tmf
 		}
 	}
