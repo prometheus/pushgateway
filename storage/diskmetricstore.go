@@ -56,6 +56,7 @@ type DiskMetricStore struct {
 	persistenceFile string
 	predefinedHelp  map[string]string
 	logger          log.Logger
+	ttl             time.Duration
 }
 
 type mfStat struct {
@@ -81,6 +82,7 @@ func NewDiskMetricStore(
 	persistenceInterval time.Duration,
 	gatherPredefinedHelpFrom prometheus.Gatherer,
 	logger log.Logger,
+	ttl time.Duration,
 ) *DiskMetricStore {
 	// TODO: Do that outside of the constructor to allow the HTTP server to
 	//  serve /-/healthy and /-/ready earlier.
@@ -91,6 +93,7 @@ func NewDiskMetricStore(
 		metricGroups:    GroupingKeyToMetricGroup{},
 		persistenceFile: persistenceFile,
 		logger:          logger,
+		ttl:             ttl,
 	}
 	if err := dms.restore(); err != nil {
 		level.Error(logger).Log("msg", "could not load persisted metrics", "err", err)
@@ -102,7 +105,37 @@ func NewDiskMetricStore(
 	}
 
 	go dms.loop(persistenceInterval)
+	go dms.cleanUpLoop(ttl)
 	return dms
+}
+
+func (dms *DiskMetricStore) cleanUpLoop(ttl time.Duration) {
+	if ttl == 0 {
+		return
+	}
+	for {
+		dms.cleanTimeoutValues(ttl)
+		timer1 := time.NewTimer(15 * time.Second)
+		<-timer1.C
+	}
+}
+
+func (dms *DiskMetricStore) cleanTimeoutValues(ttl time.Duration) {
+	dms.lock.RLock()
+	defer dms.lock.RUnlock()
+
+	cleanTime := time.Now()
+
+	for metricID, group := range dms.metricGroups {
+		for metricName, tmf := range group.Metrics {
+			if tmf.Timestamp.Add(ttl).Before(cleanTime) {
+				delete(group.Metrics, metricName)
+			}
+		}
+		if len(group.Metrics) == 0 {
+			delete(dms.metricGroups, metricID)
+		}
+	}
 }
 
 // SubmitWriteRequest implements the MetricStore interface.
