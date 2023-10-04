@@ -484,7 +484,7 @@ The query API allows accessing pushed metrics and build and runtime information.
               "my_job_duration_seconds": {
                 "time_stamp": "2020-03-11T02:02:27.716605811+05:30",
                 "type": "GAUGE",
-                "help": "Duration of my batch jon in seconds",
+                "help": "Duration of my batch job in seconds",
                 "metrics": [
                   {
                     "labels": {
