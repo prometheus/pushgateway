@@ -120,7 +120,7 @@ $(function () {
 	    .addClass('glyphicon-collapse-up');
 	event.stopPropagation();
 
-	localStorage.setItem("coll_" + this.id, true);
+	sessionStorage.setItem("coll_" + this.id, true);
     })
     $('div.collapse').on('hide.bs.collapse', function (event) {
 	$(this).prev().find('span.toggle-icon')
@@ -128,11 +128,11 @@ $(function () {
 	    .addClass('glyphicon-collapse-down');
 	event.stopPropagation();
 
-	localStorage.setItem("coll_" + this.id, false);
+	sessionStorage.setItem("coll_" + this.id, false);
     })
 
     $("div.collapse").each(function() {
-	if (localStorage.getItem("coll_" + this.id) == "true") {
+	if (sessionStorage.getItem("coll_" + this.id) == "true") {
 	    $(this).collapse("show");
 	}
     });
