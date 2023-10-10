@@ -267,7 +267,6 @@ func computeRoutePrefix(prefix string, externalURL *url.URL) string {
 	return prefix
 }
 
-
 // shutdownServerOnQuit shutdowns the provided server upon closing the provided
 // quitCh or upon receiving a SIGINT or SIGTERM.
 func shutdownServerOnQuit(server *http.Server, quitCh <-chan struct{}, logger log.Logger) error {
