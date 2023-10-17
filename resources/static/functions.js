@@ -119,11 +119,21 @@ $(function () {
 	    .removeClass('glyphicon-collapse-down')
 	    .addClass('glyphicon-collapse-up');
 	event.stopPropagation();
+
+	sessionStorage.setItem("coll_" + this.id, true);
     })
     $('div.collapse').on('hide.bs.collapse', function (event) {
 	$(this).prev().find('span.toggle-icon')
 	    .removeClass('glyphicon-collapse-up')
 	    .addClass('glyphicon-collapse-down');
 	event.stopPropagation();
+
+	sessionStorage.setItem("coll_" + this.id, false);
     })
+
+    $("div.collapse").each(function() {
+	if (sessionStorage.getItem("coll_" + this.id) == "true") {
+	    $(this).collapse("show");
+	}
+    });
 })
