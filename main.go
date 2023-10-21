@@ -251,12 +251,15 @@ func computeRoutePrefix(prefix string, externalURL *url.URL) string {
 	}
 
 	if prefix == "/" {
-		prefix = ""
+		return ""
 	}
 
-	if prefix != "" {
-		prefix = "/" + strings.Trim(prefix, "/")
+	// Ensure prefix starts with "/".
+	if !strings.HasPrefix(prefix, "/") {
+		prefix = "/" + prefix
 	}
+
+	prefix = strings.TrimSuffix(prefix, "/")
 
 	return prefix
 }
