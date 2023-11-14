@@ -563,6 +563,52 @@ var (
 			},
 		},
 	}
+	mfHist = &dto.MetricFamily{
+		Name: proto.String("mf_hist"),
+		Help: proto.String("Native histogram metric"),
+		Type: dto.MetricType_HISTOGRAM.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("instance"),
+						Value: proto.String("instance1"),
+					},
+					{
+						Name:  proto.String("job"),
+						Value: proto.String("job1"),
+					},
+				},
+				Histogram: &dto.Histogram{
+					SampleCountFloat: proto.Float64(20),
+					SampleSum:        proto.Float64(99.23),
+					Schema:           proto.Int32(1),
+					NegativeCount:    []float64{2, 2, -2, 0},
+					PositiveCount:    []float64{2, 2, -2, 0},
+					PositiveSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+					NegativeSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+				},
+			},
+		},
+	}
 )
 
 func addGroup(
@@ -728,36 +774,56 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	for err := range errCh {
 		t.Fatal("Unexpected error:", err)
 	}
-	// Submit a metric family with the same name for the same job/instance again.
-	// Should overwrite the previous metric family for the same job/instance
+	// Submit a histogramm metric for the initial job/instance
 	ts3 := ts2.Add(time.Second)
 	errCh = make(chan error, 1)
 	dms.SubmitWriteRequest(WriteRequest{
-		Labels:         grouping2,
+		Labels:         grouping1,
 		Timestamp:      ts3,
+		MetricFamilies: testutil.MetricFamiliesMap(mfHist),
+		Done:           errCh,
+	})
+	for err := range errCh {
+		t.Fatal("Unexpected error:", err)
+	}
+	pushTimestamp.Metric[0] = newPushTimestampGauge(grouping1, ts3).Metric[0]
+	if err := checkMetricFamilies(
+		dms, mf1b, mf2, mf3, mfHist,
+		pushTimestamp, pushFailedTimestamp,
+	); err != nil {
+		t.Error(err)
+	}
+
+	// Submit a metric family with the same name for the same job/instance again.
+	// Should overwrite the previous metric family for the same job/instance
+	ts4 := ts3.Add(time.Second)
+	errCh = make(chan error, 1)
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels:         grouping2,
+		Timestamp:      ts4,
 		MetricFamilies: testutil.MetricFamiliesMap(mf1a),
 		Done:           errCh,
 	})
 	for err := range errCh {
 		t.Fatal("Unexpected error:", err)
 	}
-	pushTimestamp.Metric[1] = newPushTimestampGauge(grouping2, ts3).Metric[0]
+	pushTimestamp.Metric[1] = newPushTimestampGauge(grouping2, ts4).Metric[0]
 	if err := checkMetricFamilies(
-		dms, mf1a, mf2, mf3,
+		dms, mf1a, mf2, mf3, mfHist,
 		pushTimestamp, pushFailedTimestamp,
 	); err != nil {
 		t.Error(err)
 	}
 
 	// Add a new group by job, with a summary without any observations yet.
-	ts4 := ts3.Add(time.Second)
+	ts5 := ts4.Add(time.Second)
 	grouping4 := map[string]string{
 		"job": "job5",
 	}
 	errCh = make(chan error, 1)
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping4,
-		Timestamp:      ts4,
+		Timestamp:      ts5,
 		MetricFamilies: testutil.MetricFamiliesMap(mf5),
 		Done:           errCh,
 	})
@@ -765,13 +831,13 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		t.Fatal("Unexpected error:", err)
 	}
 	pushTimestamp.Metric = append(
-		pushTimestamp.Metric, newPushTimestampGauge(grouping4, ts4).Metric[0],
+		pushTimestamp.Metric, newPushTimestampGauge(grouping4, ts5).Metric[0],
 	)
 	pushFailedTimestamp.Metric = append(
 		pushFailedTimestamp.Metric, newPushFailedTimestampGauge(grouping4, time.Time{}).Metric[0],
 	)
 	if err := checkMetricFamilies(
-		dms, mf1a, mf2, mf3, mf5,
+		dms, mf1a, mf2, mf3, mf5, mfHist,
 		pushTimestamp, pushFailedTimestamp,
 	); err != nil {
 		t.Error(err)
@@ -785,7 +851,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	// Load it again.
 	dms = NewDiskMetricStore(fileName, 100*time.Millisecond, nil, logger)
 	if err := checkMetricFamilies(
-		dms, mf1a, mf2, mf3, mf5,
+		dms, mf1a, mf2, mf3, mf5, mfHist,
 		pushTimestamp, pushFailedTimestamp,
 	); err != nil {
 		t.Error(err)
@@ -795,7 +861,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		"job":      "job1",
 		"instance": "instance2",
 	})].Metrics["mf1"]
-	if expected, got := ts3, tmf.Timestamp; !expected.Equal(got) {
+	if expected, got := ts4, tmf.Timestamp; !expected.Equal(got) {
 		t.Errorf("Expected timestamp %v, got %v.", expected, got)
 	}
 
@@ -816,7 +882,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	for err := range errCh {
 		t.Fatal("Unexpected error:", err)
 	}
-	pushTimestamp = newPushTimestampGauge(grouping2, ts3)
+	pushTimestamp = newPushTimestampGauge(grouping2, ts4)
 	pushFailedTimestamp = newPushFailedTimestampGauge(grouping2, time.Time{})
 	if err := checkMetricFamilies(
 		dms, mf1a, mf2,
@@ -826,7 +892,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 
 	// Submit another one.
-	ts5 := ts4.Add(time.Second)
+	ts6 := ts5.Add(time.Second)
 	grouping5 := map[string]string{
 		"job":      "job3",
 		"instance": "instance2",
@@ -834,7 +900,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	errCh = make(chan error, 1)
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping5,
-		Timestamp:      ts5,
+		Timestamp:      ts6,
 		MetricFamilies: testutil.MetricFamiliesMap(mf4),
 		Done:           errCh,
 	})
@@ -842,7 +908,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 		t.Fatal("Unexpected error:", err)
 	}
 	pushTimestamp.Metric = append(
-		pushTimestamp.Metric, newPushTimestampGauge(grouping5, ts5).Metric[0],
+		pushTimestamp.Metric, newPushTimestampGauge(grouping5, ts6).Metric[0],
 	)
 	pushFailedTimestamp.Metric = append(
 		pushFailedTimestamp.Metric, newPushFailedTimestampGauge(grouping5, time.Time{}).Metric[0],
@@ -882,7 +948,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	for err := range errCh {
 		t.Fatal("Unexpected error:", err)
 	}
-	pushTimestamp = newPushTimestampGauge(grouping2, ts3)
+	pushTimestamp = newPushTimestampGauge(grouping2, ts4)
 	pushFailedTimestamp = newPushFailedTimestampGauge(grouping2, time.Time{})
 	if err := checkMetricFamilies(
 		dms, mf1a, mf2,
@@ -900,7 +966,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		dms.SubmitWriteRequest(WriteRequest{
 			Labels:         grouping5,
-			Timestamp:      ts5,
+			Timestamp:      ts6,
 			MetricFamilies: testutil.MetricFamiliesMap(mf4),
 		})
 	}
@@ -910,7 +976,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping6,
-		Timestamp:      ts5,
+		Timestamp:      ts6,
 		MetricFamilies: testutil.MetricFamiliesMap(mfUnlabelled),
 	})
 	if err := dms.Shutdown(); err != nil {
@@ -918,8 +984,8 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	}
 	pushTimestamp.Metric = append(
 		pushTimestamp.Metric,
-		newPushTimestampGauge(grouping5, ts5).Metric[0],
-		newPushTimestampGauge(grouping6, ts5).Metric[0],
+		newPushTimestampGauge(grouping5, ts6).Metric[0],
+		newPushTimestampGauge(grouping6, ts6).Metric[0],
 	)
 	pushFailedTimestamp.Metric = append(
 		pushFailedTimestamp.Metric,
