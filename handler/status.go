@@ -26,7 +26,9 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/version"
+	"github.com/prometheus/pushgateway/histogram"
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -72,6 +74,16 @@ func Status(
 				},
 				"base64": func(s string) string {
 					return base64.RawURLEncoding.EncodeToString([]byte(s))
+				},
+				"formatHistogram": func(m *dto.Histogram) string {
+					h, fh := histogram.NewModelHistogram(m)
+					if h == nil {
+						return fh.String()
+					}
+					return h.String()
+				},
+				"add": func(x, y int) int {
+					return x + y
 				},
 			})
 

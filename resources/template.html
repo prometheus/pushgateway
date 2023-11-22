@@ -53,7 +53,6 @@ limitations under the License.
 			</div>
 		</div>
 	</nav>
-	
 	<div class="container-fluid" id="metrics-div">
 		{{- $data := .}}
 		{{- if eq (index .Flags "web.enable-admin-api") "true"}}
@@ -140,22 +139,43 @@ limitations under the License.
 				</tr>
 			</table>
 			{{- else}}
+                        {{- $h := .Histogram}}
 			{{- with .Histogram}}
+                        {{- $numBuckets := len .Bucket}}
+                        {{- $numNBuckets := add (len .PositiveSpan) (len .NegativeSpan)}}
 			<table class="table table-striped table-bordered">
-				{{- range .Bucket}}
+                                {{- if gt $numNBuckets 0}}
 				<tr>
-					<th scope="row">Sample values &le; {{value .GetUpperBound}}</th>
-					<td>{{.GetCumulativeCount}}</td>
+                                    <th scope="row">Native Histogram representation</th>
+                                    <td>{{formatHistogram $h}}</td>
 				</tr>
-				{{- end}}
-				<tr>
-					<th scope="row">Total sample Count</th>
-					<td>{{.GetSampleCount}}</td>
-				</tr>
-				<tr>
-					<th scope="row">Sample Sum</th>
-					<td>{{value .GetSampleSum}}</td>
-				</tr>
+                                {{- end}}
+                                {{- if gt $numBuckets 0}}
+                                        {{- range .Bucket}}
+                                        <tr>
+                                                <th scope="row">Sample values &le; {{value .GetUpperBound}}</th>
+                                                <td>{{.GetCumulativeCount}}</td>
+                                        </tr>
+                                        {{- end}}
+                                        <tr>
+                                                <th scope="row">Total sample Count</th>
+                                                <td>{{.GetSampleCount}}</td>
+                                        </tr>
+                                        <tr>
+                                                <th scope="row">Sample Sum</th>
+                                                <td>{{value .GetSampleSum}}</td>
+                                        </tr>
+                                {{- end}}
+                                {{- if eq (add $numNBuckets $numBuckets) 0}}
+                                        <tr>
+                                                <th scope="row">Total sample Count</th>
+                                                <td>{{.GetSampleCount}}</td>
+                                        </tr>
+                                        <tr>
+                                                <th scope="row">Sample Sum</th>
+                                                <td>{{value .GetSampleSum}}</td>
+                                        </tr>
+                                {{- end}}
 			</table>
 			{{- end}}
 			{{- end}}
