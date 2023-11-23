@@ -364,6 +364,45 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+		Name: proto.String("histogram_metric"),
+		Type: dto.MetricType_HISTOGRAM.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Histogram: &dto.Histogram{
+					SampleCountFloat: proto.Float64(20),
+					SampleSum:        proto.Float64(99.23),
+					Schema:           proto.Int32(1),
+					NegativeCount:    []float64{2, 2, -2, 0},
+					PositiveCount:    []float64{2, 2, -2, 0},
+					PositiveSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+					NegativeSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	req, err = http.NewRequest(
 		"POST", "http://example.org/", buf,
 	)
@@ -393,6 +432,8 @@ func TestPush(t *testing.T) {
 	verifyMetricFamily(t, `name:"some_metric" type:UNTYPED metric:{untyped:{value:1.234}}`, mms.lastWriteRequest.MetricFamilies["some_metric"])
 	// Note that sanitation hasn't happened yet, grouping labels not in request.
 	verifyMetricFamily(t, `name:"another_metric" type:UNTYPED metric:{untyped:{value:3.14}}`, mms.lastWriteRequest.MetricFamilies["another_metric"])
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	verifyMetricFamily(t, `name:"histogram_metric" type:HISTOGRAM metric:{histogram:{sample_count_float:20  sample_sum:99.23  schema:1  negative_span:{offset:0  length:2}  negative_span:{offset:0  length:2}  negative_count:2  negative_count:2  negative_count:-2  negative_count:0  positive_span:{offset:0  length:2}  positive_span:{offset:0  length:2}  positive_count:2  positive_count:2  positive_count:-2  positive_count:0}}`, mms.lastWriteRequest.MetricFamilies["histogram_metric"])
 }
 
 func TestDelete(t *testing.T) {
