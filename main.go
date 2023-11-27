@@ -69,6 +69,7 @@ func main() {
 		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints. Defaults to the path of --web.external-url.").Default("").String()
 		enableLifeCycle     = app.Flag("web.enable-lifecycle", "Enable shutdown via HTTP request.").Default("false").Bool()
 		enableAdminAPI      = app.Flag("web.enable-admin-api", "Enable API endpoints for admin control actions.").Default("false").Bool()
+		enablePprof         = app.Flag("web.enable-pprof", "Enable pprof endpoints for debugging.").Default("false").Bool()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 		pushUnchecked       = app.Flag("push.disable-consistency-check", "Do not check consistency of pushed metrics. DANGEROUS.").Default("false").Bool()
@@ -135,7 +136,9 @@ func main() {
 	r.Get(*routePrefix+"/", statusHandler.ServeHTTP)
 
 	// Re-enable pprof.
-	r.Get(*routePrefix+"/debug/pprof/*pprof", handlePprof)
+	if *enablePprof {
+		r.Get(*routePrefix+"/debug/pprof/*pprof", handlePprof)
+	}
 
 	quitCh := make(chan struct{})
 	quitHandler := func(w http.ResponseWriter, r *http.Request) {
