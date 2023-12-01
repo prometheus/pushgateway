@@ -3,7 +3,7 @@ module github.com/prometheus/pushgateway
 go 1.19
 
 require (
-	github.com/alecthomas/kingpin/v2 v2.3.2
+	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/go-kit/log v0.2.1
 	github.com/golang/protobuf v1.5.3
 	github.com/golang/snappy v0.0.4
