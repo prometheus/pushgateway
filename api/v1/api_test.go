@@ -66,6 +66,82 @@ var (
 			},
 		},
 	}
+	mfh = &dto.MetricFamily{
+		Name: proto.String("mfh"),
+		Type: dto.MetricType_HISTOGRAM.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("testing"),
+						Value: proto.String("int histogram"),
+					},
+				},
+				Histogram: &dto.Histogram{
+					SampleCount:   proto.Uint64(20),
+					SampleSum:     proto.Float64(99.23),
+					Schema:        proto.Int32(1),
+					NegativeDelta: []int64{0, 2, -2, 0},
+					PositiveDelta: []int64{0, 2, -2, 0},
+					PositiveSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+					NegativeSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+				},
+			},
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("testing"),
+						Value: proto.String("float histogram"),
+					},
+				},
+				Histogram: &dto.Histogram{
+					SampleCountFloat: proto.Float64(20),
+					SampleSum:        proto.Float64(99.23),
+					Schema:           proto.Int32(1),
+					NegativeCount:    []float64{2, 2, -2, 0},
+					PositiveCount:    []float64{2, 2, -2, 0},
+					PositiveSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+					NegativeSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+				},
+			},
+		},
+	}
 
 	grouping1 = map[string]string{
 		"job":      "Björn",
@@ -142,7 +218,7 @@ func TestMetricsAPI(t *testing.T) {
 	dms.SubmitWriteRequest(storage.WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      testTime,
-		MetricFamilies: testutil.MetricFamiliesMap(mf1),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1, mfh),
 		Done:           errCh,
 	})
 
@@ -178,6 +254,76 @@ func TestMetricsAPI(t *testing.T) {
 						},
 						"quantiles": {},
 						"sum": "0"
+					}
+				]
+			},
+			"mfh": {
+				"time_stamp": "2020-03-10T00:54:08.025744841+05:30",
+				"type": "HISTOGRAM",
+				"metrics": [
+					{
+						"count": "20",
+						"labels": {
+							"instance": "inst'a\"n\\ce1",
+							"job": "Björn",
+							"testing": "int histogram"
+						},
+						"negative_delta": [
+							"0",
+							"2",
+							"-2",
+							"0"
+						],
+						"negative_span": {
+							"length": "2",
+							"offset": "0"
+						},
+						"positive_delta": [
+							"0",
+							"2",
+							"-2",
+							"0"
+						],
+						"positive_span": {
+							"length": "2",
+							"offset": "0"
+						},
+						"schema": "1",
+						"sum": "99.23",
+						"zero_count": "0",
+						"zero_threshold": "0"
+					},
+					{
+						"count_float": "20",
+						"labels": {
+							"instance": "inst'a\"n\\ce1",
+							"job": "Björn",
+							"testing": "float histogram"
+						},
+						"negative_count": [
+							"2",
+							"2",
+							"-2",
+							"0"
+						],
+						"negative_span": {
+							"length": "2",
+							"offset": "0"
+						},
+						"positive_count": [
+							"2",
+							"2",
+							"-2",
+							"0"
+						],
+						"positive_span": {
+							"length": "2",
+							"offset": "0"
+						},
+						"schema": "1",
+						"sum": "99.23",
+						"zero_count_float": "0",
+						"zero_threshold": "0"
 					}
 				]
 			},

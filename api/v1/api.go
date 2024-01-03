@@ -230,9 +230,27 @@ func makeEncodableMetrics(metrics []*dto.Metric, metricsType dto.MetricType) []e
 			metric["count"] = fmt.Sprint(m.GetSummary().GetSampleCount())
 			metric["sum"] = fmt.Sprint(m.GetSummary().GetSampleSum())
 		case dto.MetricType_HISTOGRAM:
-			metric["buckets"] = makeBuckets(m)
-			metric["count"] = fmt.Sprint(m.GetHistogram().GetSampleCount())
 			metric["sum"] = fmt.Sprint(m.GetHistogram().GetSampleSum())
+			if b := makeBuckets(m); len(b) > 0 {
+				metric["buckets"] = b
+				metric["count"] = fmt.Sprint(m.GetHistogram().GetSampleCount())
+			} else {
+				if c := m.GetHistogram().GetSampleCountFloat(); c > 0 {
+					metric["count_float"] = fmt.Sprint(c)
+					metric["zero_count_float"] = fmt.Sprint(m.GetHistogram().GetZeroCountFloat())
+					metric["positive_count"] = makeFloatList(m.GetHistogram().GetPositiveCount())
+					metric["negative_count"] = makeFloatList(m.GetHistogram().GetNegativeCount())
+				} else {
+					metric["count"] = fmt.Sprint(m.GetHistogram().GetSampleCount())
+					metric["zero_count"] = fmt.Sprint(m.GetHistogram().GetZeroCount())
+					metric["positive_delta"] = makeIntList(m.GetHistogram().GetPositiveDelta())
+					metric["negative_delta"] = makeIntList(m.GetHistogram().GetNegativeDelta())
+				}
+				metric["schema"] = fmt.Sprint(m.GetHistogram().GetSchema())
+				metric["zero_threshold"] = fmt.Sprint(m.GetHistogram().GetZeroThreshold())
+				metric["positive_span"] = makeSpan(m.GetHistogram().GetPositiveSpan())
+				metric["negative_span"] = makeSpan(m.GetHistogram().GetNegativeSpan())
+			}
 		default:
 			metric["value"] = fmt.Sprint(getValue(m))
 		}
@@ -276,4 +294,29 @@ func getValue(m *dto.Metric) float64 {
 	default:
 		return 0
 	}
+}
+
+func makeSpan(s []*dto.BucketSpan) map[string]string {
+	result := map[string]string{}
+	for _, b := range s {
+		result["offset"] = fmt.Sprint(b.GetOffset())
+		result["length"] = fmt.Sprint(b.GetLength())
+	}
+	return result
+}
+
+func makeIntList(l []int64) []string {
+	result := []string{}
+	for _, i := range l {
+		result = append(result, fmt.Sprint(i))
+	}
+	return result
+}
+
+func makeFloatList(l []float64) []string {
+	result := []string{}
+	for _, f := range l {
+		result = append(result, fmt.Sprint(f))
+	}
+	return result
 }
