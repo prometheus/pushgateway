@@ -1,3 +1,9 @@
+## 1.7.0 / 2024-01-18
+
+* [FEATURE] UI: Keep expansion state on page refresh. #581
+* [SECURITY] Build precompiled binaries with Go v1.21.6 to avoid security issues with previous Go releases.
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
+
 ## 1.6.2 / 2023-09-13
 
 * [SECURITY] Build precompiled binaries with Go v1.21.1 to avoid [security issues with Go v1.21.0](https://groups.google.com/g/golang-announce/c/Fm51GRLNRvM).
