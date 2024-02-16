@@ -24,6 +24,7 @@ import (
 	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/pushgateway/handler"
+	"github.com/prometheus/pushgateway/histogram"
 	"github.com/prometheus/pushgateway/storage"
 )
 
@@ -235,21 +236,15 @@ func makeEncodableMetrics(metrics []*dto.Metric, metricsType dto.MetricType) []e
 				metric["buckets"] = b
 				metric["count"] = fmt.Sprint(m.GetHistogram().GetSampleCount())
 			} else {
-				if c := m.GetHistogram().GetSampleCountFloat(); c > 0 {
-					metric["count_float"] = fmt.Sprint(c)
-					metric["zero_count_float"] = fmt.Sprint(m.GetHistogram().GetZeroCountFloat())
-					metric["positive_count"] = makeFloatList(m.GetHistogram().GetPositiveCount())
-					metric["negative_count"] = makeFloatList(m.GetHistogram().GetNegativeCount())
+				h, fh := histogram.NewModelHistogram(m.GetHistogram())
+				if h == nil {
+					// float histogram
+					metric["count"] = fmt.Sprint(fh.Count)
+					metric["buckets"] = histogram.BucketsAsJson[float64](histogram.GetAPIFloatBuckets(fh))
 				} else {
-					metric["count"] = fmt.Sprint(m.GetHistogram().GetSampleCount())
-					metric["zero_count"] = fmt.Sprint(m.GetHistogram().GetZeroCount())
-					metric["positive_delta"] = makeIntList(m.GetHistogram().GetPositiveDelta())
-					metric["negative_delta"] = makeIntList(m.GetHistogram().GetNegativeDelta())
+					metric["count"] = fmt.Sprint(h.Count)
+					metric["buckets"] = histogram.BucketsAsJson[uint64](histogram.GetAPIBuckets(h))
 				}
-				metric["schema"] = fmt.Sprint(m.GetHistogram().GetSchema())
-				metric["zero_threshold"] = fmt.Sprint(m.GetHistogram().GetZeroThreshold())
-				metric["positive_span"] = makeSpan(m.GetHistogram().GetPositiveSpan())
-				metric["negative_span"] = makeSpan(m.GetHistogram().GetNegativeSpan())
 			}
 		default:
 			metric["value"] = fmt.Sprint(getValue(m))
@@ -294,29 +289,4 @@ func getValue(m *dto.Metric) float64 {
 	default:
 		return 0
 	}
-}
-
-func makeSpan(s []*dto.BucketSpan) map[string]string {
-	result := map[string]string{}
-	for _, b := range s {
-		result["offset"] = fmt.Sprint(b.GetOffset())
-		result["length"] = fmt.Sprint(b.GetLength())
-	}
-	return result
-}
-
-func makeIntList(l []int64) []string {
-	result := []string{}
-	for _, i := range l {
-		result = append(result, fmt.Sprint(i))
-	}
-	return result
-}
-
-func makeFloatList(l []float64) []string {
-	result := []string{}
-	for _, f := range l {
-		result = append(result, fmt.Sprint(f))
-	}
-	return result
 }

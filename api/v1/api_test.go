@@ -262,68 +262,74 @@ func TestMetricsAPI(t *testing.T) {
 				"type": "HISTOGRAM",
 				"metrics": [
 					{
+						"buckets": [
+							[
+								1,
+								"-1.414213562373095",
+								"-1",
+								"2"
+							],
+							[
+								0,
+								"1",
+								"1.414213562373095",
+								"2"
+							]
+						],
 						"count": "20",
 						"labels": {
 							"instance": "inst'a\"n\\ce1",
 							"job": "Björn",
 							"testing": "int histogram"
 						},
-						"negative_delta": [
-							"0",
-							"2",
-							"-2",
-							"0"
-						],
-						"negative_span": {
-							"length": "2",
-							"offset": "0"
-						},
-						"positive_delta": [
-							"0",
-							"2",
-							"-2",
-							"0"
-						],
-						"positive_span": {
-							"length": "2",
-							"offset": "0"
-						},
-						"schema": "1",
-						"sum": "99.23",
-						"zero_count": "0",
-						"zero_threshold": "0"
+						"sum": "99.23"
 					},
 					{
-						"count_float": "20",
+						"buckets": [
+							[
+								1,
+								"-2",
+								"-1.414213562373095",
+								"-2"
+							],
+							[
+								1,
+								"-1.414213562373095",
+								"-1",
+								"2"
+							],
+							[
+								1,
+								"-1",
+								"-0.7071067811865475",
+								"2"
+							],
+							[
+								0,
+								"0.7071067811865475",
+								"1",
+								"2"
+							],
+							[
+								0,
+								"1",
+								"1.414213562373095",
+								"2"
+							],
+							[
+								0,
+								"1.414213562373095",
+								"2",
+								"-2"
+							]
+						],
+						"count": "20",
 						"labels": {
 							"instance": "inst'a\"n\\ce1",
 							"job": "Björn",
 							"testing": "float histogram"
 						},
-						"negative_count": [
-							"2",
-							"2",
-							"-2",
-							"0"
-						],
-						"negative_span": {
-							"length": "2",
-							"offset": "0"
-						},
-						"positive_count": [
-							"2",
-							"2",
-							"-2",
-							"0"
-						],
-						"positive_span": {
-							"length": "2",
-							"offset": "0"
-						},
-						"schema": "1",
-						"sum": "99.23",
-						"zero_count_float": "0",
-						"zero_threshold": "0"
+						"sum": "99.23"
 					}
 				]
 			},
