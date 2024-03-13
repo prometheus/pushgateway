@@ -13,7 +13,7 @@ require (
 	github.com/prometheus/common v0.48.0
 	github.com/prometheus/exporter-toolkit v0.11.0
 	github.com/shurcooL/vfsgen v0.0.0-20230704071429-0000e147ea92
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/protobuf v1.33.0
 )
 
 require (
