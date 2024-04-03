@@ -1,3 +1,8 @@
+## 1.8.0 / 2024-04-03
+
+* [FEATURE] API: Support native histograms in api/v1/metrics. #611
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes, in particular a bug concerning multiple metric families pushed via protobuf.
+
 ## 1.7.0 / 2024-01-18
 
 * [FEATURE] UI: Keep expansion state on page refresh. #581
