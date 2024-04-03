@@ -6,7 +6,7 @@ executors:
   # Whenever the Go version is updated here, .promu.yml should also be updated.
   golang:
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:1.22
 jobs:
   test:
     executor: golang
