@@ -132,16 +132,16 @@ func GetAPIFloatBuckets(h *model.FloatHistogram) []APIBucket[float64] {
 }
 
 func makeBucket[BC model.BucketCount](bucket model.Bucket[BC]) APIBucket[BC] {
-	boundaries := uint64(2) // Exclusive on both sides AKA open interval.
+	boundaries := uint64(2) // () Exclusive on both sides AKA open interval.
 	if bucket.LowerInclusive {
 		if bucket.UpperInclusive {
-			boundaries = 3 // Inclusive on both sides AKA closed interval.
+			boundaries = 3 // [] Inclusive on both sides AKA closed interval.
 		} else {
-			boundaries = 1 // Inclusive only on lower end AKA right open.
+			boundaries = 1 // [) Inclusive only on lower end AKA right open.
 		}
 	} else {
 		if bucket.UpperInclusive {
-			boundaries = 0 // Inclusive only on upper end AKA left open.
+			boundaries = 0 // (] Inclusive only on upper end AKA left open.
 		}
 	}
 	return APIBucket[BC]{
