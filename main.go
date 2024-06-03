@@ -62,6 +62,11 @@ func (lf logFunc) Println(v ...interface{}) {
 }
 
 func main() {
+	// Check if the first argument is "--version"
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		fmt.Println(version.Print("pushgateway"))
+		os.Exit(0)
+	}
 	var (
 		app                 = kingpin.New(filepath.Base(os.Args[0]), "The Pushgateway")
 		webConfig           = webflag.AddFlags(app, ":9091")
