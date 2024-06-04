@@ -63,7 +63,7 @@ func (lf logFunc) Println(v ...interface{}) {
 
 func main() {
 	var (
-		app                 = kingpin.New(filepath.Base(os.Args[0]), "The Pushgateway")
+		app                 = kingpin.New(filepath.Base(os.Args[0]), "The Pushgateway").UsageWriter(os.Stdout)
 		webConfig           = webflag.AddFlags(app, ":9091")
 		metricsPath         = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		externalURL         = app.Flag("web.external-url", "The URL under which the Pushgateway is externally reachable.").Default("").URL()
