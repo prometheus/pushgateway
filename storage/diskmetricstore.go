@@ -125,9 +125,9 @@ func (dms *DiskMetricStore) Healthy() error {
 	// A pushgateway that cannot be written to should not be
 	// considered as healthy.
 	if len(dms.writeQueue) == cap(dms.writeQueue) {
-		error_msg := "write queue is full"
-		level.Error(dms.logger).Log("msg", error_msg)
-		return fmt.Errorf(error_msg)
+   	err := fmt.Errorf("write queue is full")
+   	level.Warn(dms.logger).Log("msg", err)
+   	return err
 	}
 
 	return nil
