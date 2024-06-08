@@ -1,3 +1,10 @@
+## 1.9.0 / 2024-06-06
+
+* [CHANGE] Command line: Print --version to stdout, not stderr. #651
+* [FEATURE] UI: Support native histograms. #596
+* [ENHANCEMENT] Log when liveness probes fail due to full write queue. #645
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
+
 ## 1.8.0 / 2024-04-03
 
 * [FEATURE] API: Support native histograms in api/v1/metrics. #611
