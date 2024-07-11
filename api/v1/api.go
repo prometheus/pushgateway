@@ -245,7 +245,11 @@ func makeEncodableMetrics(metrics []*dto.Metric, metricsType dto.MetricType) []e
 				}
 			} else {
 				metric["buckets"] = makeBuckets(m)
-				metric["count"] = fmt.Sprint(dtoH.GetSampleCount())
+				if count := dtoH.GetSampleCountFloat(); count > 0 {
+					metric["count"] = fmt.Sprint(count)
+				} else {
+					metric["count"] = fmt.Sprint(dtoH.GetSampleCount())
+				}
 			}
 		default:
 			metric["value"] = fmt.Sprint(getValue(m))
@@ -274,7 +278,11 @@ func makeQuantiles(m *dto.Metric) map[string]string {
 func makeBuckets(m *dto.Metric) map[string]string {
 	result := map[string]string{}
 	for _, b := range m.GetHistogram().Bucket {
-		result[fmt.Sprint(b.GetUpperBound())] = fmt.Sprint(b.GetCumulativeCount())
+		if count := b.GetCumulativeCountFloat(); count > 0 {
+			result[fmt.Sprint(b.GetUpperBound())] = fmt.Sprint(count)
+		} else {
+			result[fmt.Sprint(b.GetUpperBound())] = fmt.Sprint(b.GetCumulativeCount())
+		}
 	}
 	return result
 }

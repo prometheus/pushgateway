@@ -74,7 +74,51 @@ var (
 				Label: []*dto.LabelPair{
 					{
 						Name:  proto.String("testing"),
-						Value: proto.String("int histogram"),
+						Value: proto.String("int classic histogram"),
+					},
+				},
+				Histogram: &dto.Histogram{
+					SampleCount: proto.Uint64(20),
+					SampleSum:   proto.Float64(99.23),
+					Bucket: []*dto.Bucket{
+						{
+							UpperBound:      proto.Float64(250000),
+							CumulativeCount: proto.Uint64(3),
+						},
+						{
+							UpperBound:      proto.Float64(500000),
+							CumulativeCount: proto.Uint64(17),
+						},
+					},
+				},
+			},
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("testing"),
+						Value: proto.String("float classic histogram"),
+					},
+				},
+				Histogram: &dto.Histogram{
+					SampleCountFloat: proto.Float64(20),
+					SampleSum:        proto.Float64(99.23),
+					Bucket: []*dto.Bucket{
+						{
+							UpperBound:           proto.Float64(250000),
+							CumulativeCountFloat: proto.Float64(3),
+						},
+						{
+							UpperBound:           proto.Float64(500000),
+							CumulativeCountFloat: proto.Float64(17),
+						},
+					},
+				},
+			},
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("testing"),
+						Value: proto.String("int native histogram"),
 					},
 				},
 				Histogram: &dto.Histogram{
@@ -109,7 +153,7 @@ var (
 				Label: []*dto.LabelPair{
 					{
 						Name:  proto.String("testing"),
-						Value: proto.String("float histogram"),
+						Value: proto.String("float native histogram"),
 					},
 				},
 				Histogram: &dto.Histogram{
@@ -262,6 +306,32 @@ func TestMetricsAPI(t *testing.T) {
 				"type": "HISTOGRAM",
 				"metrics": [
 					{
+						"buckets": {
+							"250000": "3",
+							"500000": "17"
+						},
+						"count": "20",
+						"labels": {
+							"instance": "inst'a\"n\\ce1",
+							"job": "Björn",
+							"testing": "int classic histogram"
+						},
+						"sum": "99.23"
+					},
+					{
+						"buckets": {
+							"250000": "3",
+							"500000": "17"
+						},
+						"count": "20",
+						"labels": {
+							"instance": "inst'a\"n\\ce1",
+							"job": "Björn",
+							"testing": "float classic histogram"
+						},
+						"sum": "99.23"
+					},
+					{
 						"buckets": [
 							[
 								1,
@@ -280,7 +350,7 @@ func TestMetricsAPI(t *testing.T) {
 						"labels": {
 							"instance": "inst'a\"n\\ce1",
 							"job": "Björn",
-							"testing": "int histogram"
+							"testing": "int native histogram"
 						},
 						"sum": "99.23"
 					},
@@ -327,7 +397,7 @@ func TestMetricsAPI(t *testing.T) {
 						"labels": {
 							"instance": "inst'a\"n\\ce1",
 							"job": "Björn",
-							"testing": "float histogram"
+							"testing": "float native histogram"
 						},
 						"sum": "99.23"
 					}
