@@ -231,12 +231,10 @@ func makeEncodableMetrics(metrics []*dto.Metric, metricsType dto.MetricType) []e
 			metric["count"] = fmt.Sprint(m.GetSummary().GetSampleCount())
 			metric["sum"] = fmt.Sprint(m.GetSummary().GetSampleSum())
 		case dto.MetricType_HISTOGRAM:
-			metric["sum"] = fmt.Sprint(m.GetHistogram().GetSampleSum())
-			if b := makeBuckets(m); len(b) > 0 {
-				metric["buckets"] = b
-				metric["count"] = fmt.Sprint(m.GetHistogram().GetSampleCount())
-			} else {
-				h, fh := histogram.NewModelHistogram(m.GetHistogram())
+			dtoH := m.GetHistogram()
+			metric["sum"] = fmt.Sprint(dtoH.GetSampleSum())
+			if len(dtoH.GetNegativeSpan())+len(dtoH.GetPositiveSpan()) > 0 {
+				h, fh := histogram.NewModelHistogram(dtoH)
 				if h == nil {
 					// float histogram
 					metric["count"] = fmt.Sprint(fh.Count)
@@ -245,6 +243,9 @@ func makeEncodableMetrics(metrics []*dto.Metric, metricsType dto.MetricType) []e
 					metric["count"] = fmt.Sprint(h.Count)
 					metric["buckets"] = histogram.BucketsAsJson[uint64](histogram.GetAPIBuckets(h))
 				}
+			} else {
+				metric["buckets"] = makeBuckets(m)
+				metric["count"] = fmt.Sprint(dtoH.GetSampleCount())
 			}
 		default:
 			metric["value"] = fmt.Sprint(getValue(m))
