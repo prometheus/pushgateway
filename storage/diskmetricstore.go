@@ -81,6 +81,7 @@ func NewDiskMetricStore(
 	persistenceInterval time.Duration,
 	gatherPredefinedHelpFrom prometheus.Gatherer,
 	logger log.Logger,
+	timeToLive time.Duration,
 ) *DiskMetricStore {
 	// TODO: Do that outside of the constructor to allow the HTTP server to
 	//  serve /-/healthy and /-/ready earlier.
@@ -101,6 +102,7 @@ func NewDiskMetricStore(
 		level.Error(logger).Log("msg", "could not gather metrics for predefined help strings", "err", err)
 	}
 
+	go dms.doCleanUpInReguarInterval(timeToLive)
 	go dms.loop(persistenceInterval)
 	return dms
 }
@@ -202,6 +204,37 @@ func (dms *DiskMetricStore) GetMetricFamiliesMap() GroupingKeyToMetricGroup {
 		}
 	}
 	return groupsCopy
+}
+
+func (dms *DiskMetricStore) doCleanUpInReguarInterval(timeToLive time.Duration) {
+	if timeToLive == 0 {
+		return
+	}
+	tk := time.NewTicker(time.Minute)
+	for {
+		select {
+		case <-tk.C:
+			dms.cleanupStaleValues(timeToLive)
+		}
+	}
+}
+
+func (dms *DiskMetricStore) cleanupStaleValues(timeToLive time.Duration) {
+	dms.lock.RLock()
+	defer dms.lock.RUnlock()
+
+	cleanupCycleStartTime := time.Now()
+
+	for metricID, group := range dms.metricGroups {
+		for metricName, tmf := range group.Metrics {
+			if tmf.Timestamp.Add(timeToLive).Before(cleanupCycleStartTime) {
+				delete(group.Metrics, metricName)
+			}
+		}
+		if len(group.Metrics) == 0 {
+			delete(dms.metricGroups, metricID)
+		}
+	}
 }
 
 func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
