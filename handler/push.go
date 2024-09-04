@@ -180,12 +180,13 @@ func splitLabels(labels string) (map[string]string, error) {
 	for i := 0; i < len(components)-1; i += 2 {
 		name, value := components[i], components[i+1]
 		trimmedName := strings.TrimSuffix(name, Base64Suffix)
-		if !model.LabelNameRE.MatchString(trimmedName) ||
+		unescapedName := model.UnescapeName(trimmedName, model.ValueEncodingEscaping)
+		if !model.LabelName(unescapedName).IsValid() ||
 			strings.HasPrefix(trimmedName, model.ReservedLabelPrefix) {
 			return nil, fmt.Errorf("improper label name %q", trimmedName)
 		}
 		if name == trimmedName {
-			result[name] = value
+			result[unescapedName] = value
 			continue
 		}
 		decodedValue, err := decodeBase64(value)

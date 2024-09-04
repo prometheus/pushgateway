@@ -17,6 +17,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"github.com/prometheus/common/model"
 	"io"
 	"net/http"
 	"net/http/pprof"
@@ -73,6 +74,7 @@ func main() {
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 		pushUnchecked       = app.Flag("push.disable-consistency-check", "Do not check consistency of pushed metrics. DANGEROUS.").Default("false").Bool()
+		pushEscaped         = app.Flag("push.enable-escaped-labels", "Allow escaped characters in label names in URLs.").Default("false").Bool()
 		promlogConfig       = promlog.Config{}
 	)
 	promlogflag.AddFlags(app, &promlogConfig)
@@ -101,6 +103,10 @@ func main() {
 	}
 
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer, logger)
+
+	if *pushEscaped {
+		model.NameValidationScheme = model.UTF8Validation
+	}
 
 	// Create a Gatherer combining the DefaultGatherer and the metrics from the metric store.
 	g := prometheus.Gatherers{
