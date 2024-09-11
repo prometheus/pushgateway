@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/prometheus/common/model"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -436,6 +437,214 @@ func TestPush(t *testing.T) {
 	verifyMetricFamily(t, `name:"histogram_metric" type:HISTOGRAM metric:{histogram:{sample_count_float:20  sample_sum:99.23  schema:1  negative_span:{offset:0  length:2}  negative_span:{offset:0  length:2}  negative_count:2  negative_count:2  negative_count:-2  negative_count:0  positive_span:{offset:0  length:2}  positive_span:{offset:0  length:2}  positive_count:2  positive_count:2  positive_count:-2  positive_count:0}}`, mms.lastWriteRequest.MetricFamilies["histogram_metric"])
 }
 
+func TestPushUTF8(t *testing.T) {
+	model.NameValidationScheme = model.UTF8Validation
+	mms := MockMetricStore{}
+	handler := Push(&mms, false, true, false, logger)
+	handlerBase64 := Push(&mms, false, true, true, logger)
+
+	// With job name, instance name, UTF-8 escaped label name in params, UTF-8 metric name and text content.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	req, err := http.NewRequest(
+		"POST", "http://example.org/",
+		bytes.NewBufferString("some_metric 3.14\n{\"another.metric\",instance=\"testinstance\",job=\"testjob\",\"dotted.label.name\"=\"mylabelvalue\"} 42\n"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+
+	params := map[string]string{
+		"job":    "testjob",
+		"labels": "/instance/testinstance/U__dotted_2e_label_2e_name/mylabelvalue",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
+	if expected, got := http.StatusOK, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if mms.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
+	}
+	if expected, got := "testjob", mms.lastWriteRequest.Labels["job"]; expected != got {
+		t.Errorf("Wanted job %v, got %v.", expected, got)
+	}
+	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+	if expected, got := "mylabelvalue", mms.lastWriteRequest.Labels["dotted.label.name"]; expected != got {
+		t.Errorf("Wanted dotted.label.name %v, got %v.", expected, got)
+	}
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	verifyMetricFamily(t, `name:"some_metric" type:UNTYPED metric:{untyped:{value:3.14}}`, mms.lastWriteRequest.MetricFamilies["some_metric"])
+	verifyMetricFamily(t, `name:"another.metric" type:UNTYPED metric:{label:{name:"instance" value:"testinstance"} label:{name:"job" value:"testjob"} label:{name:"dotted.label.name" value:"mylabelvalue"} untyped:{value:42}}`, mms.lastWriteRequest.MetricFamilies["another.metric"])
+
+	// With base64-encoded label values, UTF-8 escaped label name in params, UTF-8 metric name and text content.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	req, err = http.NewRequest(
+		"POST", "http://example.org/",
+		bytes.NewBufferString("some_metric 3.14\n{\"another.metric\",instance=\"testinstance\",job=\"testjob\",\"dotted.label.name\"=\"mylabelvalue\"} 42\n"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+	params = map[string]string{
+		"job":    "dGVzdC9qb2I=",                                                                         // job="test/job"
+		"labels": "/instance@base64/dGVzdGluc3RhbmNl/U__dotted_2e_label_2e_name@base64/bXlsYWJlbHZhbHVl", // instance="testinstance", dotted.label.name="mylabelvalue"
+	}
+	handlerBase64(w, req.WithContext(ctxWithParams(params, req)))
+	if expected, got := http.StatusOK, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if mms.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
+	}
+	if expected, got := "test/job", mms.lastWriteRequest.Labels["job"]; expected != got {
+		t.Errorf("Wanted job %v, got %v.", expected, got)
+	}
+	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+	if expected, got := "mylabelvalue", mms.lastWriteRequest.Labels["dotted.label.name"]; expected != got {
+		t.Errorf("Wanted dotted.label.name %v, got %v.", expected, got)
+	}
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	verifyMetricFamily(t, `name:"some_metric" type:UNTYPED metric:{untyped:{value:3.14}}`, mms.lastWriteRequest.MetricFamilies["some_metric"])
+	// Note that sanitation hasn't happened yet, job label as still as in the push, not aligned to grouping labels.
+	verifyMetricFamily(t, `name:"another.metric" type:UNTYPED metric:{label:{name:"instance" value:"testinstance"} label:{name:"job" value:"testjob"} label:{name:"dotted.label.name" value:"mylabelvalue"} untyped:{value:42}}`, mms.lastWriteRequest.MetricFamilies["another.metric"])
+
+	// With job name, instance name, UTF-8 escaped label name in params, UTF-8 metric names and protobuf content.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	buf := &bytes.Buffer{}
+	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+		Name: proto.String("some.metric"),
+		Type: dto.MetricType_UNTYPED.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Untyped: &dto.Untyped{
+					Value: proto.Float64(1.234),
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+		Name: proto.String("another.metric"),
+		Type: dto.MetricType_UNTYPED.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Untyped: &dto.Untyped{
+					Value: proto.Float64(3.14),
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+		Name: proto.String("histogram.metric"),
+		Type: dto.MetricType_HISTOGRAM.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Histogram: &dto.Histogram{
+					SampleCountFloat: proto.Float64(20),
+					SampleSum:        proto.Float64(99.23),
+					Schema:           proto.Int32(1),
+					NegativeCount:    []float64{2, 2, -2, 0},
+					PositiveCount:    []float64{2, 2, -2, 0},
+					PositiveSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+					NegativeSpan: []*dto.BucketSpan{
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+						{
+							Offset: proto.Int32(0),
+							Length: proto.Uint32(2),
+						},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err = http.NewRequest(
+		"POST", "http://example.org/", buf,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/vnd.google.protobuf; encoding=delimited; proto=io.prometheus.client.MetricFamily")
+	w = httptest.NewRecorder()
+	params = map[string]string{
+		"job":    "testjob",
+		"labels": "/instance/testinstance/U__dotted_2e_label_2e_name/mylabelvalue",
+	}
+	handler(w, req.WithContext(ctxWithParams(params, req)))
+	if expected, got := http.StatusOK, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if mms.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
+	}
+	if expected, got := "testjob", mms.lastWriteRequest.Labels["job"]; expected != got {
+		t.Errorf("Wanted job %v, got %v.", expected, got)
+	}
+	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+	if expected, got := "mylabelvalue", mms.lastWriteRequest.Labels["dotted.label.name"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	verifyMetricFamily(t, `name:"some.metric" type:UNTYPED metric:{untyped:{value:1.234}}`, mms.lastWriteRequest.MetricFamilies["some.metric"])
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	verifyMetricFamily(t, `name:"another.metric" type:UNTYPED metric:{untyped:{value:3.14}}`, mms.lastWriteRequest.MetricFamilies["another.metric"])
+	// Note that sanitation hasn't happened yet, grouping labels not in request.
+	verifyMetricFamily(t, `name:"histogram.metric" type:HISTOGRAM metric:{histogram:{sample_count_float:20  sample_sum:99.23  schema:1  negative_span:{offset:0  length:2}  negative_span:{offset:0  length:2}  negative_count:2  negative_count:2  negative_count:-2  negative_count:0  positive_span:{offset:0  length:2}  positive_span:{offset:0  length:2}  positive_count:2  positive_count:2  positive_count:-2  positive_count:0}}`, mms.lastWriteRequest.MetricFamilies["histogram.metric"])
+
+	model.NameValidationScheme = model.LegacyValidation
+
+	// With job name, instance name, UTF-8 escaped label name in params, UTF-8 metric name, text content and legacy validation.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	req, err = http.NewRequest(
+		"POST", "http://example.org/",
+		bytes.NewBufferString("some_metric 3.14\n{\"another.metric\",instance=\"testinstance\",job=\"testjob\",\"dotted.label.name\"=\"mylabelvalue\"} 42\n"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+
+	params = map[string]string{
+		"job":    "testjob",
+		"labels": "/instance/testinstance/U__dotted_2e_label_2e_name/mylabelvalue",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
+	if expected, got := http.StatusBadRequest, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+}
+
 func TestDelete(t *testing.T) {
 	mms := MockMetricStore{}
 	handler := Delete(&mms, false, logger)
@@ -525,6 +734,83 @@ func TestDelete(t *testing.T) {
 
 }
 
+func TestDeleteUTF8(t *testing.T) {
+	model.NameValidationScheme = model.UTF8Validation
+	mms := MockMetricStore{}
+	handler := Delete(&mms, false, logger)
+	handlerBase64 := Delete(&mms, true, logger)
+	req := &http.Request{}
+	var params map[string]string
+
+	// With job name, instance name and UTF-8 escaped label name.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	w := httptest.NewRecorder()
+
+	params = map[string]string{
+		"job":    "testjob",
+		"labels": "/instance/testinstance/U__dotted_2e_label_2e_name/mylabelvalue",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
+	if expected, got := http.StatusAccepted, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if mms.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
+	}
+	if expected, got := "testjob", mms.lastWriteRequest.Labels["job"]; expected != got {
+		t.Errorf("Wanted job %v, got %v.", expected, got)
+	}
+	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+	if expected, got := "mylabelvalue", mms.lastWriteRequest.Labels["dotted.label.name"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+
+	// With base64-encoded label values and UTF-8 escaped label name.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	w = httptest.NewRecorder()
+
+	params = map[string]string{
+		"job":    "dGVzdC9qb2I=",
+		"labels": "/instance@base64/dGVzdGluc3RhbmNl/U__dotted_2e_label_2e_name@base64/bXlsYWJlbHZhbHVl",
+	}
+
+	handlerBase64(w, req.WithContext(ctxWithParams(params, req)))
+	if expected, got := http.StatusAccepted, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+	if mms.lastWriteRequest.Timestamp.IsZero() {
+		t.Errorf("Write request timestamp not set: %#v", mms.lastWriteRequest)
+	}
+	if expected, got := "test/job", mms.lastWriteRequest.Labels["job"]; expected != got {
+		t.Errorf("Wanted job %v, got %v.", expected, got)
+	}
+	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+	if expected, got := "mylabelvalue", mms.lastWriteRequest.Labels["dotted.label.name"]; expected != got {
+		t.Errorf("Wanted instance %v, got %v.", expected, got)
+	}
+
+	model.NameValidationScheme = model.LegacyValidation
+
+	// With job name, instance name, UTF-8 escaped label name and legacy validation.
+	mms.lastWriteRequest = storage.WriteRequest{}
+	w = httptest.NewRecorder()
+
+	params = map[string]string{
+		"job":    "testjob",
+		"labels": "/instance/testinstance/U__dotted_2e_label_2e_name/mylabelvalue",
+	}
+
+	handler(w, req.WithContext(ctxWithParams(params, req)))
+	if expected, got := http.StatusBadRequest, w.Code; expected != got {
+		t.Errorf("Wanted status code %v, got %v.", expected, got)
+	}
+}
+
 func TestSplitLabels(t *testing.T) {
 	scenarios := map[string]struct {
 		input          string
@@ -575,6 +861,10 @@ func TestSplitLabels(t *testing.T) {
 			input:       "/label_name1@base64/foo.bar/label_name2/label_value2",
 			expectError: true,
 		},
+		"regular label and UTF-8 escaped label name with legacy validation": {
+			input:       "/label_name1/label_value1/U__label_2e_name2/label_value2",
+			expectError: true,
+		},
 	}
 
 	for name, scenario := range scenarios {
@@ -601,6 +891,58 @@ func TestSplitLabels(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSplitLabelsUTF8(t *testing.T) {
+	scenarios := map[string]struct {
+		input          string
+		expectError    bool
+		expectedOutput map[string]string
+	}{
+		"regular label and UTF-8 escaped label name": {
+			input: "/label_name1/label_value1/U__label_2e_name2/label_value2",
+			expectedOutput: map[string]string{
+				"label_name1": "label_value1",
+				"label.name2": "label_value2",
+			},
+		},
+		"encoded slash in both label values and UTF-8 escaped label name": {
+			input: "/label_name1@base64/bGFiZWwvdmFsdWUx/U__label_2e_name2@base64/bGFiZWwvdmFsdWUy",
+			expectedOutput: map[string]string{
+				"label_name1": "label/value1",
+				"label.name2": "label/value2",
+			},
+		},
+	}
+
+	model.NameValidationScheme = model.UTF8Validation
+
+	for name, scenario := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			parsed, err := splitLabels(scenario.input)
+			if err != nil {
+				if scenario.expectError {
+					return // All good.
+				}
+				t.Fatalf("Got unexpected error: %s.", err)
+			}
+			for k, v := range scenario.expectedOutput {
+				got, ok := parsed[k]
+				if !ok {
+					t.Errorf("Expected to find %s=%q.", k, v)
+				}
+				if got != v {
+					t.Errorf("Expected %s=%q but got %s=%q.", k, v, k, got)
+				}
+				delete(parsed, k)
+			}
+			for k, v := range parsed {
+				t.Errorf("Found unexpected label %s=%q.", k, v)
+			}
+		})
+	}
+
+	model.NameValidationScheme = model.LegacyValidation
 }
 
 func TestWipeMetricStore(t *testing.T) {

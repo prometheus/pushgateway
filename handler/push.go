@@ -181,7 +181,8 @@ func splitLabels(labels string) (map[string]string, error) {
 		name, value := components[i], components[i+1]
 		trimmedName := strings.TrimSuffix(name, Base64Suffix)
 		unescapedName := model.UnescapeName(trimmedName, model.ValueEncodingEscaping)
-		if !model.LabelName(unescapedName).IsValid() ||
+		if !model.LabelNameRE.MatchString(trimmedName) ||
+			!model.LabelName(unescapedName).IsValid() ||
 			strings.HasPrefix(trimmedName, model.ReservedLabelPrefix) {
 			return nil, fmt.Errorf("improper label name %q", trimmedName)
 		}
@@ -193,7 +194,7 @@ func splitLabels(labels string) (map[string]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid base64 encoding for label %s=%q: %v", trimmedName, value, err)
 		}
-		result[trimmedName] = decodedValue
+		result[unescapedName] = decodedValue
 	}
 	return result, nil
 }
