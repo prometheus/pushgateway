@@ -1,3 +1,8 @@
+## 1.10.0 / 2024-09-19
+
+* [FEATURE] API: Support classic float histograms. #668
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
+
 ## 1.9.0 / 2024-06-06
 
 * [CHANGE] Command line: Print --version to stdout, not stderr. #651
