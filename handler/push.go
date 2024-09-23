@@ -41,6 +41,8 @@ const (
 	Base64Suffix = "@base64"
 )
 
+var EscapingScheme = model.NoEscaping
+
 // Push returns an http.Handler which accepts samples over HTTP and stores them
 // in the MetricStore. If replace is true, all metrics for the job and instance
 // given by the request are deleted before new ones are stored. If check is
@@ -180,9 +182,8 @@ func splitLabels(labels string) (map[string]string, error) {
 	for i := 0; i < len(components)-1; i += 2 {
 		name, value := components[i], components[i+1]
 		trimmedName := strings.TrimSuffix(name, Base64Suffix)
-		unescapedName := model.UnescapeName(trimmedName, model.ValueEncodingEscaping)
-		if !model.LabelNameRE.MatchString(trimmedName) ||
-			!model.LabelName(unescapedName).IsValid() ||
+		unescapedName := model.UnescapeName(trimmedName, EscapingScheme)
+		if !model.LabelName(unescapedName).IsValid() ||
 			strings.HasPrefix(trimmedName, model.ReservedLabelPrefix) {
 			return nil, fmt.Errorf("improper label name %q", trimmedName)
 		}

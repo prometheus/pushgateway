@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/prometheus/common/model"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -439,6 +439,7 @@ func TestPush(t *testing.T) {
 
 func TestPushUTF8(t *testing.T) {
 	model.NameValidationScheme = model.UTF8Validation
+	EscapingScheme = model.ValueEncodingEscaping
 	mms := MockMetricStore{}
 	handler := Push(&mms, false, true, false, logger)
 	handlerBase64 := Push(&mms, false, true, true, logger)
@@ -622,27 +623,7 @@ func TestPushUTF8(t *testing.T) {
 	verifyMetricFamily(t, `name:"histogram.metric" type:HISTOGRAM metric:{histogram:{sample_count_float:20  sample_sum:99.23  schema:1  negative_span:{offset:0  length:2}  negative_span:{offset:0  length:2}  negative_count:2  negative_count:2  negative_count:-2  negative_count:0  positive_span:{offset:0  length:2}  positive_span:{offset:0  length:2}  positive_count:2  positive_count:2  positive_count:-2  positive_count:0}}`, mms.lastWriteRequest.MetricFamilies["histogram.metric"])
 
 	model.NameValidationScheme = model.LegacyValidation
-
-	// With job name, instance name, UTF-8 escaped label name in params, UTF-8 metric name, text content and legacy validation.
-	mms.lastWriteRequest = storage.WriteRequest{}
-	req, err = http.NewRequest(
-		"POST", "http://example.org/",
-		bytes.NewBufferString("some_metric 3.14\n{\"another.metric\",instance=\"testinstance\",job=\"testjob\",\"dotted.label.name\"=\"mylabelvalue\"} 42\n"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w = httptest.NewRecorder()
-
-	params = map[string]string{
-		"job":    "testjob",
-		"labels": "/instance/testinstance/U__dotted_2e_label_2e_name/mylabelvalue",
-	}
-
-	handler(w, req.WithContext(ctxWithParams(params, req)))
-	if expected, got := http.StatusBadRequest, w.Code; expected != got {
-		t.Errorf("Wanted status code %v, got %v.", expected, got)
-	}
+	EscapingScheme = model.NoEscaping
 }
 
 func TestDelete(t *testing.T) {
@@ -736,6 +717,7 @@ func TestDelete(t *testing.T) {
 
 func TestDeleteUTF8(t *testing.T) {
 	model.NameValidationScheme = model.UTF8Validation
+	EscapingScheme = model.ValueEncodingEscaping
 	mms := MockMetricStore{}
 	handler := Delete(&mms, false, logger)
 	handlerBase64 := Delete(&mms, true, logger)
@@ -795,20 +777,7 @@ func TestDeleteUTF8(t *testing.T) {
 	}
 
 	model.NameValidationScheme = model.LegacyValidation
-
-	// With job name, instance name, UTF-8 escaped label name and legacy validation.
-	mms.lastWriteRequest = storage.WriteRequest{}
-	w = httptest.NewRecorder()
-
-	params = map[string]string{
-		"job":    "testjob",
-		"labels": "/instance/testinstance/U__dotted_2e_label_2e_name/mylabelvalue",
-	}
-
-	handler(w, req.WithContext(ctxWithParams(params, req)))
-	if expected, got := http.StatusBadRequest, w.Code; expected != got {
-		t.Errorf("Wanted status code %v, got %v.", expected, got)
-	}
+	EscapingScheme = model.NoEscaping
 }
 
 func TestSplitLabels(t *testing.T) {
@@ -862,8 +831,11 @@ func TestSplitLabels(t *testing.T) {
 			expectError: true,
 		},
 		"regular label and UTF-8 escaped label name with legacy validation": {
-			input:       "/label_name1/label_value1/U__label_2e_name2/label_value2",
-			expectError: true,
+			input: "/label_name1/label_value1/U__label_2e_name2/label_value2",
+			expectedOutput: map[string]string{
+				"label_name1":       "label_value1",
+				"U__label_2e_name2": "label_value2",
+			},
 		},
 	}
 
@@ -916,6 +888,7 @@ func TestSplitLabelsUTF8(t *testing.T) {
 	}
 
 	model.NameValidationScheme = model.UTF8Validation
+	EscapingScheme = model.ValueEncodingEscaping
 
 	for name, scenario := range scenarios {
 		t.Run(name, func(t *testing.T) {
@@ -943,6 +916,7 @@ func TestSplitLabelsUTF8(t *testing.T) {
 	}
 
 	model.NameValidationScheme = model.LegacyValidation
+	EscapingScheme = model.NoEscaping
 }
 
 func TestWipeMetricStore(t *testing.T) {

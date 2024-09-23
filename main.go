@@ -17,7 +17,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"github.com/prometheus/common/model"
 	"io"
 	"net/http"
 	"net/http/pprof"
@@ -36,6 +35,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/route"
 	"github.com/prometheus/common/version"
@@ -74,7 +74,7 @@ func main() {
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 		pushUnchecked       = app.Flag("push.disable-consistency-check", "Do not check consistency of pushed metrics. DANGEROUS.").Default("false").Bool()
-		pushEscaped         = app.Flag("push.enable-escaped-labels", "Allow escaped characters in label names in URLs.").Default("false").Bool()
+		pushUTF8Names       = app.Flag("push.enable-utf8-names", "Allow UTF-8 characters in metric and label names.").Default("false").Bool()
 		promlogConfig       = promlog.Config{}
 	)
 	promlogflag.AddFlags(app, &promlogConfig)
@@ -104,8 +104,12 @@ func main() {
 
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer, logger)
 
-	if *pushEscaped {
+	if *pushUTF8Names {
 		model.NameValidationScheme = model.UTF8Validation
+		handler.EscapingScheme = model.ValueEncodingEscaping
+	} else {
+		model.NameValidationScheme = model.LegacyValidation
+		handler.EscapingScheme = model.NoEscaping
 	}
 
 	// Create a Gatherer combining the DefaultGatherer and the metrics from the metric store.
