@@ -320,6 +320,28 @@ Examples:
   
       /metrics/job/titan/name@base64/zqDPgc6_zrzOt864zrXPjc-C
 
+### UTF-8 support
+
+UTF-8 characters in metric and label names are supported by enabling
+the `--push.enable-utf8-names` flag. The syntax is as follows:
+
+    {"some.metric", "foo.bar"="baz"}
+
+For UTF-8 label names defined in the URL path, [an escaping syntax](https://github.com/prometheus/proposals/blob/main/proposals/2023-08-21-utf8.md#text-escaping) is used.
+
+* Prefix the string with `U__`.
+* All non-valid characters (i.e. characters other than letters, numbers, and underscores) will be encoded as underscores surrounding the Unicode value, like `_1F60A_`.
+* All pre-existing underscores will become doubled: `__`.
+* If a string should start with "U__" already, it will need to be escaped: `U___55_____`. (That's `U__` + `_55_` (for `U`) + `__` + `__`).
+
+For example, the label `"foo.bar"="baz"` would be escaped like: 
+  
+    /metrics/job/example/U__foo_2e_bar/baz
+
+This escaping is compatible with the base64 encoding for label values:
+
+    /metrics/job/example/U__foo_2e_bar@base64/YmF6
+
 ### `PUT` method
 
 `PUT` is used to push a group of metrics. All metrics with the

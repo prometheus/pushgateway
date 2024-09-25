@@ -41,7 +41,11 @@ const (
 	Base64Suffix = "@base64"
 )
 
-var EscapingScheme = model.NoEscaping
+var (
+	// EscapingScheme is provided when unescaping label names in the
+	// request URL path to define the escaping scheme that will be used.
+	EscapingScheme = model.NoEscaping
+)
 
 // Push returns an http.Handler which accepts samples over HTTP and stores them
 // in the MetricStore. If replace is true, all metrics for the job and instance
