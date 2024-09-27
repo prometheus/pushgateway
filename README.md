@@ -320,27 +320,38 @@ Examples:
   
       /metrics/job/titan/name@base64/zqDPgc6_zrzOt864zrXPjc-C
 
-### UTF-8 support
+### UTF-8 support for metric and label names
 
-UTF-8 characters in metric and label names are supported by enabling
-the `--push.enable-utf8-names` flag. The syntax is as follows:
+Newer versions of the Prometheus exposition formats (text and protobuf)
+support the full UTF-8 character set in metric and label names. The
+Pushgateway only accepts special characters in names if the command line
+flag `--push.enable-utf8-names` is set.
+To allow special characters in label names that are part of the URL path, the flag also enables a
+[specific encoding mechanism](https://github.com/prometheus/proposals/blob/main/proposals/2023-08-21-utf8.md#text-escaping). This is similar to the base64 encoding for label _values_ described above,
+but works differently in detail for technical and historical reasons. As before, client libraries
+should usually take care of the encoding. It works as follows:
 
-    {"some.metric", "foo.bar"="baz"}
+* A label name containing encoded characters starts with `U__`.
+* All non-standard characters (i.e. characters other than letters, numbers, and underscores) are encoded as underscores surrounding their Unicode value, like `_1F60A_`.
+* All pre-existing underscores are encoded as a double-underscore: `__`.
+* If a label name starts with `U__` already, these characters have to be encoded as well, resulting in `U___55_____`. (That's `U__` + `_55_` (for `U`) + `__` + `__`).
+* A label name starting with `U__` in it's encoded form, but containing invalid sequences (e.g. `U__in_xxx_valid`) is left unchanged.
 
-For UTF-8 label names defined in the URL path, [an escaping syntax](https://github.com/prometheus/proposals/blob/main/proposals/2023-08-21-utf8.md#text-escaping) is used.
-
-* Prefix the string with `U__`.
-* All non-valid characters (i.e. characters other than letters, numbers, and underscores) will be encoded as underscores surrounding the Unicode value, like `_1F60A_`.
-* All pre-existing underscores will become doubled: `__`.
-* If a string should start with "U__" already, it will need to be escaped: `U___55_____`. (That's `U__` + `_55_` (for `U`) + `__` + `__`).
-
-For example, the label `"foo.bar"="baz"` would be escaped like: 
+For example, the label `"foo.bar"="baz"` would be encoded like: 
   
     /metrics/job/example/U__foo_2e_bar/baz
 
-This escaping is compatible with the base64 encoding for label values:
+This encoding is compatible with the base64 encoding for label values:
 
     /metrics/job/example/U__foo_2e_bar@base64/YmF6
+
+Note that this method has an unlikely edge case that is not handled properly: 
+A pusher unaware of the encoding mechanism might use a label name that is 
+also a valid encoded version of another label name. 
+E.g. if a pusher intends to use the label name `U__foo_2e_bar`, but doesn't 
+encode it as `U___55_____foo__2e__bar`, the Pushgateway will decode 
+`U__foo_2e_bar` to `foo.bar`. This is the main reason why the decoding is 
+opt-in via the `--push.enable-utf8-names` flag.
 
 ### `PUT` method
 
