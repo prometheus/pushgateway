@@ -13,7 +13,7 @@ require (
 	github.com/prometheus/client_golang v1.20.4
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.59.1
-	github.com/prometheus/exporter-toolkit v0.12.0
+	github.com/prometheus/exporter-toolkit v0.13.0
 	github.com/shurcooL/vfsgen v0.0.0-20230704071429-0000e147ea92
 	google.golang.org/protobuf v1.34.2
 )
