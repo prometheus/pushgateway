@@ -41,6 +41,12 @@ const (
 	Base64Suffix = "@base64"
 )
 
+var (
+	// EscapingScheme is provided when unescaping label names in the
+	// request URL path to define the escaping scheme that will be used.
+	EscapingScheme = model.NoEscaping
+)
+
 // Push returns an http.Handler which accepts samples over HTTP and stores them
 // in the MetricStore. If replace is true, all metrics for the job and instance
 // given by the request are deleted before new ones are stored. If check is
@@ -180,19 +186,20 @@ func splitLabels(labels string) (map[string]string, error) {
 	for i := 0; i < len(components)-1; i += 2 {
 		name, value := components[i], components[i+1]
 		trimmedName := strings.TrimSuffix(name, Base64Suffix)
-		if !model.LabelNameRE.MatchString(trimmedName) ||
+		unescapedName := model.UnescapeName(trimmedName, EscapingScheme)
+		if !model.LabelName(unescapedName).IsValid() ||
 			strings.HasPrefix(trimmedName, model.ReservedLabelPrefix) {
 			return nil, fmt.Errorf("improper label name %q", trimmedName)
 		}
 		if name == trimmedName {
-			result[name] = value
+			result[unescapedName] = value
 			continue
 		}
 		decodedValue, err := decodeBase64(value)
 		if err != nil {
 			return nil, fmt.Errorf("invalid base64 encoding for label %s=%q: %v", trimmedName, value, err)
 		}
-		result[trimmedName] = decodedValue
+		result[unescapedName] = decodedValue
 	}
 	return result, nil
 }
