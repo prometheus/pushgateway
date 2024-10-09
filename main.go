@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/pprof"
 	"net/url"
@@ -29,37 +30,29 @@ import (
 	"syscall"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
-	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/common/promlog"
+	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/route"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
+
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
+	dto "github.com/prometheus/client_model/go"
+	promslogflag "github.com/prometheus/common/promslog/flag"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 
-	dto "github.com/prometheus/client_model/go"
-	promlogflag "github.com/prometheus/common/promlog/flag"
-
-	api_v1 "github.com/prometheus/pushgateway/api/v1"
 	"github.com/prometheus/pushgateway/asset"
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
+
+	api_v1 "github.com/prometheus/pushgateway/api/v1"
 )
 
 func init() {
 	prometheus.MustRegister(versioncollector.NewCollector("pushgateway"))
-}
-
-// logFunc in an adaptor to plug gokit logging into promhttp.HandlerOpts.
-type logFunc func(...interface{}) error
-
-func (lf logFunc) Println(v ...interface{}) {
-	lf("msg", fmt.Sprintln(v...))
 }
 
 func main() {
@@ -75,22 +68,22 @@ func main() {
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 		pushUnchecked       = app.Flag("push.disable-consistency-check", "Do not check consistency of pushed metrics. DANGEROUS.").Default("false").Bool()
 		pushUTF8Names       = app.Flag("push.enable-utf8-names", "Allow UTF-8 characters in metric and label names.").Default("false").Bool()
-		promlogConfig       = promlog.Config{}
+		promlogConfig       = promslog.Config{Style: promslog.GoKitStyle}
 	)
-	promlogflag.AddFlags(app, &promlogConfig)
+	promslogflag.AddFlags(app, &promlogConfig)
 	app.Version(version.Print("pushgateway"))
 	app.HelpFlag.Short('h')
 	kingpin.MustParse(app.Parse(os.Args[1:]))
-	logger := promlog.New(&promlogConfig)
+	logger := promslog.New(&promlogConfig)
 
 	*routePrefix = computeRoutePrefix(*routePrefix, *externalURL)
 	externalPathPrefix := computeRoutePrefix("", *externalURL)
 
-	level.Info(logger).Log("msg", "starting pushgateway", "version", version.Info())
-	level.Info(logger).Log("build_context", version.BuildContext())
-	level.Debug(logger).Log("msg", "external URL", "url", *externalURL)
-	level.Debug(logger).Log("msg", "path prefix used externally", "path", externalPathPrefix)
-	level.Debug(logger).Log("msg", "path prefix for internal routing", "path", *routePrefix)
+	logger.Info("starting pushgateway", "version", version.Info())
+	logger.Info("Build context", "build_context", version.BuildContext())
+	logger.Debug("external URL", "url", *externalURL)
+	logger.Debug("path prefix used externally", "path", externalPathPrefix)
+	logger.Debug("path prefix for internal routing", "path", *routePrefix)
 
 	// flags is used to show command line flags on the status page.
 	// Kingpin default flags are excluded as they would be confusing.
@@ -124,7 +117,7 @@ func main() {
 	r.Get(
 		path.Join(*routePrefix, *metricsPath),
 		promhttp.HandlerFor(g, promhttp.HandlerOpts{
-			ErrorLog: logFunc(level.Error(logger).Log),
+			ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError),
 		}).ServeHTTP,
 	)
 
@@ -206,13 +199,13 @@ func main() {
 
 	// In the case of a graceful shutdown, do not log the error.
 	if err == http.ErrServerClosed {
-		level.Info(logger).Log("msg", "HTTP server stopped")
+		logger.Info("HTTP server stopped")
 	} else {
-		level.Error(logger).Log("msg", "HTTP server stopped", "err", err)
+		logger.Error("HTTP server stopped", "err", err)
 	}
 
 	if err := ms.Shutdown(); err != nil {
-		level.Error(logger).Log("msg", "problem shutting down metric storage", "err", err)
+		logger.Error("problem shutting down metric storage", "err", err)
 	}
 }
 
@@ -277,16 +270,16 @@ func computeRoutePrefix(prefix string, externalURL *url.URL) string {
 
 // shutdownServerOnQuit shutdowns the provided server upon closing the provided
 // quitCh or upon receiving a SIGINT or SIGTERM.
-func shutdownServerOnQuit(server *http.Server, quitCh <-chan struct{}, logger log.Logger) error {
+func shutdownServerOnQuit(server *http.Server, quitCh <-chan struct{}, logger *slog.Logger) error {
 	notifier := make(chan os.Signal, 1)
 	signal.Notify(notifier, os.Interrupt, syscall.SIGTERM)
 
 	select {
 	case <-notifier:
-		level.Info(logger).Log("msg", "received SIGINT/SIGTERM; exiting gracefully...")
+		logger.Info("received SIGINT/SIGTERM; exiting gracefully...")
 		break
 	case <-quitCh:
-		level.Warn(logger).Log("msg", "received termination request via web service, exiting gracefully...")
+		logger.Warn("received termination request via web service, exiting gracefully...")
 		break
 	}
 	return server.Shutdown(context.Background())

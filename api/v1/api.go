@@ -15,13 +15,14 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
-	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/route"
+
+	dto "github.com/prometheus/client_model/go"
 
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/histogram"
@@ -74,7 +75,7 @@ func setCORS(w http.ResponseWriter) {
 
 // API provides registration of handlers for API routes.
 type API struct {
-	logger      log.Logger
+	logger      *slog.Logger
 	MetricStore storage.MetricStore
 	Flags       map[string]string
 	StartTime   time.Time
@@ -83,13 +84,13 @@ type API struct {
 
 // New returns a new API. The log.Logger can be nil, in which case no logging is performed.
 func New(
-	l log.Logger,
+	l *slog.Logger,
 	ms storage.MetricStore,
 	flags map[string]string,
 	buildInfo map[string]string,
 ) *API {
 	if l == nil {
-		l = log.NewNopLogger()
+		l = promslog.NewNopLogger()
 	}
 
 	return &API{
@@ -175,7 +176,7 @@ func (api *API) respond(w http.ResponseWriter, data interface{}) {
 		Data:   data,
 	})
 	if err != nil {
-		level.Error(api.logger).Log("msg", "error marshaling JSON", "err", err)
+		api.logger.Error("error marshaling JSON", "err", err)
 		api.respondError(w, apiError{
 			typ: errorBadData,
 			err: err,
@@ -183,7 +184,7 @@ func (api *API) respond(w http.ResponseWriter, data interface{}) {
 	}
 
 	if _, err := w.Write(b); err != nil {
-		level.Error(api.logger).Log("msg", "failed to write data to connection", "err", err)
+		api.logger.Error("failed to write data to connection", "err", err)
 	}
 }
 
@@ -208,10 +209,10 @@ func (api *API) respondError(w http.ResponseWriter, apiErr apiError, data interf
 	if err != nil {
 		return
 	}
-	level.Error(api.logger).Log("msg", "API error", "err", apiErr.Error())
+	api.logger.Error("API error", "err", apiErr.Error())
 
 	if _, err := w.Write(b); err != nil {
-		level.Error(api.logger).Log("msg", "failed to write data to connection", "err", err)
+		api.logger.Error("failed to write data to connection", "err", err)
 	}
 }
 

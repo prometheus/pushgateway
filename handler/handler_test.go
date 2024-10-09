@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/route"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
@@ -35,7 +35,7 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
-var logger = log.NewNopLogger()
+var logger = promslog.NewNopLogger()
 
 // MockMetricStore isn't doing any of the validation and sanitation a real
 // metric store implementation has to do. Those are tested in the storage

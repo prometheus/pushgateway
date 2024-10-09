@@ -14,11 +14,9 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
-
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -28,13 +26,13 @@ import (
 // The returned handler is already instrumented for Prometheus.
 func WipeMetricStore(
 	ms storage.MetricStore,
-	logger log.Logger) http.Handler {
+	logger *slog.Logger) http.Handler {
 
 	return InstrumentWithCounter(
 		"wipe",
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusAccepted)
-			level.Debug(logger).Log("msg", "start wiping metric store")
+			logger.Debug("start wiping metric store")
 			// Delete all metric groups by sending write requests with MetricFamilies equal to nil.
 			for _, group := range ms.GetMetricFamiliesMap() {
 				ms.SubmitWriteRequest(storage.WriteRequest{
