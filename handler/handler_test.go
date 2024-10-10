@@ -23,10 +23,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/route"
+	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 
@@ -35,7 +35,7 @@ import (
 	"github.com/prometheus/pushgateway/storage"
 )
 
-var logger = log.NewNopLogger()
+var logger = promslog.NewNopLogger()
 
 // MockMetricStore isn't doing any of the validation and sanitation a real
 // metric store implementation has to do. Those are tested in the storage
@@ -335,7 +335,7 @@ func TestPush(t *testing.T) {
 	// With job name and instance name and protobuf content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	buf := &bytes.Buffer{}
-	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
 		Name: proto.String("some_metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
@@ -350,7 +350,7 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
 		Name: proto.String("another_metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
@@ -365,7 +365,7 @@ func TestPush(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
 		Name: proto.String("histogram_metric"),
 		Type: dto.MetricType_HISTOGRAM.Enum(),
 		Metric: []*dto.Metric{
@@ -518,7 +518,7 @@ func TestPushUTF8(t *testing.T) {
 	// With job name, instance name, UTF-8 escaped label name in params, UTF-8 metric names and protobuf content.
 	mms.lastWriteRequest = storage.WriteRequest{}
 	buf := &bytes.Buffer{}
-	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
 		Name: proto.String("some.metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
@@ -533,7 +533,7 @@ func TestPushUTF8(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
 		Name: proto.String("another.metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
@@ -548,7 +548,7 @@ func TestPushUTF8(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = pbutil.WriteDelimited(buf, &dto.MetricFamily{
+	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
 		Name: proto.String("histogram.metric"),
 		Type: dto.MetricType_HISTOGRAM.Enum(),
 		Metric: []*dto.Metric{

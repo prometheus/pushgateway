@@ -19,15 +19,15 @@ import (
 	"html"
 	"html/template"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/prometheus/common/version"
 
 	dto "github.com/prometheus/client_model/go"
-	"github.com/prometheus/common/version"
+
 	"github.com/prometheus/pushgateway/histogram"
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -58,7 +58,7 @@ func Status(
 	root http.FileSystem,
 	flags map[string]string,
 	pathPrefix string,
-	logger log.Logger,
+	logger *slog.Logger,
 ) http.Handler {
 	birth := time.Now()
 	return InstrumentWithCounter(
@@ -90,20 +90,20 @@ func Status(
 			f, err := root.Open("template.html")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-				level.Error(logger).Log("msg", "error loading template.html", "err", err.Error())
+				logger.Error("error loading template.html", "err", err.Error())
 				return
 			}
 			defer f.Close()
 			tpl, err := io.ReadAll(f)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-				level.Error(logger).Log("msg", "error reading template.html", "err", err.Error())
+				logger.Error("error reading template.html", "err", err.Error())
 				return
 			}
 			_, err = t.Parse(string(tpl))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-				level.Error(logger).Log("msg", "error parsing template", "err", err.Error())
+				logger.Error("error parsing template", "err", err.Error())
 				return
 			}
 

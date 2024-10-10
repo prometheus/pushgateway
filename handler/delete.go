@@ -15,11 +15,10 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/pushgateway/storage"
@@ -28,7 +27,7 @@ import (
 // Delete returns a handler that accepts delete requests.
 //
 // The returned handler is already instrumented for Prometheus.
-func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) func(http.ResponseWriter, *http.Request) {
+func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger *slog.Logger) func(http.ResponseWriter, *http.Request) {
 	instrumentedHandler := InstrumentWithCounter(
 		"delete",
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +36,7 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 				var err error
 				if job, err = decodeBase64(job); err != nil {
 					http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", job, err), http.StatusBadRequest)
-					level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", job, "err", err.Error())
+					logger.Debug("invalid base64 encoding in job name", "job", job, "err", err.Error())
 					return
 				}
 			}
@@ -45,12 +44,12 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger log.Logger) fu
 			labels, err := splitLabels(labelsString)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
-				level.Debug(logger).Log("msg", "failed to parse URL", "url", labelsString, "err", err.Error())
+				logger.Debug("failed to parse URL", "url", labelsString, "err", err.Error())
 				return
 			}
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
-				level.Debug(logger).Log("msg", "job name is required")
+				logger.Debug("job name is required")
 				return
 			}
 			labels["job"] = job

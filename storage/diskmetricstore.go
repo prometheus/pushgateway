@@ -17,6 +17,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"sort"
@@ -24,13 +25,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
-
 	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/common/promslog"
 
 	dto "github.com/prometheus/client_model/go"
 )
@@ -55,7 +54,7 @@ type DiskMetricStore struct {
 	metricGroups    GroupingKeyToMetricGroup
 	persistenceFile string
 	predefinedHelp  map[string]string
-	logger          log.Logger
+	logger          *slog.Logger
 }
 
 type mfStat struct {
@@ -80,7 +79,7 @@ func NewDiskMetricStore(
 	persistenceFile string,
 	persistenceInterval time.Duration,
 	gatherPredefinedHelpFrom prometheus.Gatherer,
-	logger log.Logger,
+	logger *slog.Logger,
 ) *DiskMetricStore {
 	// TODO: Do that outside of the constructor to allow the HTTP server to
 	//  serve /-/healthy and /-/ready earlier.
@@ -93,12 +92,12 @@ func NewDiskMetricStore(
 		logger:          logger,
 	}
 	if err := dms.restore(); err != nil {
-		level.Error(logger).Log("msg", "could not load persisted metrics", "err", err)
+		logger.Error("could not load persisted metrics", "err", err)
 	}
 	if helpStrings, err := extractPredefinedHelpStrings(gatherPredefinedHelpFrom); err == nil {
 		dms.predefinedHelp = helpStrings
 	} else {
-		level.Error(logger).Log("msg", "could not gather metrics for predefined help strings", "err", err)
+		logger.Error("could not gather metrics for predefined help strings", "err", err)
 	}
 
 	go dms.loop(persistenceInterval)
@@ -126,7 +125,7 @@ func (dms *DiskMetricStore) Healthy() error {
 	// considered as healthy.
 	if len(dms.writeQueue) == cap(dms.writeQueue) {
 		err := fmt.Errorf("write queue is full")
-		level.Warn(dms.logger).Log("msg", err)
+		dms.logger.Warn(err.Error())
 		return err
 	}
 
@@ -150,7 +149,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 		for name, tmf := range group.Metrics {
 			mf := tmf.GetMetricFamily()
 			if mf == nil {
-				level.Warn(dms.logger).Log("msg", "storage corruption detected, consider wiping the persistence file")
+				dms.logger.Warn("storage corruption detected, consider wiping the persistence file")
 				continue
 			}
 			stat, exists := mfStatByName[name]
@@ -165,7 +164,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 					result[stat.pos] = existingMF
 				}
 				if mf.GetHelp() != existingMF.GetHelp() {
-					level.Info(dms.logger).Log("msg", "metric families inconsistent help strings", "err", "Metric families have inconsistent help strings. The latter will have priority. This is bad. Fix your pushed metrics!", "new", mf, "old", existingMF)
+					dms.logger.Info("metric families inconsistent help strings", "err", "Metric families have inconsistent help strings. The latter will have priority. This is bad. Fix your pushed metrics!", "new", mf, "old", existingMF)
 				}
 				// Type inconsistency cannot be fixed here. We will detect it during
 				// gathering anyway, so no reason to log anything here.
@@ -173,7 +172,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 			} else {
 				copied := false
 				if help, ok := dms.predefinedHelp[name]; ok && mf.GetHelp() != help {
-					level.Info(dms.logger).Log("msg", "metric families overlap", "err", "Metric family has the same name as a metric family used by the Pushgateway itself but it has a different help string. Changing it to the standard help string. This is bad. Fix your pushed metrics!", "metric_family", mf, "standard_help", help)
+					dms.logger.Info("metric families overlap", "err", "Metric family has the same name as a metric family used by the Pushgateway itself but it has a different help string. Changing it to the standard help string. This is bad. Fix your pushed metrics!", "metric_family", mf, "standard_help", help)
 					mf = copyMetricFamily(mf)
 					copied = true
 					mf.Help = proto.String(help)
@@ -218,9 +217,9 @@ func (dms *DiskMetricStore) loop(persistenceInterval time.Duration) {
 				func() {
 					persistStarted := time.Now()
 					if err := dms.persist(); err != nil {
-						level.Error(dms.logger).Log("msg", "error persisting metrics", "err", err)
+						dms.logger.Error("error persisting metrics", "err", err)
 					} else {
-						level.Info(dms.logger).Log("msg", "metrics persisted", "file", dms.persistenceFile)
+						dms.logger.Info("metrics persisted", "file", dms.persistenceFile)
 					}
 					persistDone <- persistStarted
 				},
@@ -381,7 +380,7 @@ func (dms *DiskMetricStore) checkWriteRequest(wr WriteRequest) bool {
 	tdms := &DiskMetricStore{
 		metricGroups:   dms.GetMetricFamiliesMap(),
 		predefinedHelp: dms.predefinedHelp,
-		logger:         log.NewNopLogger(),
+		logger:         promslog.NewNopLogger(),
 	}
 	tdms.processWriteRequest(wr)
 

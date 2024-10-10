@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
 	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
 	"github.com/golang/protobuf/proto"
+	"github.com/prometheus/common/promslog"
 
 	dto "github.com/prometheus/client_model/go"
 
@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	logger    = log.NewNopLogger()
+	logger    = promslog.NewNopLogger()
 	testFlags = map[string]string{
 		"flag1": "value1",
 		"flag2": "value2",

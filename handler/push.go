@@ -14,21 +14,21 @@
 package handler
 
 import (
+	"bufio"
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
-	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
+	"google.golang.org/protobuf/encoding/protodelim"
 
 	dto "github.com/prometheus/client_model/go"
 
@@ -58,7 +58,7 @@ var (
 func Push(
 	ms storage.MetricStore,
 	replace, check, jobBase64Encoded bool,
-	logger log.Logger,
+	logger *slog.Logger,
 ) func(http.ResponseWriter, *http.Request) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		job := route.Param(r.Context(), "job")
@@ -66,7 +66,7 @@ func Push(
 			var err error
 			if job, err = decodeBase64(job); err != nil {
 				http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", job, err), http.StatusBadRequest)
-				level.Debug(logger).Log("msg", "invalid base64 encoding in job name", "job", job, "err", err.Error())
+				logger.Debug("invalid base64 encoding in job name", "job", job, "err", err.Error())
 				return
 			}
 		}
@@ -74,12 +74,12 @@ func Push(
 		labels, err := splitLabels(labelsString)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			level.Debug(logger).Log("msg", "failed to parse URL", "url", labelsString, "err", err.Error())
+			logger.Debug("failed to parse URL", "url", labelsString, "err", err.Error())
 			return
 		}
 		if job == "" {
 			http.Error(w, "job name is required", http.StatusBadRequest)
-			level.Debug(logger).Log("msg", "job name is required")
+			logger.Debug("job name is required")
 			return
 		}
 		labels["job"] = job
@@ -90,9 +90,13 @@ func Push(
 			ctParams["encoding"] == "delimited" &&
 			ctParams["proto"] == "io.prometheus.client.MetricFamily" {
 			metricFamilies = map[string]*dto.MetricFamily{}
+			unmarshaler := protodelim.UnmarshalOptions{
+				MaxSize: -1,
+			}
+			in := bufio.NewReader(r.Body)
 			for {
 				mf := &dto.MetricFamily{}
-				if _, err = pbutil.ReadDelimited(r.Body, mf); err != nil {
+				if err = unmarshaler.UnmarshalFrom(in, mf); err != nil {
 					if err == io.EOF {
 						err = nil
 					}
@@ -109,7 +113,7 @@ func Push(
 		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			level.Debug(logger).Log("msg", "failed to parse text", "source", r.RemoteAddr, "err", err.Error())
+			logger.Debug("failed to parse text", "source", r.RemoteAddr, "err", err.Error())
 			return
 		}
 		now := time.Now()
@@ -144,8 +148,8 @@ func Push(
 					http.StatusBadRequest,
 				)
 			}
-			level.Error(logger).Log(
-				"msg", "pushed metrics are invalid or inconsistent with existing metrics",
+			logger.Error(
+				"pushed metrics are invalid or inconsistent with existing metrics",
 				"method", r.Method,
 				"source", r.RemoteAddr,
 				"err", err.Error(),
