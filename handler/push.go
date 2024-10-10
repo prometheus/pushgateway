@@ -14,6 +14,7 @@
 package handler
 
 import (
+	"bufio"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -23,11 +24,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
+	"google.golang.org/protobuf/encoding/protodelim"
 
 	dto "github.com/prometheus/client_model/go"
 
@@ -89,9 +90,13 @@ func Push(
 			ctParams["encoding"] == "delimited" &&
 			ctParams["proto"] == "io.prometheus.client.MetricFamily" {
 			metricFamilies = map[string]*dto.MetricFamily{}
+			unmarshaler := protodelim.UnmarshalOptions{
+				MaxSize: -1,
+			}
+			in := bufio.NewReader(r.Body)
 			for {
 				mf := &dto.MetricFamily{}
-				if _, err = pbutil.ReadDelimited(r.Body, mf); err != nil {
+				if err = unmarshaler.UnmarshalFrom(in, mf); err != nil {
 					if err == io.EOF {
 						err = nil
 					}

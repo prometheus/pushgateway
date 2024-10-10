@@ -8,7 +8,6 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/golang/protobuf v1.5.4
 	github.com/golang/snappy v0.0.4
-	github.com/matttproud/golang_protobuf_extensions v1.0.4
 	github.com/prometheus/client_golang v1.20.4
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.60.0
