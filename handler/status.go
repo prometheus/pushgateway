@@ -16,6 +16,7 @@ package handler
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/prometheus/common/model"
 	"html"
 	"html/template"
 	"io"
@@ -84,6 +85,12 @@ func Status(
 				},
 				"add": func(x, y int) int {
 					return x + y
+				},
+				"formatLabelName": func(s string) string {
+					if !model.LabelName(s).IsValidLegacy() {
+						return fmt.Sprintf("%q", s)
+					}
+					return s
 				},
 			})
 
