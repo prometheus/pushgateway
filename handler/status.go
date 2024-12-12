@@ -16,7 +16,6 @@ package handler
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/prometheus/common/model"
 	"html"
 	"html/template"
 	"io"
@@ -25,6 +24,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/version"
 
 	dto "github.com/prometheus/client_model/go"
