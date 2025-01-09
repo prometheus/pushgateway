@@ -1,3 +1,8 @@
+## 1.11.0 / 2025-01-09
+
+* [FEATURE] Support full UTF-8 character set in metric and label names. #689 #710
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
+
 ## 1.10.0 / 2024-09-19
 
 * [FEATURE] API: Support classic float histograms. #668
