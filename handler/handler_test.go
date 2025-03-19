@@ -438,7 +438,7 @@ func TestPush(t *testing.T) {
 }
 
 func TestPushUTF8(t *testing.T) {
-	model.NameValidationScheme = model.UTF8Validation
+	model.NameValidationScheme = model.UTF8Validation // nolint:staticcheck // Ignore SA1019 as there is no other way to do the switch.
 	EscapingScheme = model.ValueEncodingEscaping
 	mms := MockMetricStore{}
 	handler := Push(&mms, false, true, false, logger)
@@ -622,7 +622,7 @@ func TestPushUTF8(t *testing.T) {
 	// Note that sanitation hasn't happened yet, grouping labels not in request.
 	verifyMetricFamily(t, `name:"histogram.metric" type:HISTOGRAM metric:{histogram:{sample_count_float:20  sample_sum:99.23  schema:1  negative_span:{offset:0  length:2}  negative_span:{offset:0  length:2}  negative_count:2  negative_count:2  negative_count:-2  negative_count:0  positive_span:{offset:0  length:2}  positive_span:{offset:0  length:2}  positive_count:2  positive_count:2  positive_count:-2  positive_count:0}}`, mms.lastWriteRequest.MetricFamilies["histogram.metric"])
 
-	model.NameValidationScheme = model.LegacyValidation
+	model.NameValidationScheme = model.LegacyValidation // nolint:staticcheck // Ignore SA1019 as there is no other way to do the switch.
 	EscapingScheme = model.NoEscaping
 }
 
@@ -716,7 +716,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestDeleteUTF8(t *testing.T) {
-	model.NameValidationScheme = model.UTF8Validation
+	model.NameValidationScheme = model.UTF8Validation // nolint:staticcheck // Ignore SA1019 as there is no other way to do the switch.
 	EscapingScheme = model.ValueEncodingEscaping
 	mms := MockMetricStore{}
 	handler := Delete(&mms, false, logger)
@@ -776,7 +776,7 @@ func TestDeleteUTF8(t *testing.T) {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
 
-	model.NameValidationScheme = model.LegacyValidation
+	model.NameValidationScheme = model.LegacyValidation // nolint:staticcheck // Ignore SA1019 as there is no other way to do the switch.
 	EscapingScheme = model.NoEscaping
 }
 
@@ -887,7 +887,7 @@ func TestSplitLabelsUTF8(t *testing.T) {
 		},
 	}
 
-	model.NameValidationScheme = model.UTF8Validation
+	model.NameValidationScheme = model.UTF8Validation // nolint:staticcheck // Ignore SA1019 as there is no other way to do the switch.
 	EscapingScheme = model.ValueEncodingEscaping
 
 	for name, scenario := range scenarios {
@@ -915,7 +915,7 @@ func TestSplitLabelsUTF8(t *testing.T) {
 		})
 	}
 
-	model.NameValidationScheme = model.LegacyValidation
+	model.NameValidationScheme = model.LegacyValidation // nolint:staticcheck // Ignore SA1019 as there is no other way to do the switch.
 	EscapingScheme = model.NoEscaping
 }
 
