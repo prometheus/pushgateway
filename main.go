@@ -98,10 +98,9 @@ func main() {
 	ms := storage.NewDiskMetricStore(*persistenceFile, *persistenceInterval, prometheus.DefaultGatherer, logger)
 
 	if *pushUTF8Names {
-		model.NameValidationScheme = model.UTF8Validation
 		handler.EscapingScheme = model.ValueEncodingEscaping
 	} else {
-		model.NameValidationScheme = model.LegacyValidation
+		model.NameValidationScheme = model.LegacyValidation // nolint:staticcheck // Ignore SA1019 as there is no other way to do the switch.
 		handler.EscapingScheme = model.NoEscaping
 	}
 
