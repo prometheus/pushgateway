@@ -145,6 +145,15 @@ Examples:
 
         curl -X PUT http://pushgateway.example.org:9091/api/v1/admin/wipe
 
+  #### MS Windows Users
+MS Windows users could send http requests to the pushgateway using Powershell. 
+
+Example:
+
+         Invoke-WebRequest -Uri http://localhost:9091/metrics/job/MyJob -Method POST -Body "Some_Metric 3.14`n"
+
+Double quotes should be used to enclose the metric text, and the back tick (`) character should come before the line ending character (n) at the end.
+
 ### About the job and instance labels
 
 The Prometheus server will attach a `job` label and an `instance` label to each
