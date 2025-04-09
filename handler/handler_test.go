@@ -979,7 +979,7 @@ func verifyMetricFamily(t *testing.T, expText string, got *dto.MetricFamily) {
 		t.Errorf("unexpected error marshaling MetricFamily %v", exp)
 	}
 
-	if bytes.Compare(expProto, gotProto) != 0 {
+	if !bytes.Equal(expProto, gotProto) {
 		t.Errorf("Wanted metric family %v, got %v.", exp, got)
 	}
 }
