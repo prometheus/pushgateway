@@ -145,7 +145,7 @@ Examples:
 
         curl -X PUT http://pushgateway.example.org:9091/api/v1/admin/wipe
 
-  #### MS Windows Users
+#### Note for MS Windows users
 
 MS Windows users can send HTTP requests to the Pushgateway using Powershell. 
 
