@@ -55,7 +55,6 @@ func TestRoutePrefixForStatic(t *testing.T) {
 		{"/route-prefix", "/index.js", 200},
 		{"/route-prefix", "/missing.js", 404},
 	} {
-		test := test
 		t.Run(fmt.Sprintf("%v", test), func(t *testing.T) {
 			t.Parallel()
 			req, err := http.NewRequest(

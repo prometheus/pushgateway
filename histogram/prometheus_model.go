@@ -71,10 +71,10 @@ func NewModelHistogram(ch *dto.Histogram) (*model.Histogram, *model.FloatHistogr
 	return &h, nil
 }
 
-func BucketsAsJson[BC model.BucketCount](buckets []APIBucket[BC]) [][]interface{} {
-	ret := make([][]interface{}, len(buckets))
+func BucketsAsJson[BC model.BucketCount](buckets []APIBucket[BC]) [][]any {
+	ret := make([][]any, len(buckets))
 	for i, b := range buckets {
-		ret[i] = []interface{}{b.Boundaries, fmt.Sprintf("%v", b.Lower), fmt.Sprintf("%v", b.Upper), fmt.Sprintf("%v", b.Count)}
+		ret[i] = []any{b.Boundaries, fmt.Sprintf("%v", b.Lower), fmt.Sprintf("%v", b.Upper), fmt.Sprintf("%v", b.Count)}
 	}
 	return ret
 }

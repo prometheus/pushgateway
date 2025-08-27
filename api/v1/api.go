@@ -130,9 +130,9 @@ type metrics struct {
 
 func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 	familyMaps := api.MetricStore.GetMetricFamiliesMap()
-	res := []interface{}{}
+	res := []any{}
 	for _, v := range familyMaps {
-		metricResponse := map[string]interface{}{}
+		metricResponse := map[string]any{}
 		metricResponse["labels"] = v.Labels
 		metricResponse["last_push_successful"] = v.LastPushSuccess()
 		for name, metricValues := range v.Metrics {
@@ -152,7 +152,7 @@ func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) status(w http.ResponseWriter, r *http.Request) {
-	res := map[string]interface{}{}
+	res := map[string]any{}
 	res["flags"] = api.Flags
 	res["start_time"] = api.StartTime
 	res["build_information"] = api.BuildInfo
@@ -161,13 +161,13 @@ func (api *API) status(w http.ResponseWriter, r *http.Request) {
 }
 
 type response struct {
-	Status    status      `json:"status"`
-	Data      interface{} `json:"data,omitempty"`
-	ErrorType errorType   `json:"errorType,omitempty"`
-	Error     string      `json:"error,omitempty"`
+	Status    status    `json:"status"`
+	Data      any       `json:"data,omitempty"`
+	ErrorType errorType `json:"errorType,omitempty"`
+	Error     string    `json:"error,omitempty"`
 }
 
-func (api *API) respond(w http.ResponseWriter, data interface{}) {
+func (api *API) respond(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
@@ -188,7 +188,7 @@ func (api *API) respond(w http.ResponseWriter, data interface{}) {
 	}
 }
 
-func (api *API) respondError(w http.ResponseWriter, apiErr apiError, data interface{}) {
+func (api *API) respondError(w http.ResponseWriter, apiErr apiError, data any) {
 	w.Header().Set("Content-Type", "application/json")
 
 	switch apiErr.typ {
@@ -216,7 +216,7 @@ func (api *API) respondError(w http.ResponseWriter, apiErr apiError, data interf
 	}
 }
 
-type encodableMetric map[string]interface{}
+type encodableMetric map[string]any
 
 func makeEncodableMetrics(metrics []*dto.Metric, metricsType dto.MetricType) []encodableMetric {
 

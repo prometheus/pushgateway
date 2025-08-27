@@ -193,8 +193,8 @@ var (
 	}
 )
 
-func convertMap(m map[string]string) map[string]interface{} {
-	result := map[string]interface{}{}
+func convertMap(m map[string]string) map[string]any {
+	result := map[string]any{}
 	for k, v := range m {
 		result[k] = v
 	}
@@ -215,9 +215,9 @@ func TestStatusAPI(t *testing.T) {
 	testResponse := response{}
 	testAPI.status(w, req)
 	json.Unmarshal(w.Body.Bytes(), &testResponse)
-	jsonData := testResponse.Data.(map[string]interface{})
-	responseFlagData := jsonData["flags"].(map[string]interface{})
-	responseBuildInfo := jsonData["build_information"].(map[string]interface{})
+	jsonData := testResponse.Data.(map[string]any)
+	responseFlagData := jsonData["flags"].(map[string]any)
+	responseBuildInfo := jsonData["build_information"].(map[string]any)
 
 	if expected, got := http.StatusOK, w.Code; expected != got {
 		t.Errorf("Wanted status code %v, got %v.", expected, got)
