@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"path"
 	"sort"
@@ -196,9 +197,7 @@ func (dms *DiskMetricStore) GetMetricFamiliesMap() GroupingKeyToMetricGroup {
 	for k, g := range dms.metricGroups {
 		metricsCopy := make(NameToTimestampedMetricFamilyMap, len(g.Metrics))
 		groupsCopy[k] = MetricGroup{Labels: g.Labels, Metrics: metricsCopy}
-		for n, tmf := range g.Metrics {
-			metricsCopy[n] = tmf
-		}
+		maps.Copy(metricsCopy, g.Metrics)
 	}
 	return groupsCopy
 }
@@ -542,9 +541,7 @@ func sanitizeLabels(mf *dto.MetricFamily, groupingLabels map[string]string) {
 
 metric:
 	for _, m := range mf.GetMetric() {
-		for ln, lv := range groupingLabels {
-			gLabelsNotYetDone[ln] = lv
-		}
+		maps.Copy(gLabelsNotYetDone, groupingLabels)
 		hasInstanceLabel := false
 		for _, lp := range m.GetLabel() {
 			ln := lp.GetName()

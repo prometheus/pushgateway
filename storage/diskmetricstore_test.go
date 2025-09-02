@@ -963,7 +963,7 @@ func TestAddDeletePersistRestore(t *testing.T) {
 
 	// Shutdown the dms again, directly after a number of write request
 	// (to check draining).
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		dms.SubmitWriteRequest(WriteRequest{
 			Labels:         grouping5,
 			Timestamp:      ts6,

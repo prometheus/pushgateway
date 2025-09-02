@@ -925,7 +925,7 @@ func TestWipeMetricStore(t *testing.T) {
 	// requests for each of them.
 	metricCount := 5
 	mgs := storage.GroupingKeyToMetricGroup{}
-	for i := 0; i < metricCount; i++ {
+	for i := range metricCount {
 		mgs[fmt.Sprint(i)] = storage.MetricGroup{}
 	}
 	mms := MockMetricStore{metricGroups: mgs}
