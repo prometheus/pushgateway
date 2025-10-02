@@ -44,7 +44,8 @@ const (
 var (
 	// EscapingScheme is provided when unescaping label names in the
 	// request URL path to define the escaping scheme that will be used.
-	EscapingScheme = model.NoEscaping
+	EscapingScheme   = model.NoEscaping
+	ValidationScheme = model.LegacyValidation
 )
 
 // Push returns an http.Handler which accepts samples over HTTP and stores them
@@ -108,7 +109,7 @@ func Push(
 			// We could do further content-type checks here, but the
 			// fallback for now will anyway be the text format
 			// version 0.0.4, so just go for it and see if it works.
-			var parser expfmt.TextParser
+			parser := expfmt.NewTextParser(ValidationScheme)
 			metricFamilies, err = parser.TextToMetricFamilies(r.Body)
 		}
 		if err != nil {
@@ -191,7 +192,7 @@ func splitLabels(labels string) (map[string]string, error) {
 		name, value := components[i], components[i+1]
 		trimmedName := strings.TrimSuffix(name, Base64Suffix)
 		unescapedName := model.UnescapeName(trimmedName, EscapingScheme)
-		if !model.LabelName(unescapedName).IsValid() ||
+		if !ValidationScheme.IsValidLabelName(unescapedName) ||
 			strings.HasPrefix(trimmedName, model.ReservedLabelPrefix) {
 			return nil, fmt.Errorf("improper label name %q", trimmedName)
 		}

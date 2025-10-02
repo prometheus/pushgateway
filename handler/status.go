@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/version"
 
 	dto "github.com/prometheus/client_model/go"
@@ -87,7 +86,7 @@ func Status(
 					return x + y
 				},
 				"formatLabelName": func(s string) string {
-					if !model.LabelName(s).IsValidLegacy() {
+					if !ValidationScheme.IsValidLabelName(s) {
 						return fmt.Sprintf("%q", s)
 					}
 					return s
