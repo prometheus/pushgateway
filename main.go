@@ -99,9 +99,10 @@ func main() {
 
 	if *pushUTF8Names {
 		handler.EscapingScheme = model.ValueEncodingEscaping
+		handler.ValidationScheme = model.UTF8Validation
 	} else {
-		model.NameValidationScheme = model.LegacyValidation // nolint:staticcheck // Ignore SA1019 as there is no other way to do the switch.
 		handler.EscapingScheme = model.NoEscaping
+		handler.ValidationScheme = model.LegacyValidation
 	}
 
 	// Create a Gatherer combining the DefaultGatherer and the metrics from the metric store.
