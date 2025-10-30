@@ -1,3 +1,7 @@
+## 1.11.2 / 2025-10-30
+
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
+
 ## 1.11.1 / 2025-04-09
 
 * [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
