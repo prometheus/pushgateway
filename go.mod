@@ -10,13 +10,15 @@ require (
 	github.com/golang/snappy v1.0.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
-	github.com/prometheus/common v0.67.2
+	github.com/prometheus/common v0.67.4
 	github.com/prometheus/exporter-toolkit v0.15.0
 	github.com/shurcooL/vfsgen v0.0.0-20230704071429-0000e147ea92
 	google.golang.org/protobuf v1.36.10
 )
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/mdlayher/socket v0.4.1 // indirect
 	github.com/mdlayher/vsock v1.2.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
