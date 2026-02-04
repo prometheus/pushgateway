@@ -8,8 +8,8 @@ ARG OS="linux"
 COPY --chown=nobody:nobody .build/${OS}-${ARCH}/pushgateway /bin/pushgateway
 
 EXPOSE 9091
-RUN mkdir -p /pushgateway && chown nobody:nobody /pushgateway
 WORKDIR /pushgateway
+RUN chown nobody:nobody /pushgateway && chmod g+w /pushgateway
 
 USER 65534
 
