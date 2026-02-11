@@ -67,7 +67,7 @@ jobs:
           thread: ${{ matrix.thread }}
 
   publish_master:
-    # https://github.com/prometheus/promci/blob/52c7012f5f0070d7281b8db4a119e21341d43c91/actions/publish_master/action.yml
+    # https://github.com/prometheus/promci/blob/52c7012f5f0070d7281b8db4a119e21341d43c91/actions/publish_main/action.yml
     name: Publish master branch artifacts
     runs-on: ubuntu-latest
     needs: [test_go, build_all]
@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: prometheus/promci@fc721ff8497a70a93a881cd552b71af7fb3a9d53 # v0.5.4
-      - uses: ./.github/promci/actions/publish_master
+      - uses: ./.github/promci/actions/publish_main
         with:
           docker_hub_login: ${{ secrets.docker_hub_login }}
           docker_hub_password: ${{ secrets.docker_hub_password }}
