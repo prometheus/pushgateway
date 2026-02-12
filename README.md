@@ -1,6 +1,6 @@
 # Prometheus Pushgateway
 
-[![CircleCI](https://circleci.com/gh/prometheus/pushgateway/tree/master.svg?style=shield)][circleci]
+[![Build Status](https://github.com/prometheus/pushgateway/actions/workflows/ci.yml/badge.svg)](https://github.com/prometheus/pushgateway/actions/workflows/ci.yml)
 [![Docker Repository on Quay](https://quay.io/repository/prometheus/pushgateway/status)][quay]
 [![Docker Pulls](https://img.shields.io/docker/pulls/prom/pushgateway.svg?maxAge=604800)][hub]
 
