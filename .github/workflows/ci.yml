@@ -6,6 +6,9 @@ on:
     branches: [master, 'release-*']
     tags: ['v*']
 
+permissions:
+  contents: read
+
 jobs:
   test_go:
     name: Go tests
