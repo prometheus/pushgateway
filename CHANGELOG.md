@@ -1,3 +1,7 @@
+## 1.11.3 / 2026-05-27
+
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes, including migration from deprecated `github.com/golang/protobuf` to `google.golang.org/protobuf`.
+
 ## 1.11.2 / 2025-10-30
 
 * [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
