@@ -957,21 +957,18 @@ func TestWipeMetricStore(t *testing.T) {
 	}
 }
 
-// verifyMetricFamily jumps through a few hoops because the current protobuf
-// implementation is deliberately creating an unstable formatting for the text
-// representation. So this takes the text representation of the expected
-// MetricFamily and unmarshals it into a proto message object first. Then it
-// marshals both the expected and the got proto message into a binary protobuf,
-// which it then compares.
+// verifyMetricFamily compares a MetricFamily against an expected text-format
+// representation. It unmarshals expText into a proto message first, then
+// marshals both sides to binary to avoid instability in the text representation.
 func verifyMetricFamily(t *testing.T, expText string, got *dto.MetricFamily) {
+	t.Helper()
 	gotProto, err := proto.Marshal(got)
 	if err != nil {
 		t.Errorf("unexpected error marshaling MetricFamily %v", got)
 	}
 
 	exp := &dto.MetricFamily{}
-	err = prototext.Unmarshal([]byte(expText), exp)
-	if err != nil {
+	if err := prototext.Unmarshal([]byte(expText), exp); err != nil {
 		t.Errorf("unexpected error unmarshaling MetricFamily text %v", expText)
 	}
 	expProto, err := proto.Marshal(exp)
@@ -979,7 +976,7 @@ func verifyMetricFamily(t *testing.T, expText string, got *dto.MetricFamily) {
 		t.Errorf("unexpected error marshaling MetricFamily %v", exp)
 	}
 
-	if !bytes.Equal(expProto, gotProto) {
+	if string(expProto) != string(gotProto) {
 		t.Errorf("Wanted metric family %v, got %v.", exp, got)
 	}
 }

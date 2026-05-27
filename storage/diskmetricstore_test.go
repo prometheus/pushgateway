@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promslog"

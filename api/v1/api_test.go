@@ -1,4 +1,4 @@
-// Copyright 2020 The Prometheus Authors
+// Copyright The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -21,9 +21,8 @@ import (
 	"testing"
 	"time"
 
-	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
-	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/common/promslog"
+	"google.golang.org/protobuf/proto"
 
 	dto "github.com/prometheus/client_model/go"
 
@@ -214,7 +213,9 @@ func TestStatusAPI(t *testing.T) {
 
 	testResponse := response{}
 	testAPI.status(w, req)
-	json.Unmarshal(w.Body.Bytes(), &testResponse)
+	if err := json.Unmarshal(w.Body.Bytes(), &testResponse); err != nil {
+		t.Fatalf("unexpected error unmarshaling response: %v", err)
+	}
 	jsonData := testResponse.Data.(map[string]any)
 	responseFlagData := jsonData["flags"].(map[string]any)
 	responseBuildInfo := jsonData["build_information"].(map[string]any)
