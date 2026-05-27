@@ -1,4 +1,4 @@
-// Copyright 2020 The Prometheus Authors
+// Copyright The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,8 +13,7 @@
 package testutil
 
 import (
-	//nolint:staticcheck // Ignore SA1019. Dependencies use the deprecated package, so we have to, too.
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	dto "github.com/prometheus/client_model/go"
 )
