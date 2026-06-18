@@ -55,7 +55,7 @@ type MetricStore interface {
 	// implementation). Also, all internal goroutines are stopped. This
 	// method blocks until all of that is complete. If an error is
 	// encountered, it is returned (whereupon the MetricStorage is in an
-	// undefinded state). If nil is returned, the MetricStore cannot be
+	// undefined state). If nil is returned, the MetricStore cannot be
 	// "restarted" again, but it can still be used for read operations.
 	Shutdown() error
 	// Healthy returns nil if the MetricStore is currently working as
@@ -84,7 +84,7 @@ type MetricStore interface {
 // sanitized to have the same job and other labels as those in the Labels
 // fields. Also, if there is no instance label, an instance label with an empty
 // value will be set. This implies that the MetricFamilies in the WriteRequest
-// may be modified be the MetricStore during processing of the WriteRequest!
+// may be modified by the MetricStore during processing of the WriteRequest!
 //
 // The Timestamp field marks the time the request was received from the
 // network. It is not related to the TimestampMs field in the Metric proto
