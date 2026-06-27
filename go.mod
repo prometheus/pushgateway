@@ -25,7 +25,6 @@ require (
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools/godoc v0.1.0-deprecated // indirect
 )
 
 require (
@@ -37,7 +36,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
-	github.com/prometheus/prometheus v0.311.3
+	github.com/prometheus/prometheus v0.312.0
 	github.com/shurcooL/httpfs v0.0.0-20230704072500-f1e31cf0ba5c // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
