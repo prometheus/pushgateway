@@ -42,7 +42,7 @@ func (f *fakeFileSystem) Open(name string) (http.File, error) {
 
 func TestRoutePrefixForStatic(t *testing.T) {
 	fs := &fakeFileSystem{map[string]struct{}{
-		"/index.js": struct{}{},
+		"/index.js": {},
 	}}
 
 	for _, test := range []struct {

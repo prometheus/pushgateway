@@ -10,21 +10,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package histogram provides a Prometheus histogram model for the API.
 package histogram
 
 import (
 	"fmt"
+	"slices"
 
 	dto "github.com/prometheus/client_model/go"
 	model "github.com/prometheus/prometheus/model/histogram"
 )
 
+// APIBucket defines Prometheus histogram buckets.
 type APIBucket[BC model.BucketCount] struct {
 	Boundaries   uint64
 	Lower, Upper float64
 	Count        BC
 }
 
+// NewModelHistogram creates a Prometheus histogram model.
 func NewModelHistogram(ch *dto.Histogram) (*model.Histogram, *model.FloatHistogram) {
 	if ch.GetSampleCountFloat() > 0 || ch.GetZeroCountFloat() > 0 {
 		// It is a float histogram.
@@ -71,7 +76,15 @@ func NewModelHistogram(ch *dto.Histogram) (*model.Histogram, *model.FloatHistogr
 	return &h, nil
 }
 
-func BucketsAsJson[BC model.BucketCount](buckets []APIBucket[BC]) [][]any {
+// BucketsAsJson takes a slice of APIBucket models and returns it as json.
+//
+// Deprecated: Use BucketsAsJSON.
+func BucketsAsJson[BC model.BucketCount](buckets []APIBucket[BC]) [][]any { //nolint:revive
+	return BucketsAsJSON(buckets)
+}
+
+// BucketsAsJSON takes a slice of APIBucket models and returns it as json.
+func BucketsAsJSON[BC model.BucketCount](buckets []APIBucket[BC]) [][]any {
 	ret := make([][]any, len(buckets))
 	for i, b := range buckets {
 		ret[i] = []any{b.Boundaries, fmt.Sprintf("%v", b.Lower), fmt.Sprintf("%v", b.Upper), fmt.Sprintf("%v", b.Count)}
@@ -79,6 +92,7 @@ func BucketsAsJson[BC model.BucketCount](buckets []APIBucket[BC]) [][]any {
 	return ret
 }
 
+// GetAPIBuckets returns a slice of APIBucket based on a histogram.
 func GetAPIBuckets(h *model.Histogram) []APIBucket[uint64] {
 	var apiBuckets []APIBucket[uint64]
 	var nBuckets []model.Bucket[uint64]
@@ -88,8 +102,8 @@ func GetAPIBuckets(h *model.Histogram) []APIBucket[uint64] {
 			nBuckets = append(nBuckets, it.At())
 		}
 	}
-	for i := len(nBuckets) - 1; i >= 0; i-- {
-		apiBuckets = append(apiBuckets, makeBucket[uint64](nBuckets[i]))
+	for _, nBucket := range slices.Backward(nBuckets) {
+		apiBuckets = append(apiBuckets, makeBucket[uint64](nBucket))
 	}
 
 	if h.ZeroCount != 0 {
@@ -105,6 +119,7 @@ func GetAPIBuckets(h *model.Histogram) []APIBucket[uint64] {
 	return apiBuckets
 }
 
+// GetAPIFloatBuckets takes a float histogram and returns a slie of APIBucket.
 func GetAPIFloatBuckets(h *model.FloatHistogram) []APIBucket[float64] {
 	var apiBuckets []APIBucket[float64]
 	var nBuckets []model.Bucket[float64]
@@ -114,8 +129,8 @@ func GetAPIFloatBuckets(h *model.FloatHistogram) []APIBucket[float64] {
 			nBuckets = append(nBuckets, it.At())
 		}
 	}
-	for i := len(nBuckets) - 1; i >= 0; i-- {
-		apiBuckets = append(apiBuckets, makeBucket[float64](nBuckets[i]))
+	for _, nBucket := range slices.Backward(nBuckets) {
+		apiBuckets = append(apiBuckets, makeBucket[float64](nBucket))
 	}
 
 	if h.ZeroCount != 0 {

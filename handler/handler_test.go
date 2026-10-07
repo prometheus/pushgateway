@@ -23,14 +23,13 @@ import (
 	"testing"
 	"time"
 
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/route"
 	"google.golang.org/protobuf/encoding/protodelim"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-
-	dto "github.com/prometheus/client_model/go"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -336,12 +335,12 @@ func TestPush(t *testing.T) {
 	mms.lastWriteRequest = storage.WriteRequest{}
 	buf := &bytes.Buffer{}
 	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
-		Name: proto.String("some_metric"),
+		Name: new("some_metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Untyped: &dto.Untyped{
-					Value: proto.Float64(1.234),
+					Value: new(1.234),
 				},
 			},
 		},
@@ -351,12 +350,12 @@ func TestPush(t *testing.T) {
 	}
 
 	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
-		Name: proto.String("another_metric"),
+		Name: new("another_metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Untyped: &dto.Untyped{
-					Value: proto.Float64(3.14),
+					Value: new(3.14),
 				},
 			},
 		},
@@ -366,13 +365,13 @@ func TestPush(t *testing.T) {
 	}
 
 	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
-		Name: proto.String("histogram_metric"),
+		Name: new("histogram_metric"),
 		Type: dto.MetricType_HISTOGRAM.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Histogram: &dto.Histogram{
 					SampleCountFloat: proto.Float64(20),
-					SampleSum:        proto.Float64(99.23),
+					SampleSum:        new(99.23),
 					Schema:           proto.Int32(1),
 					NegativeCount:    []float64{2, 2, -2, 0},
 					PositiveCount:    []float64{2, 2, -2, 0},
@@ -519,12 +518,12 @@ func TestPushUTF8(t *testing.T) {
 	mms.lastWriteRequest = storage.WriteRequest{}
 	buf := &bytes.Buffer{}
 	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
-		Name: proto.String("some.metric"),
+		Name: new("some.metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Untyped: &dto.Untyped{
-					Value: proto.Float64(1.234),
+					Value: new(1.234),
 				},
 			},
 		},
@@ -534,12 +533,12 @@ func TestPushUTF8(t *testing.T) {
 	}
 
 	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
-		Name: proto.String("another.metric"),
+		Name: new("another.metric"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Untyped: &dto.Untyped{
-					Value: proto.Float64(3.14),
+					Value: new(3.14),
 				},
 			},
 		},
@@ -549,13 +548,13 @@ func TestPushUTF8(t *testing.T) {
 	}
 
 	_, err = protodelim.MarshalTo(buf, &dto.MetricFamily{
-		Name: proto.String("histogram.metric"),
+		Name: new("histogram.metric"),
 		Type: dto.MetricType_HISTOGRAM.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Histogram: &dto.Histogram{
 					SampleCountFloat: proto.Float64(20),
-					SampleSum:        proto.Float64(99.23),
+					SampleSum:        new(99.23),
 					Schema:           proto.Int32(1),
 					NegativeCount:    []float64{2, 2, -2, 0},
 					PositiveCount:    []float64{2, 2, -2, 0},
@@ -712,7 +711,6 @@ func TestDelete(t *testing.T) {
 	if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
 		t.Errorf("Wanted instance %v, got %v.", expected, got)
 	}
-
 }
 
 func TestDeleteUTF8(t *testing.T) {

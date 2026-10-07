@@ -17,9 +17,8 @@ import (
 	"sort"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	dto "github.com/prometheus/client_model/go"
+	"google.golang.org/protobuf/proto"
 )
 
 // MetricStore is the interface to the storage layer for metrics. All its

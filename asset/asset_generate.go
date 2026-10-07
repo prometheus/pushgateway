@@ -19,8 +19,9 @@ package main
 import (
 	"log"
 
-	"github.com/prometheus/pushgateway/asset"
 	"github.com/shurcooL/vfsgen"
+
+	"github.com/prometheus/pushgateway/asset"
 )
 
 func main() {

@@ -26,8 +26,8 @@ import (
 // The returned handler is already instrumented for Prometheus.
 func WipeMetricStore(
 	ms storage.MetricStore,
-	logger *slog.Logger) http.Handler {
-
+	logger *slog.Logger,
+) http.Handler {
 	return InstrumentWithCounter(
 		"wipe",
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -40,6 +40,5 @@ func WipeMetricStore(
 					Timestamp: time.Now(),
 				})
 			}
-
 		}))
 }

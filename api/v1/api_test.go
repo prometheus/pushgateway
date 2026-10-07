@@ -21,10 +21,9 @@ import (
 	"testing"
 	"time"
 
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/promslog"
 	"google.golang.org/protobuf/proto"
-
-	dto "github.com/prometheus/client_model/go"
 
 	"github.com/prometheus/pushgateway/storage"
 	"github.com/prometheus/pushgateway/testutil"
@@ -44,18 +43,18 @@ var (
 	}
 
 	mf1 = &dto.MetricFamily{
-		Name: proto.String("mf1"),
+		Name: new("mf1"),
 		Type: dto.MetricType_SUMMARY.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(`inst'a"n\ce1`),
+						Name:  new("instance"),
+						Value: new(`inst'a"n\ce1`),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("Björn"),
+						Name:  new("job"),
+						Value: new("Björn"),
 					},
 				},
 				Summary: &dto.Summary{
@@ -66,19 +65,19 @@ var (
 		},
 	}
 	mfh = &dto.MetricFamily{
-		Name: proto.String("mfh"),
+		Name: new("mfh"),
 		Type: dto.MetricType_HISTOGRAM.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("testing"),
-						Value: proto.String("int classic histogram"),
+						Name:  new("testing"),
+						Value: new("int classic histogram"),
 					},
 				},
 				Histogram: &dto.Histogram{
 					SampleCount: proto.Uint64(20),
-					SampleSum:   proto.Float64(99.23),
+					SampleSum:   new(99.23),
 					Bucket: []*dto.Bucket{
 						{
 							UpperBound:      proto.Float64(250000),
@@ -94,13 +93,13 @@ var (
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("testing"),
-						Value: proto.String("float classic histogram"),
+						Name:  new("testing"),
+						Value: new("float classic histogram"),
 					},
 				},
 				Histogram: &dto.Histogram{
 					SampleCountFloat: proto.Float64(20),
-					SampleSum:        proto.Float64(99.23),
+					SampleSum:        new(99.23),
 					Bucket: []*dto.Bucket{
 						{
 							UpperBound:           proto.Float64(250000),
@@ -116,13 +115,13 @@ var (
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("testing"),
-						Value: proto.String("int native histogram"),
+						Name:  new("testing"),
+						Value: new("int native histogram"),
 					},
 				},
 				Histogram: &dto.Histogram{
 					SampleCount:   proto.Uint64(20),
-					SampleSum:     proto.Float64(99.23),
+					SampleSum:     new(99.23),
 					Schema:        proto.Int32(1),
 					NegativeDelta: []int64{0, 2, -2, 0},
 					PositiveDelta: []int64{0, 2, -2, 0},
@@ -151,13 +150,13 @@ var (
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("testing"),
-						Value: proto.String("float native histogram"),
+						Name:  new("testing"),
+						Value: new("float native histogram"),
 					},
 				},
 				Histogram: &dto.Histogram{
 					SampleCountFloat: proto.Float64(20),
-					SampleSum:        proto.Float64(99.23),
+					SampleSum:        new(99.23),
 					Schema:           proto.Int32(1),
 					NegativeCount:    []float64{2, 2, -2, 0},
 					PositiveCount:    []float64{2, 2, -2, 0},

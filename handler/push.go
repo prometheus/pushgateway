@@ -25,12 +25,11 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
 	"google.golang.org/protobuf/encoding/protodelim"
-
-	dto "github.com/prometheus/client_model/go"
 
 	"github.com/prometheus/pushgateway/storage"
 )
@@ -44,7 +43,8 @@ const (
 var (
 	// EscapingScheme is provided when unescaping label names in the
 	// request URL path to define the escaping scheme that will be used.
-	EscapingScheme   = model.NoEscaping
+	EscapingScheme = model.NoEscaping
+	// ValidationScheme defaults to the legacy validation.
 	ValidationScheme = model.LegacyValidation
 )
 
