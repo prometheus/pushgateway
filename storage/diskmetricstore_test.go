@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -1525,6 +1526,93 @@ func TestHelpStringFix(t *testing.T) {
 		t.Errorf(
 			"help strings weren't properly adjusted, got '%s' which is neither '%s' nor '%s'",
 			got12, expected12, expected21,
+		)
+	}
+
+	if err := dms.Shutdown(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestCheckWriteRequestInconsistentHelpAllocs ensures that the consistency
+// check of a push does not format whole metric families. checkWriteRequest
+// runs processWriteRequest and GetMetricFamilies on a scratch store with a nop
+// logger. If that logger is merely writing to io.Discard instead of being
+// disabled, every push against a store containing a metric family with an
+// inconsistent help string serializes all metrics of that family, which makes
+// the push latency scale with the size of the store (see issue #863).
+func TestCheckWriteRequestInconsistentHelpAllocs(t *testing.T) {
+	const numMetrics = 1000
+
+	// A large metric family as already present in the store.
+	stored := &dto.MetricFamily{
+		Name: proto.String("mf_help"),
+		Help: proto.String("help a"),
+		Type: dto.MetricType_GAUGE.Enum(),
+	}
+	for i := range numMetrics {
+		stored.Metric = append(stored.Metric, &dto.Metric{
+			Label: []*dto.LabelPair{
+				{
+					Name:  proto.String("i"),
+					Value: proto.String(strconv.Itoa(i)),
+				},
+			},
+			Gauge: &dto.Gauge{
+				Value: proto.Float64(float64(i)),
+			},
+		})
+	}
+
+	dms := NewDiskMetricStore("", 100*time.Millisecond, nil, logger)
+	errCh := make(chan error, 1)
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels:         map[string]string{"job": "job1"},
+		Timestamp:      time.Now(),
+		MetricFamilies: testutil.MetricFamiliesMap(stored),
+		Done:           errCh,
+	})
+	for err := range errCh {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	// allocs returns the allocations of checking a push of a single metric
+	// of the same metric family to a different group, using the given help
+	// string.
+	allocs := func(help string) float64 {
+		pushed := &dto.MetricFamily{
+			Name: proto.String("mf_help"),
+			Help: proto.String(help),
+			Type: dto.MetricType_GAUGE.Enum(),
+			Metric: []*dto.Metric{
+				{
+					Gauge: &dto.Gauge{
+						Value: proto.Float64(42),
+					},
+				},
+			},
+		}
+		wr := WriteRequest{
+			Labels:         map[string]string{"job": "job2"},
+			Timestamp:      time.Now(),
+			MetricFamilies: testutil.MetricFamiliesMap(pushed),
+			Done:           make(chan error, 1),
+		}
+		return testing.AllocsPerRun(10, func() {
+			if !dms.checkWriteRequest(wr) {
+				t.Fatalf("Unexpected rejection of push with help %q.", help)
+			}
+		})
+	}
+
+	consistent := allocs("help a")
+	inconsistent := allocs("help b")
+	// Logging the inconsistency must not cost more than a handful of
+	// allocations. In particular, it must not scale with numMetrics.
+	if diff := inconsistent - consistent; diff > 10 {
+		t.Errorf(
+			"checkWriteRequest with inconsistent help strings allocates %v more than with consistent help strings (%v vs %v), metric families are formatted although logging is disabled",
+			diff, inconsistent, consistent,
 		)
 	}
 
