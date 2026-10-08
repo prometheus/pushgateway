@@ -1546,20 +1546,20 @@ func TestCheckWriteRequestInconsistentHelpAllocs(t *testing.T) {
 
 	// A large metric family as already present in the store.
 	stored := &dto.MetricFamily{
-		Name: proto.String("mf_help"),
-		Help: proto.String("help a"),
+		Name: new("mf_help"),
+		Help: new("help a"),
 		Type: dto.MetricType_GAUGE.Enum(),
 	}
 	for i := range numMetrics {
 		stored.Metric = append(stored.Metric, &dto.Metric{
 			Label: []*dto.LabelPair{
 				{
-					Name:  proto.String("i"),
-					Value: proto.String(strconv.Itoa(i)),
+					Name:  new("i"),
+					Value: new(strconv.Itoa(i)),
 				},
 			},
 			Gauge: &dto.Gauge{
-				Value: proto.Float64(float64(i)),
+				Value: new(float64(i)),
 			},
 		})
 	}
@@ -1581,13 +1581,13 @@ func TestCheckWriteRequestInconsistentHelpAllocs(t *testing.T) {
 	// string.
 	allocs := func(help string) float64 {
 		pushed := &dto.MetricFamily{
-			Name: proto.String("mf_help"),
-			Help: proto.String(help),
+			Name: new("mf_help"),
+			Help: new(help),
 			Type: dto.MetricType_GAUGE.Enum(),
 			Metric: []*dto.Metric{
 				{
 					Gauge: &dto.Gauge{
-						Value: proto.Float64(42),
+						Value: new(42.0),
 					},
 				},
 			},

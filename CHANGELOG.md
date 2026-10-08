@@ -1,3 +1,8 @@
+## 1.11.4 / 2026-10-08
+
+* [ENHANCEMENT] Add distroless Docker image variant.
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes, build binaries with go v1.27.
+
 ## 1.11.3 / 2026-05-27
 
 * [BUGFIX] Update dependencies to pull in possibly relevant bugfixes, including migration from deprecated `github.com/golang/protobuf` to `google.golang.org/protobuf`.
