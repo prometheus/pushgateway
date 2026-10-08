@@ -316,23 +316,38 @@ func (dms *DiskMetricStore) setPushFailedTimestamp(wr WriteRequest) {
 
 	group, ok := dms.metricGroups[key]
 	if !ok {
-		group = MetricGroup{
-			Labels:  wr.Labels,
-			Metrics: NameToTimestampedMetricFamilyMap{},
+		// An absent instance label is exported as instance="". Its
+		// timestamp metrics therefore collide with those of a different
+		// group that explicitly has an empty instance label. Record the
+		// failure in the existing group rather than create duplicate series.
+		if instance, hasInstance := wr.Labels[string(model.InstanceLabel)]; !hasInstance || instance == "" {
+			otherLabels := maps.Clone(wr.Labels)
+			if hasInstance {
+				delete(otherLabels, string(model.InstanceLabel))
+			} else {
+				otherLabels[string(model.InstanceLabel)] = ""
+			}
+			group, ok = dms.metricGroups[groupingKeyFor(otherLabels)]
 		}
-		dms.metricGroups[key] = group
+		if !ok {
+			group = MetricGroup{
+				Labels:  wr.Labels,
+				Metrics: NameToTimestampedMetricFamilyMap{},
+			}
+			dms.metricGroups[key] = group
+		}
 	}
 
 	group.Metrics[pushFailedMetricName] = TimestampedMetricFamily{
 		Timestamp:            wr.Timestamp,
-		GobbableMetricFamily: (*GobbableMetricFamily)(newPushFailedTimestampGauge(wr.Labels, wr.Timestamp)),
+		GobbableMetricFamily: (*GobbableMetricFamily)(newPushFailedTimestampGauge(group.Labels, wr.Timestamp)),
 	}
 	// Only add a zero push metric if none is there yet, so that a
 	// previously added push timestamp is retained.
 	if _, ok := group.Metrics[pushMetricName]; !ok {
 		group.Metrics[pushMetricName] = TimestampedMetricFamily{
 			Timestamp:            wr.Timestamp,
-			GobbableMetricFamily: (*GobbableMetricFamily)(newPushTimestampGauge(wr.Labels, time.Time{})),
+			GobbableMetricFamily: (*GobbableMetricFamily)(newPushTimestampGauge(group.Labels, time.Time{})),
 		}
 	}
 }
