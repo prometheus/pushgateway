@@ -1180,6 +1180,86 @@ func TestRejectInconsistentPush(t *testing.T) {
 	}
 }
 
+func TestRejectedPushDoesNotCreateInconsistentTimestamps(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		first    map[string]string
+		rejected map[string]string
+	}{
+		{
+			name:     "implicit instance first",
+			first:    map[string]string{"job": "job1"},
+			rejected: map[string]string{"job": "job1", "instance": ""},
+		},
+		{
+			name:     "explicit empty instance first",
+			first:    map[string]string{"job": "job1", "instance": ""},
+			rejected: map[string]string{"job": "job1"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dms := NewDiskMetricStore("", 100*time.Millisecond, prometheus.DefaultGatherer, logger)
+			t.Cleanup(func() {
+				if err := dms.Shutdown(); err != nil {
+					t.Error(err)
+				}
+			})
+
+			push := func(labels map[string]string, ts time.Time) error {
+				errCh := make(chan error, 1)
+				dms.SubmitWriteRequest(WriteRequest{
+					Labels:         labels,
+					Timestamp:      ts,
+					MetricFamilies: testutil.MetricFamiliesMap(mf1e),
+					Done:           errCh,
+				})
+				var pushErr error
+				for err := range errCh {
+					pushErr = err
+				}
+				return pushErr
+			}
+
+			firstAt := time.Now()
+			if err := push(tc.first, firstAt); err != nil {
+				t.Fatalf("first push failed: %v", err)
+			}
+			failedAt := firstAt.Add(time.Second)
+			if err := push(tc.rejected, failedAt); err == nil {
+				t.Fatal("expected a consistency error for the second push")
+			}
+
+			// The rejected push must not make the otherwise valid metrics
+			// impossible to scrape by adding duplicate push timestamps.
+			g := prometheus.Gatherers{
+				prometheus.DefaultGatherer,
+				prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+					return dms.GetMetricFamilies(), nil
+				}),
+			}
+			if _, err := g.Gather(); err != nil {
+				t.Errorf("gather after rejected push: %v", err)
+			}
+			groups := dms.GetMetricFamiliesMap()
+			if len(groups) != 1 {
+				t.Errorf("expected only the original group, got %d groups", len(groups))
+			}
+			original, ok := groups[groupingKeyFor(tc.first)]
+			if !ok {
+				t.Fatal("the original group disappeared")
+			}
+			gotFailure := original.Metrics[pushFailedMetricName].GetMetricFamily()
+			wantFailure := newPushFailedTimestampGauge(tc.first, failedAt)
+			if !proto.Equal(gotFailure, wantFailure) {
+				t.Errorf("failure timestamp = %v, want %v", gotFailure, wantFailure)
+			}
+			if original.LastPushSuccess() {
+				t.Error("the failed push was not reflected in the group status")
+			}
+		})
+	}
+}
+
 func TestSanitizeLabels(t *testing.T) {
 	dms := NewDiskMetricStore("", 100*time.Millisecond, nil, logger)
 
