@@ -10,6 +10,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package v1 defines the pushgateway API.
 package v1
 
 import (
@@ -19,10 +21,9 @@ import (
 	"net/http"
 	"time"
 
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/route"
-
-	dto "github.com/prometheus/client_model/go"
 
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/histogram"
@@ -115,7 +116,7 @@ func (api *API) Register(r *route.Router) {
 		)
 	}
 
-	r.Options("/*path", wrap("api/v1/options", func(w http.ResponseWriter, r *http.Request) {}))
+	r.Options("/*path", wrap("api/v1/options", func(_ http.ResponseWriter, _ *http.Request) {}))
 
 	r.Get("/status", wrap("api/v1/status", api.status))
 	r.Get("/metrics", wrap("api/v1/metrics", api.metrics))
@@ -128,7 +129,7 @@ type metrics struct {
 	Metrics   []encodableMetric `json:"metrics"`
 }
 
-func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
+func (api *API) metrics(w http.ResponseWriter, _ *http.Request) {
 	familyMaps := api.MetricStore.GetMetricFamiliesMap()
 	res := []any{}
 	for _, v := range familyMaps {
@@ -151,7 +152,7 @@ func (api *API) metrics(w http.ResponseWriter, r *http.Request) {
 	api.respond(w, res)
 }
 
-func (api *API) status(w http.ResponseWriter, r *http.Request) {
+func (api *API) status(w http.ResponseWriter, _ *http.Request) {
 	res := map[string]any{}
 	res["flags"] = api.Flags
 	res["start_time"] = api.StartTime
@@ -219,7 +220,6 @@ func (api *API) respondError(w http.ResponseWriter, apiErr apiError, data any) {
 type encodableMetric map[string]any
 
 func makeEncodableMetrics(metrics []*dto.Metric, metricsType dto.MetricType) []encodableMetric {
-
 	jsonMetrics := make([]encodableMetric, len(metrics))
 
 	for i, m := range metrics {
@@ -239,10 +239,10 @@ func makeEncodableMetrics(metrics []*dto.Metric, metricsType dto.MetricType) []e
 				if h == nil {
 					// float histogram
 					metric["count"] = fmt.Sprint(fh.Count)
-					metric["buckets"] = histogram.BucketsAsJson[float64](histogram.GetAPIFloatBuckets(fh))
+					metric["buckets"] = histogram.BucketsAsJSON[float64](histogram.GetAPIFloatBuckets(fh))
 				} else {
 					metric["count"] = fmt.Sprint(h.Count)
-					metric["buckets"] = histogram.BucketsAsJson[uint64](histogram.GetAPIBuckets(h))
+					metric["buckets"] = histogram.BucketsAsJSON[uint64](histogram.GetAPIBuckets(h))
 				}
 			} else {
 				metric["buckets"] = makeBuckets(m)

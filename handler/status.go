@@ -24,9 +24,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/prometheus/common/version"
-
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/version"
 
 	"github.com/prometheus/pushgateway/histogram"
 	"github.com/prometheus/pushgateway/storage"

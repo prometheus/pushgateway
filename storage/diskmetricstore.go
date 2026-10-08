@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package storage defines the internal pushgateway storage for keeping data between restarts.
 package storage
 
 import (
@@ -27,11 +28,10 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promslog"
 	"google.golang.org/protobuf/proto"
-
-	dto "github.com/prometheus/client_model/go"
 )
 
 const (
@@ -175,7 +175,7 @@ func (dms *DiskMetricStore) GetMetricFamilies() []*dto.MetricFamily {
 					dms.logger.Info("metric families overlap", "err", "Metric family has the same name as a metric family used by the Pushgateway itself but it has a different help string. Changing it to the standard help string. This is bad. Fix your pushed metrics!", "metric_family", mf, "standard_help", help)
 					mf = copyMetricFamily(mf)
 					copied = true
-					mf.Help = proto.String(help)
+					mf.Help = new(help)
 				}
 				mfStatByName[name] = mfStat{
 					pos:    len(result),
@@ -513,13 +513,13 @@ func newTimestampGauge(name, help string, groupingLabels map[string]string, t ti
 		ts = float64(t.UnixNano()) / 1e9
 	}
 	mf := &dto.MetricFamily{
-		Name: proto.String(name),
-		Help: proto.String(help),
+		Name: new(name),
+		Help: new(help),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Gauge: &dto.Gauge{
-					Value: proto.Float64(ts),
+					Value: new(ts),
 				},
 			},
 		},
@@ -545,7 +545,7 @@ metric:
 		for _, lp := range m.GetLabel() {
 			ln := lp.GetName()
 			if lv, ok := gLabelsNotYetDone[ln]; ok {
-				lp.Value = proto.String(lv)
+				lp.Value = new(lv)
 				delete(gLabelsNotYetDone, ln)
 			}
 			if ln == string(model.InstanceLabel) {
@@ -558,8 +558,8 @@ metric:
 		}
 		for ln, lv := range gLabelsNotYetDone {
 			m.Label = append(m.Label, &dto.LabelPair{
-				Name:  proto.String(ln),
-				Value: proto.String(lv),
+				Name:  new(ln),
+				Value: new(lv),
 			})
 			if ln == string(model.InstanceLabel) {
 				hasInstanceLabel = true
@@ -569,7 +569,7 @@ metric:
 		if !hasInstanceLabel {
 			m.Label = append(m.Label, &dto.LabelPair{
 				Name:  proto.String(string(model.InstanceLabel)),
-				Value: proto.String(""),
+				Value: new(""),
 			})
 		}
 		sort.Sort(labelPairs(m.Label))

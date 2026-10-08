@@ -22,13 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promslog"
-
-	dto "github.com/prometheus/client_model/go"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/prometheus/pushgateway/testutil"
 )
@@ -37,39 +35,39 @@ var (
 	logger = promslog.NewNopLogger()
 	// Example metric families. Keep labels sorted lexicographically!
 	mf1a = &dto.MetricFamily{
-		Name: proto.String("mf1"),
+		Name: new("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Untyped: &dto.Untyped{
-					Value: proto.Float64(-3e3),
+					Value: new(-3e3),
 				},
 			},
 		},
 	}
 	mf1b = &dto.MetricFamily{
-		Name: proto.String("mf1"),
+		Name: new("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Untyped: &dto.Untyped{
@@ -79,18 +77,18 @@ var (
 		},
 	}
 	mf1c = &dto.MetricFamily{
-		Name: proto.String("mf1"),
+		Name: new("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance1"),
+						Name:  new("instance"),
+						Value: new("instance1"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job2"),
+						Name:  new("job"),
+						Value: new("job2"),
 					},
 				},
 				Untyped: &dto.Untyped{
@@ -100,18 +98,18 @@ var (
 		},
 	}
 	mf1d = &dto.MetricFamily{
-		Name: proto.String("mf1"),
+		Name: new("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job3"),
+						Name:  new("job"),
+						Value: new("job3"),
 					},
 				},
 				Untyped: &dto.Untyped{
@@ -121,14 +119,14 @@ var (
 		},
 	}
 	mf1e = &dto.MetricFamily{
-		Name: proto.String("mf1"),
+		Name: new("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Untyped: &dto.Untyped{
@@ -139,33 +137,33 @@ var (
 	}
 	// mf1acd is merged from mf1a, mf1c, mf1d.
 	mf1acd = &dto.MetricFamily{
-		Name: proto.String("mf1"),
+		Name: new("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Untyped: &dto.Untyped{
-					Value: proto.Float64(-3e3),
+					Value: new(-3e3),
 				},
 			},
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance1"),
+						Name:  new("instance"),
+						Value: new("instance1"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job2"),
+						Name:  new("job"),
+						Value: new("job2"),
 					},
 				},
 				Untyped: &dto.Untyped{
@@ -175,12 +173,12 @@ var (
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job3"),
+						Name:  new("job"),
+						Value: new("job3"),
 					},
 				},
 				Untyped: &dto.Untyped{
@@ -191,18 +189,18 @@ var (
 	}
 	// mf1be is merged from mf1b and mf1e, with added empty instance label for mf1e.
 	mf1be = &dto.MetricFamily{
-		Name: proto.String("mf1"),
+		Name: new("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Untyped: &dto.Untyped{
@@ -212,12 +210,12 @@ var (
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Untyped: &dto.Untyped{
@@ -228,89 +226,89 @@ var (
 	}
 	// mf1ts is mf1a with a timestamp set.
 	mf1ts = &dto.MetricFamily{
-		Name: proto.String("mf1"),
+		Name: new("mf1"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Untyped: &dto.Untyped{
-					Value: proto.Float64(-3e3),
+					Value: new(-3e3),
 				},
 				TimestampMs: proto.Int64(103948),
 			},
 		},
 	}
 	mf2 = &dto.MetricFamily{
-		Name: proto.String("mf2"),
-		Help: proto.String("doc string 2"),
+		Name: new("mf2"),
+		Help: new("doc string 2"),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("basename"),
-						Value: proto.String("basevalue2"),
+						Name:  new("basename"),
+						Value: new("basevalue2"),
 					},
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 					{
-						Name:  proto.String("labelname"),
-						Value: proto.String("val2"),
+						Name:  new("labelname"),
+						Value: new("val2"),
 					},
 				},
 				Gauge: &dto.Gauge{
-					Value: proto.Float64(math.Inf(+1)),
+					Value: new(math.Inf(+1)),
 				},
 			},
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 					{
-						Name:  proto.String("labelname"),
-						Value: proto.String("val1"),
+						Name:  new("labelname"),
+						Value: new("val1"),
 					},
 				},
 				Gauge: &dto.Gauge{
-					Value: proto.Float64(math.Inf(-1)),
+					Value: new(math.Inf(-1)),
 				},
 			},
 		},
 	}
 	mf3 = &dto.MetricFamily{
-		Name: proto.String("mf3"),
+		Name: new("mf3"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance1"),
+						Name:  new("instance"),
+						Value: new("instance1"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Untyped: &dto.Untyped{
@@ -320,39 +318,39 @@ var (
 		},
 	}
 	mf4 = &dto.MetricFamily{
-		Name: proto.String("mf4"),
+		Name: new("mf4"),
 		Type: dto.MetricType_UNTYPED.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance2"),
+						Name:  new("instance"),
+						Value: new("instance2"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job3"),
+						Name:  new("job"),
+						Value: new("job3"),
 					},
 				},
 				Untyped: &dto.Untyped{
-					Value: proto.Float64(3.4345),
+					Value: new(3.4345),
 				},
 			},
 		},
 	}
 	mf5 = &dto.MetricFamily{
-		Name: proto.String("mf5"),
+		Name: new("mf5"),
 		Type: dto.MetricType_SUMMARY.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance5"),
+						Name:  new("instance"),
+						Value: new("instance5"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job5"),
+						Name:  new("job"),
+						Value: new("job5"),
 					},
 				},
 				Summary: &dto.Summary{
@@ -363,41 +361,41 @@ var (
 		},
 	}
 	mfh1 = &dto.MetricFamily{
-		Name: proto.String("mf_help"),
-		Help: proto.String("Help string for mfh1."),
+		Name: new("mf_help"),
+		Help: new("Help string for mfh1."),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Gauge: &dto.Gauge{
-					Value: proto.Float64(3948.838),
+					Value: new(3948.838),
 				},
 			},
 		},
 	}
 	mfh2 = &dto.MetricFamily{
-		Name: proto.String("mf_help"),
-		Help: proto.String("Help string for mfh2."),
+		Name: new("mf_help"),
+		Help: new("Help string for mfh2."),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job2"),
+						Name:  new("job"),
+						Value: new("job2"),
 					},
 				},
 				Gauge: &dto.Gauge{
@@ -408,34 +406,34 @@ var (
 	}
 	// Both mfh metrics with mfh1's help string.
 	mfh12 = &dto.MetricFamily{
-		Name: proto.String("mf_help"),
-		Help: proto.String("Help string for mfh1."),
+		Name: new("mf_help"),
+		Help: new("Help string for mfh1."),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Gauge: &dto.Gauge{
-					Value: proto.Float64(3948.838),
+					Value: new(3948.838),
 				},
 			},
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job2"),
+						Name:  new("job"),
+						Value: new("job2"),
 					},
 				},
 				Gauge: &dto.Gauge{
@@ -446,34 +444,34 @@ var (
 	}
 	// Both mfh metrics with mfh2's help string.
 	mfh21 = &dto.MetricFamily{
-		Name: proto.String("mf_help"),
-		Help: proto.String("Help string for mfh2."),
+		Name: new("mf_help"),
+		Help: new("Help string for mfh2."),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Gauge: &dto.Gauge{
-					Value: proto.Float64(3948.838),
+					Value: new(3948.838),
 				},
 			},
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job2"),
+						Name:  new("job"),
+						Value: new("job2"),
 					},
 				},
 				Gauge: &dto.Gauge{
@@ -484,19 +482,19 @@ var (
 	}
 	// mfgg is the usual go_goroutines gauge but with a different help text.
 	mfgg = &dto.MetricFamily{
-		Name: proto.String("go_goroutines"),
-		Help: proto.String("Inconsistent doc string, fixed version in mfggFixed."),
+		Name: new("go_goroutines"),
+		Help: new("Inconsistent doc string, fixed version in mfggFixed."),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Gauge: &dto.Gauge{
@@ -507,19 +505,19 @@ var (
 	}
 	// mfgc is the usual go_goroutines metric but mistyped as counter.
 	mfgc = &dto.MetricFamily{
-		Name: proto.String("go_goroutines"),
-		Help: proto.String("Number of goroutines that currently exist."),
+		Name: new("go_goroutines"),
+		Help: new("Number of goroutines that currently exist."),
 		Type: dto.MetricType_COUNTER.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Counter: &dto.Counter{
@@ -529,19 +527,19 @@ var (
 		},
 	}
 	mfggFixed = &dto.MetricFamily{
-		Name: proto.String("go_goroutines"),
-		Help: proto.String("Number of goroutines that currently exist."),
+		Name: new("go_goroutines"),
+		Help: new("Number of goroutines that currently exist."),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String(""),
+						Name:  new("instance"),
+						Value: new(""),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Gauge: &dto.Gauge{
@@ -551,8 +549,8 @@ var (
 		},
 	}
 	mfUnlabelled = &dto.MetricFamily{
-		Name: proto.String("mf_unlabelled"),
-		Help: proto.String("Metric with no labels to check sanitizeLabels."),
+		Name: new("mf_unlabelled"),
+		Help: new("Metric with no labels to check sanitizeLabels."),
 		Type: dto.MetricType_GAUGE.Enum(),
 		Metric: []*dto.Metric{
 			{
@@ -564,24 +562,24 @@ var (
 		},
 	}
 	mfHist = &dto.MetricFamily{
-		Name: proto.String("mf_hist"),
-		Help: proto.String("Native histogram metric"),
+		Name: new("mf_hist"),
+		Help: new("Native histogram metric"),
 		Type: dto.MetricType_HISTOGRAM.Enum(),
 		Metric: []*dto.Metric{
 			{
 				Label: []*dto.LabelPair{
 					{
-						Name:  proto.String("instance"),
-						Value: proto.String("instance1"),
+						Name:  new("instance"),
+						Value: new("instance1"),
 					},
 					{
-						Name:  proto.String("job"),
-						Value: proto.String("job1"),
+						Name:  new("job"),
+						Value: new("job1"),
 					},
 				},
 				Histogram: &dto.Histogram{
 					SampleCountFloat: proto.Float64(20),
-					SampleSum:        proto.Float64(99.23),
+					SampleSum:        new(99.23),
 					Schema:           proto.Int32(1),
 					NegativeCount:    []float64{2, 2, -2, 0},
 					PositiveCount:    []float64{2, 2, -2, 0},
@@ -996,12 +994,12 @@ func TestAddDeletePersistRestore(t *testing.T) {
 	// SanitizeLabels should add these labels to the unlabelled metric.
 	mfLabelled.Metric[0].Label = []*dto.LabelPair{
 		{
-			Name:  proto.String("instance"),
-			Value: proto.String("instance1"),
+			Name:  new("instance"),
+			Value: new("instance1"),
 		},
 		{
-			Name:  proto.String("job"),
-			Value: proto.String("job4"),
+			Name:  new("job"),
+			Value: new("job4"),
 		},
 	}
 	if err := checkMetricFamilies(
@@ -1111,6 +1109,7 @@ func TestRejectInconsistentPush(t *testing.T) {
 	})
 	var err error
 	for err = range errCh {
+		continue
 	}
 	if err == nil {
 		t.Error("Expected error pushing inconsistent go_goroutines metric.")
@@ -1157,6 +1156,7 @@ func TestRejectInconsistentPush(t *testing.T) {
 	})
 	err = nil
 	for err = range errCh {
+		continue
 	}
 	if err == nil {
 		t.Error("Expected error pushing duplicate mf1 metric.")
@@ -1256,7 +1256,6 @@ func TestSanitizeLabels(t *testing.T) {
 	); err != nil {
 		t.Error(err)
 	}
-
 }
 
 func TestReplace(t *testing.T) {
@@ -1532,7 +1531,6 @@ func TestHelpStringFix(t *testing.T) {
 	if err := dms.Shutdown(); err != nil {
 		t.Fatal(err)
 	}
-
 }
 
 func TestGroupingKeyForLabels(t *testing.T) {

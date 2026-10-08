@@ -47,6 +47,7 @@ var (
 	)
 )
 
+// InstrumentWithCounter instruments an HTTP handler with a basic counter.
 func InstrumentWithCounter(handlerName string, handler http.Handler) http.HandlerFunc {
 	return promhttp.InstrumentHandlerCounter(
 		httpCnt.MustCurryWith(prometheus.Labels{"handler": handlerName}),

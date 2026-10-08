@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// main is the pushgateway
 package main
 
 import (
@@ -32,23 +33,21 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promslog"
+	promslogflag "github.com/prometheus/common/promslog/flag"
 	"github.com/prometheus/common/route"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
-
-	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
-	dto "github.com/prometheus/client_model/go"
-	promslogflag "github.com/prometheus/common/promslog/flag"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 
+	api_v1 "github.com/prometheus/pushgateway/api/v1"
 	"github.com/prometheus/pushgateway/asset"
 	"github.com/prometheus/pushgateway/handler"
 	"github.com/prometheus/pushgateway/storage"
-
-	api_v1 "github.com/prometheus/pushgateway/api/v1"
 )
 
 func init() {
@@ -142,7 +141,7 @@ func main() {
 	r.Get(*routePrefix+"/debug/pprof/*pprof", handlePprof)
 
 	quitCh := make(chan struct{})
-	quitHandler := func(w http.ResponseWriter, r *http.Request) {
+	quitHandler := func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, "Requesting termination... Goodbye!")
 		close(quitCh)
 	}

@@ -10,12 +10,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package testutil provides various functions for unit testing.
 package testutil
 
 import (
-	"google.golang.org/protobuf/proto"
-
 	dto "github.com/prometheus/client_model/go"
+	"google.golang.org/protobuf/proto"
 )
 
 // MetricFamiliesMap creates the map needed in the MetricFamilies field of a
