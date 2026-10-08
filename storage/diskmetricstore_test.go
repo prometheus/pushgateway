@@ -1179,6 +1179,71 @@ func TestRejectInconsistentPush(t *testing.T) {
 	}
 }
 
+func TestHealthyFailsForInconsistentStoredMetrics(t *testing.T) {
+	dms := NewDiskMetricStore("", 100*time.Millisecond, prometheus.DefaultGatherer, logger)
+	firstMF := &dto.MetricFamily{
+		Name: proto.String("some_metric"),
+		Type: dto.MetricType_COUNTER.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Counter: &dto.Counter{Value: proto.Float64(1)},
+			},
+		},
+	}
+	secondMF := &dto.MetricFamily{
+		Name: proto.String("some_metric"),
+		Type: dto.MetricType_COUNTER.Enum(),
+		Metric: []*dto.Metric{
+			{
+				Label: []*dto.LabelPair{
+					{
+						Name:  proto.String("tag"),
+						Value: proto.String("val1"),
+					},
+				},
+				Counter: &dto.Counter{Value: proto.Float64(42)},
+			},
+		},
+	}
+
+	ts := time.Now()
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels: map[string]string{
+			"job": "some_job",
+			"tag": "val1",
+		},
+		Timestamp:      ts,
+		MetricFamilies: testutil.MetricFamiliesMap(firstMF),
+	})
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels: map[string]string{
+			"job": "some_job",
+		},
+		Timestamp:      ts.Add(time.Second),
+		MetricFamilies: testutil.MetricFamiliesMap(secondMF),
+	})
+
+	errCh := make(chan error, 1)
+	dms.SubmitWriteRequest(WriteRequest{
+		Labels: map[string]string{
+			"job": "drain",
+		},
+		Timestamp: ts.Add(2 * time.Second),
+		Done:      errCh,
+	})
+	for err := range errCh {
+		t.Fatal("Unexpected error:", err)
+	}
+
+	if err := dms.Healthy(); err == nil {
+		t.Fatal("expected health check to fail for inconsistent stored metrics")
+	}
+
+	if err := dms.Shutdown(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSanitizeLabels(t *testing.T) {
 	dms := NewDiskMetricStore("", 100*time.Millisecond, nil, logger)
 
