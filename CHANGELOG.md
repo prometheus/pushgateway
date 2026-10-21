@@ -1,3 +1,8 @@
+## 1.11.5 / 2026-10-21
+
+* [SECURITY] Build with Go 1.27.3 to fix vulnerabilities in `net/http`, `net/textproto`, `crypto/tls` and `html/template`.
+* [BUGFIX] Update dependencies to pull in possibly relevant bugfixes.
+
 ## 1.11.4 / 2026-10-08
 
 * [ENHANCEMENT] Add distroless Docker image variant.
