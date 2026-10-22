@@ -1295,12 +1295,14 @@ func TestReplace(t *testing.T) {
 
 	// Now a valid update in replace mode. It doesn't replace anything, but
 	// it already tests that the push-failed timestamp is retained.
+	// The push also carries a push-failed metric, which must not replace it.
 	ts2 := ts1.Add(time.Second)
+	pushedFailed := newPushFailedTimestampGauge(grouping1, ts2.Add(time.Hour))
 	errCh = make(chan error, 1)
 	dms.SubmitWriteRequest(WriteRequest{
 		Labels:         grouping1,
 		Timestamp:      ts2,
-		MetricFamilies: testutil.MetricFamiliesMap(mf1a),
+		MetricFamilies: testutil.MetricFamiliesMap(mf1a, pushedFailed),
 		Done:           errCh,
 		Replace:        true,
 	})
