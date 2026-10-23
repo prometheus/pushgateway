@@ -53,6 +53,7 @@ type DiskMetricStore struct {
 	done            chan error
 	metricGroups    GroupingKeyToMetricGroup
 	persistenceFile string
+	gatherer        prometheus.Gatherer
 	predefinedHelp  map[string]string
 	logger          *slog.Logger
 }
@@ -89,6 +90,7 @@ func NewDiskMetricStore(
 		done:            make(chan error),
 		metricGroups:    GroupingKeyToMetricGroup{},
 		persistenceFile: persistenceFile,
+		gatherer:        gatherPredefinedHelpFrom,
 		logger:          logger,
 	}
 	if err := dms.restore(); err != nil {
@@ -119,13 +121,26 @@ func (dms *DiskMetricStore) Shutdown() error {
 func (dms *DiskMetricStore) Healthy() error {
 	// By taking the lock we check that there is no deadlock.
 	dms.lock.Lock()
-	defer dms.lock.Unlock()
-
 	// A pushgateway that cannot be written to should not be
 	// considered as healthy.
 	if len(dms.writeQueue) == cap(dms.writeQueue) {
+		dms.lock.Unlock()
 		err := fmt.Errorf("write queue is full")
 		dms.logger.Warn(err.Error())
+		return err
+	}
+	dms.lock.Unlock()
+
+	gatherers := prometheus.Gatherers{
+		prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+			return dms.GetMetricFamilies(), nil
+		}),
+	}
+	if dms.gatherer != nil {
+		gatherers = append(prometheus.Gatherers{dms.gatherer}, gatherers...)
+	}
+	if _, err := gatherers.Gather(); err != nil {
+		dms.logger.Warn("metric gathering failed during health check", "err", err)
 		return err
 	}
 
