@@ -828,6 +828,14 @@ func TestSplitLabels(t *testing.T) {
 			input:       "/label_name1@base64/foo.bar/label_name2/label_value2",
 			expectError: true,
 		},
+		"invalid UTF-8 in label value": {
+			input:       "/label_name1/label_value1/label_name2/\xc3\x28",
+			expectError: true,
+		},
+		"invalid UTF-8 in base64 label value": {
+			input:       "/label_name1/label_value1/label_name2@base64/wyg",
+			expectError: true,
+		},
 		"regular label and UTF-8 escaped label name with legacy validation": {
 			input: "/label_name1/label_value1/U__label_2e_name2/label_value2",
 			expectedOutput: map[string]string{
@@ -915,6 +923,53 @@ func TestSplitLabelsUTF8(t *testing.T) {
 
 	ValidationScheme = model.LegacyValidation
 	EscapingScheme = model.NoEscaping
+}
+
+// A push carrying a label value that is not valid UTF-8 must be rejected before
+// it reaches the metric store. Such a value is accepted by the exposition
+// parser but makes a later Gather fail, and because a rejected push still gets
+// a push_failure_time_seconds series recorded under its grouping labels, it
+// would leave /metrics returning 500 for every subsequent scrape.
+func TestPushInvalidLabelValue(t *testing.T) {
+	scenarios := map[string]struct {
+		job    string
+		labels string
+		base64 bool
+	}{
+		"invalid UTF-8 in job name":           {job: "\xc3\x28", labels: ""},
+		"invalid UTF-8 in label value":        {job: "testjob", labels: "/instance/\xc3\x28"},
+		"invalid UTF-8 in base64 job name":    {job: "wyg", labels: "", base64: true},
+		"invalid UTF-8 in base64 label value": {job: "testjob", labels: "/instance@base64/wyg"},
+	}
+
+	for name, scenario := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			mms := MockMetricStore{}
+			req, err := http.NewRequest("POST", "http://example.org/", bytes.NewBufferString("some_metric 3.14\n"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			params := map[string]string{"job": scenario.job, "labels": scenario.labels}
+
+			w := httptest.NewRecorder()
+			Push(&mms, false, true, scenario.base64, logger)(w, req.WithContext(ctxWithParams(params, req)))
+			if expected, got := http.StatusBadRequest, w.Code; expected != got {
+				t.Errorf("Wanted status code %v, got %v.", expected, got)
+			}
+			if len(mms.writeRequests) != 0 {
+				t.Errorf("Wanted no write request, got %#v.", mms.writeRequests)
+			}
+
+			w = httptest.NewRecorder()
+			Delete(&mms, scenario.base64, logger)(w, req.WithContext(ctxWithParams(params, req)))
+			if expected, got := http.StatusBadRequest, w.Code; expected != got {
+				t.Errorf("Wanted status code %v for delete, got %v.", expected, got)
+			}
+			if len(mms.writeRequests) != 0 {
+				t.Errorf("Wanted no write request for delete, got %#v.", mms.writeRequests)
+			}
+		})
+	}
 }
 
 func TestWipeMetricStore(t *testing.T) {
