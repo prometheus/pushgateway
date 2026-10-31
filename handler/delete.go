@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/route"
 
 	"github.com/prometheus/pushgateway/storage"
@@ -50,6 +51,11 @@ func Delete(ms storage.MetricStore, jobBase64Encoded bool, logger *slog.Logger) 
 			if job == "" {
 				http.Error(w, "job name is required", http.StatusBadRequest)
 				logger.Debug("job name is required")
+				return
+			}
+			if !model.LabelValue(job).IsValid() {
+				http.Error(w, fmt.Sprintf("improper job name %q", job), http.StatusBadRequest)
+				logger.Debug("improper job name", "job", job)
 				return
 			}
 			labels["job"] = job
