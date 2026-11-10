@@ -370,13 +370,20 @@ grouping key specified in the URL are replaced by the metrics pushed
 with `PUT`.
 
 The body of the request contains the metrics to push either as delimited binary
-protocol buffers or in the simple flat text format (both in version 0.0.4, see
+protocol buffers, in the simple flat text format (both in version 0.0.4, see
 the
-[data exposition format specification](https://docs.google.com/document/d/1ZjyKiKxZV83VI9ZKAXRGKaUKK2BIWCT7oiGBKDBpjEY/edit?usp=sharing)).
-Discrimination between the two variants is done via the `Content-Type`
+[data exposition format specification](https://docs.google.com/document/d/1ZjyKiKxZV83VI9ZKAXRGKaUKK2BIWCT7oiGBKDBpjEY/edit?usp=sharing)),
+or in the [OpenMetrics](https://prometheus.io/docs/specs/om/open_metrics_spec/)
+text format (versions 0.0.1 and 1.0.0).
+Discrimination between the variants is done via the `Content-Type`
 header. (Use the value `application/vnd.google.protobuf;
 proto=io.prometheus.client.MetricFamily; encoding=delimited` for protocol
-buffers, otherwise the text format is tried as a fall-back.)
+buffers and `application/openmetrics-text; version=1.0.0` for OpenMetrics,
+otherwise the text format is tried as a fall-back.)
+
+OpenMetrics pushes keep their exemplars. They show up when the Pushgateway is
+scraped with the protobuf format, or with the OpenMetrics format if the
+`--web.enable-openmetrics` flag is set.
 
 The response code upon success is either 200, 202, or 400. A 200 response
 implies a successful push, either replacing an existing group of metrics or

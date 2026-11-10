@@ -978,3 +978,76 @@ func verifyMetricFamily(t *testing.T, expText string, got *dto.MetricFamily) {
 		t.Errorf("Wanted metric family %v, got %v.", exp, got)
 	}
 }
+
+func TestPushOpenMetrics(t *testing.T) {
+	mms := MockMetricStore{}
+	handler := Push(&mms, false, true, false, logger)
+	params := map[string]string{
+		"job":    "testjob",
+		"labels": "/instance/testinstance",
+	}
+	push := func(contentType, body string) int {
+		t.Helper()
+		req, err := http.NewRequest("POST", "http://example.org/", bytes.NewBufferString(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", contentType)
+		w := httptest.NewRecorder()
+		handler(w, req.WithContext(ctxWithParams(params, req)))
+		return w.Code
+	}
+
+	body := `# TYPE requests counter
+# HELP requests Total requests.
+requests_total 42 # {trace_id="abc123"} 1
+# TYPE temperature gauge
+temperature 21.5
+# EOF
+`
+	for _, contentType := range []string{
+		"application/openmetrics-text; version=1.0.0; charset=utf-8",
+		"application/openmetrics-text; version=0.0.1; charset=utf-8",
+		"application/openmetrics-text",
+	} {
+		mms.lastWriteRequest = storage.WriteRequest{}
+		if expected, got := http.StatusOK, push(contentType, body); expected != got {
+			t.Fatalf("%s: wanted status code %v, got %v.", contentType, expected, got)
+		}
+		if expected, got := "testinstance", mms.lastWriteRequest.Labels["instance"]; expected != got {
+			t.Errorf("%s: wanted instance %v, got %v.", contentType, expected, got)
+		}
+
+		requests := mms.lastWriteRequest.MetricFamilies["requests_total"]
+		if requests == nil {
+			t.Fatalf("%s: requests_total missing from %v", contentType, mms.lastWriteRequest.MetricFamilies)
+		}
+		if expected, got := dto.MetricType_COUNTER, requests.GetType(); expected != got {
+			t.Errorf("%s: wanted type %v, got %v.", contentType, expected, got)
+		}
+		counter := requests.GetMetric()[0].GetCounter()
+		if expected, got := 42.0, counter.GetValue(); expected != got {
+			t.Errorf("%s: wanted value %v, got %v.", contentType, expected, got)
+		}
+		exemplar := counter.GetExemplar()
+		if exemplar == nil || exemplar.GetValue() != 1 ||
+			len(exemplar.GetLabel()) != 1 || exemplar.GetLabel()[0].GetValue() != "abc123" {
+			t.Errorf("%s: exemplar not kept, got %v.", contentType, exemplar)
+		}
+
+		temperature := mms.lastWriteRequest.MetricFamilies["temperature"]
+		if expected, got := 21.5, temperature.GetMetric()[0].GetGauge().GetValue(); expected != got {
+			t.Errorf("%s: wanted gauge value %v, got %v.", contentType, expected, got)
+		}
+	}
+
+	// A body without the closing "# EOF" isn't valid OpenMetrics.
+	if expected, got := http.StatusBadRequest, push("application/openmetrics-text; version=1.0.0", "temperature 21.5\n"); expected != got {
+		t.Errorf("Wanted status code %v for a body without # EOF, got %v.", expected, got)
+	}
+
+	// Versions the parser doesn't know are rejected rather than guessed.
+	if expected, got := http.StatusBadRequest, push("application/openmetrics-text; version=9.9.9", body); expected != got {
+		t.Errorf("Wanted status code %v for an unknown version, got %v.", expected, got)
+	}
+}
