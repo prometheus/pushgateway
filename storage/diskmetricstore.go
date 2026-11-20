@@ -295,6 +295,8 @@ func (dms *DiskMetricStore) processWriteRequest(wr WriteRequest) {
 		}
 	}
 	wr.MetricFamilies[pushMetricName] = newPushTimestampGauge(wr.Labels, wr.Timestamp)
+	// A pushed push-failed metric is overridden, too.
+	delete(wr.MetricFamilies, pushFailedMetricName)
 	// Only add a zero push-failed metric if none is there yet, so that a
 	// previously added fail timestamp is retained.
 	if _, ok := group.Metrics[pushFailedMetricName]; !ok {
