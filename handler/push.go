@@ -16,6 +16,7 @@ package handler
 import (
 	"bufio"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -87,9 +88,10 @@ func Push(
 
 		var metricFamilies map[string]*dto.MetricFamily
 		ctMediatype, ctParams, ctErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		if ctErr == nil && ctMediatype == "application/vnd.google.protobuf" &&
+		switch {
+		case ctErr == nil && ctMediatype == "application/vnd.google.protobuf" &&
 			ctParams["encoding"] == "delimited" &&
-			ctParams["proto"] == "io.prometheus.client.MetricFamily" {
+			ctParams["proto"] == "io.prometheus.client.MetricFamily":
 			metricFamilies = map[string]*dto.MetricFamily{}
 			unmarshaler := protodelim.UnmarshalOptions{
 				MaxSize: -1,
@@ -105,7 +107,9 @@ func Push(
 				}
 				metricFamilies[mf.GetName()] = mf
 			}
-		} else {
+		case ctErr == nil && ctMediatype == expfmt.OpenMetricsType:
+			metricFamilies, err = decodeOpenMetrics(r.Body, r.Header.Get("Content-Type"))
+		default:
 			// We could do further content-type checks here, but the
 			// fallback for now will anyway be the text format
 			// version 0.0.4, so just go for it and see if it works.
@@ -166,6 +170,31 @@ func Push(
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		instrumentedHandler.ServeHTTP(w, r)
+	}
+}
+
+// decodeOpenMetrics parses a push body in the OpenMetrics text format. The
+// version parameter of the content type picks the parser, and names are
+// validated with the same scheme as pushes in the other formats.
+func decodeOpenMetrics(body io.Reader, contentType string) (map[string]*dto.MetricFamily, error) {
+	format := expfmt.Format(contentType)
+	if ValidationScheme == model.UTF8Validation {
+		format = format.WithEscapingScheme(model.NoEscaping)
+	} else {
+		format = format.WithEscapingScheme(model.UnderscoreEscaping)
+	}
+
+	decoder := expfmt.NewDecoder(body, format)
+	metricFamilies := map[string]*dto.MetricFamily{}
+	for {
+		mf := &dto.MetricFamily{}
+		if err := decoder.Decode(mf); err != nil {
+			if errors.Is(err, io.EOF) {
+				return metricFamilies, nil
+			}
+			return nil, err
+		}
+		metricFamilies[mf.GetName()] = mf
 	}
 }
 

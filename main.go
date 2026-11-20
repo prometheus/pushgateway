@@ -63,6 +63,7 @@ func main() {
 		routePrefix         = app.Flag("web.route-prefix", "Prefix for the internal routes of web endpoints. Defaults to the path of --web.external-url.").Default("").String()
 		enableLifeCycle     = app.Flag("web.enable-lifecycle", "Enable shutdown via HTTP request.").Default("false").Bool()
 		enableAdminAPI      = app.Flag("web.enable-admin-api", "Enable API endpoints for admin control actions.").Default("false").Bool()
+		enableOpenMetrics   = app.Flag("web.enable-openmetrics", "Expose metrics in the OpenMetrics format when the scraper asks for it. That format includes exemplars.").Default("false").Bool()
 		persistenceFile     = app.Flag("persistence.file", "File to persist metrics. If empty, metrics are only kept in memory.").Default("").String()
 		persistenceInterval = app.Flag("persistence.interval", "The minimum interval at which to write out the persistence file.").Default("5m").Duration()
 		pushUnchecked       = app.Flag("push.disable-consistency-check", "Do not check consistency of pushed metrics. DANGEROUS.").Default("false").Bool()
@@ -116,7 +117,8 @@ func main() {
 	r.Get(
 		path.Join(*routePrefix, *metricsPath),
 		promhttp.HandlerFor(g, promhttp.HandlerOpts{
-			ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError),
+			ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelError),
+			EnableOpenMetrics: *enableOpenMetrics,
 		}).ServeHTTP,
 	)
 
