@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -976,5 +977,29 @@ func verifyMetricFamily(t *testing.T, expText string, got *dto.MetricFamily) {
 
 	if string(expProto) != string(gotProto) {
 		t.Errorf("Wanted metric family %v, got %v.", exp, got)
+	}
+}
+
+func TestInvalidBase64JobName(t *testing.T) {
+	mms := MockMetricStore{}
+	handlers := map[string]func(http.ResponseWriter, *http.Request){
+		"push":   Push(&mms, false, true, true, logger),
+		"delete": Delete(&mms, true, logger),
+	}
+	for name, h := range handlers {
+		t.Run(name, func(t *testing.T) {
+			req, err := http.NewRequest("POST", "http://example.org/", &bytes.Buffer{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			w := httptest.NewRecorder()
+			h(w, req.WithContext(ctxWithParams(map[string]string{"job": "dGVzdA.bar"}, req)))
+			if expected, got := http.StatusBadRequest, w.Code; expected != got {
+				t.Errorf("Wanted status code %v, got %v.", expected, got)
+			}
+			if body := w.Body.String(); !strings.Contains(body, `job name "dGVzdA.bar"`) {
+				t.Errorf("Expected the error to quote the job name as sent, got %q.", body)
+			}
+		})
 	}
 }
