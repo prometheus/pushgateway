@@ -64,12 +64,13 @@ func Push(
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		job := route.Param(r.Context(), "job")
 		if jobBase64Encoded {
-			var err error
-			if job, err = decodeBase64(job); err != nil {
+			decoded, err := decodeBase64(job)
+			if err != nil {
 				http.Error(w, fmt.Sprintf("invalid base64 encoding in job name %q: %v", job, err), http.StatusBadRequest)
 				logger.Debug("invalid base64 encoding in job name", "job", job, "err", err.Error())
 				return
 			}
+			job = decoded
 		}
 		labelsString := route.Param(r.Context(), "labels")
 		labels, err := splitLabels(labelsString)
