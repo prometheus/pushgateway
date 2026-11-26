@@ -31,7 +31,7 @@ pushgateway.showDelModal = function(labels, labelsEncoded, panelID, event){
     $('#del-modal-msg').text(
 	'Do you really want to delete all metrics of group {' + components.join(', ') + '}?'
     );
-    $('#del-modal').modal('show');
+    new bootstrap.Modal('#del-modal', {}).show();
 }
 
 pushgateway.showDelAllModal = function(){
@@ -39,7 +39,7 @@ pushgateway.showDelAllModal = function(){
         $('#del-modal-all-msg').text(
             'Do you really want to delete all metrics from all metric groups?'
         );
-        $('#del-all-modal').modal('show');
+        new bootstrap.Modal('#del-all-modal', {}).show();
     }
 }
 
