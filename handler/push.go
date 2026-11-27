@@ -83,6 +83,11 @@ func Push(
 			logger.Debug("job name is required")
 			return
 		}
+		if !model.LabelValue(job).IsValid() {
+			http.Error(w, fmt.Sprintf("improper job name %q", job), http.StatusBadRequest)
+			logger.Debug("improper job name", "job", job)
+			return
+		}
 		labels["job"] = job
 
 		var metricFamilies map[string]*dto.MetricFamily
@@ -196,15 +201,17 @@ func splitLabels(labels string) (map[string]string, error) {
 			strings.HasPrefix(trimmedName, model.ReservedLabelPrefix) {
 			return nil, fmt.Errorf("improper label name %q", trimmedName)
 		}
-		if name == trimmedName {
-			result[unescapedName] = value
-			continue
+		if name != trimmedName {
+			decodedValue, err := decodeBase64(value)
+			if err != nil {
+				return nil, fmt.Errorf("invalid base64 encoding for label %s=%q: %v", trimmedName, value, err)
+			}
+			value = decodedValue
 		}
-		decodedValue, err := decodeBase64(value)
-		if err != nil {
-			return nil, fmt.Errorf("invalid base64 encoding for label %s=%q: %v", trimmedName, value, err)
+		if !model.LabelValue(value).IsValid() {
+			return nil, fmt.Errorf("improper label value for %q", trimmedName)
 		}
-		result[unescapedName] = decodedValue
+		result[unescapedName] = value
 	}
 	return result, nil
 }
